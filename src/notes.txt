@@ -1,0 +1,18 @@
+Menus
+
+Menus drive selection of content and settings of the system
+
+A menu selection can either be an (a) another menu, (b) a setting, or (c) some content
+
+If a menu selection is anohter menu, load that menu and continue
+
+If it's a setting, show the setting choice and once it's selected, go back to the main menu?
+
+If it's content, figure out how to (a) load the content, (b) render the content (c) display the content
+
+
+Types of renderers
+
+TextRenderer
+MenuRenderer
+
