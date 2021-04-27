@@ -34,8 +34,8 @@
 
 #include "SPIFFS.h"
 
-#define EINK154in
-//#define OLED96in
+//#define EINK154in
+#define OLED96in
 
 //#define PlanoConvex20x40
 #define PlanoConvex16x36
@@ -126,6 +126,224 @@ FileRenderer* luke_render;
 FileRenderer* john_render;
 FileRenderer* lord_of_world_render;
 
+unsigned long new_place = 0;
+
+void (*resetFunc)(void) = 0; //declare reset function @ address 0
+
+// TODO: Refactor this out into a proper abstraction (probably at least two actually) -cojo
+#include <BLEDevice.h>
+#include <BLEServer.h>
+#include <BLEUtils.h>
+#define SERVICE_UUID "db65598c-04b1-469f-833f-517f285db256"
+#define CHARACTERISTIC_UUID "ed0c3501-a3cb-499f-93ad-2acbaa971d63"
+
+BLEServer *server = NULL;
+bool deviceConnected = false;
+bool wasDeviceConnected = false;
+
+class ServerCallbacks : public BLEServerCallbacks
+{
+  void onConnect(BLEServer *server)
+  {
+    DEBUG_LN("BLE client connected to our server!");
+    deviceConnected = true;
+  }
+
+  void onDisconnect(BLEServer *server)
+  {
+    DEBUG_LN("BLE client disconnected from our server!");
+    deviceConnected = false;
+  }
+};
+
+class CharacteristicCallbacks : public BLECharacteristicCallbacks
+{
+  void onWrite(BLECharacteristic *characteristic)
+  {
+    std::string value = characteristic->getValue();
+    if (value.length() > 0)
+    {
+      DEBUG_LN("*********");
+      DEBUG_F("New value: %.2x \n", value[0]);
+      DEBUG_LN("*********");
+    }
+
+    switch (value.data()[0])
+    {
+    case SETUP:
+      prefs.clear();
+      DEBUG_LN("CLEARED PREFERENCES!");
+      break;
+    case STOP:
+      DEBUG_LN("RESETTING BOARD BY SEG FAULT!");
+      resetFunc();
+      break;
+    case CHANNEL_MINUS:
+      // TODO: Check bounds
+      //if (start_x != 0) {
+      if (area_in_browsing == MAIN_MENU_AREA)
+        local_x_offset--;
+      else
+      {
+        switch (area_in_browsing)
+        {
+        case MATTHEW_AREA:
+          matt_place = matt_prev_place;
+          prefs.putULong("matt-pr-place", matt_place);
+
+          break;
+        case MARK_AREA:
+          mark_place = mark_prev_place;
+          prefs.putULong("mark-pr-place", mark_place);
+
+          break;
+        case LUKE_AREA:
+          luke_place = luke_prev_place;
+          prefs.putULong("luke-pr-place", luke_place);
+
+          break;
+        case JOHN_AREA:
+          john_place = john_prev_place;
+          prefs.putULong("john-pr-place", john_place);
+
+          break;
+        case LORD_OF_THE_WORLD_AREA:
+          lord_world_place = lord_world_prev_place;
+          prefs.putULong("lord-pr-place", lord_world_place);
+
+          break;
+        }
+      }
+      update_box = 1;
+      //}
+      break;
+    case CHANNEL_PLUS:
+      // TODO:
+      // Check to be sure we don't go off the end of the screen
+      //if (end_x != my_display->get_x()) {
+      if (area_in_browsing == MAIN_MENU_AREA)
+        local_x_offset++;
+      else
+      {
+        switch (area_in_browsing)
+        {
+        case MATTHEW_AREA:
+          matt_prev_place = matt_place;
+          matt_place = new_place;
+          prefs.putULong("matt-pr-place", matt_prev_place);
+          prefs.putULong("matt-place", matt_place);
+
+          break;
+        case MARK_AREA:
+          mark_prev_place = mark_place;
+          mark_place = new_place;
+          prefs.putULong("mark-pr-place", mark_prev_place);
+          prefs.putULong("mark-place", mark_place);
+
+          break;
+        case LUKE_AREA:
+          luke_prev_place = luke_place;
+          luke_place = new_place;
+          prefs.putULong("luke-pr-place", luke_prev_place);
+          prefs.putULong("luke-place", luke_place);
+
+          break;
+        case JOHN_AREA:
+          john_prev_place = john_place;
+          john_place = new_place;
+          DEBUG_VAR(john_prev_place);
+          DEBUG_LN(" is the john old place");
+          DEBUG_VAR(john_place);
+          DEBUG_LN(" is the john new place");
+          prefs.putULong("john-pr-place", john_prev_place);
+          prefs.putULong("john-place", john_place);
+
+          break;
+        case LORD_OF_THE_WORLD_AREA:
+          lord_world_prev_place = lord_world_place;
+          lord_world_place = new_place;
+          prefs.putULong("lord-pr-place", lord_world_prev_place);
+          prefs.putULong("lord-place", lord_world_place);
+
+          break;
+        }
+      }
+      update_box = 1;
+      //}
+      break;
+    case PREV:
+      // TODO: Check bounds
+      //if (start_y != 0) {
+      if (area_in_browsing == MAIN_MENU_AREA)
+        local_y_offset--;
+      else
+      {
+      }
+      update_box = 1;
+      //}
+      break;
+    case NEXT:
+      // TODO: Check to be sure we don't go off the end of the screen
+      // if (end_y != my_display->get_y()) {
+      if (area_in_browsing == MAIN_MENU_AREA)
+        local_y_offset++;
+      else
+      {
+      }
+      update_box = 1;
+      //}
+      break;
+    case ENTER:
+      prefs.putInt("x-offset", local_x_offset);
+      prefs.putInt("y-offset", local_y_offset);
+      DEBUG_LN("Saving off x and y offset to preferences");
+      DEBUG_VAR(local_x_offset);
+      DEBUG_LN(" is the x offset");
+      DEBUG_VAR(local_y_offset);
+      DEBUG_LN(" is the y offset");
+      update_box = 1;
+      break;
+    case ONE:
+      area_in_browsing = MATTHEW_AREA;
+      prefs.putInt("browse-area", area_in_browsing);
+      update_box = 1;
+
+      break;
+    case TWO:
+      area_in_browsing = MARK_AREA;
+      prefs.putInt("browse-area", area_in_browsing);
+      update_box = 1;
+
+      break;
+    case THREE:
+      area_in_browsing = LUKE_AREA;
+      prefs.putInt("browse-area", area_in_browsing);
+      update_box = 1;
+
+      break;
+    case FOUR:
+      area_in_browsing = JOHN_AREA;
+      prefs.putInt("browse-area", area_in_browsing);
+      update_box = 1;
+      break;
+    case FIVE:
+      area_in_browsing = LORD_OF_THE_WORLD_AREA;
+      prefs.putInt("browse-area", area_in_browsing);
+
+      update_box = 1;
+      break;
+    case BACK:
+      area_in_browsing = MAIN_MENU_AREA;
+      prefs.putInt("browse-area", area_in_browsing);
+      update_box = 1;
+      break;
+    default:
+      break;
+    }
+  }
+};
+// END TOOD "Refactor this out... -cojo"
+
 void setup(void)
 {
   if (Serial) Serial.begin(115200);
@@ -142,6 +360,28 @@ void setup(void)
   if(!SPIFFS.begin()){ 
     DEBUG_LN("An Error has occurred while mounting SPIFFS");  
   }
+
+  // TODO: Refactor this out into a proper abstraction (probably at least two actually) -cojo
+  BLEDevice::init("Sindarin (April)");
+  server = BLEDevice::createServer();
+  server->setCallbacks(new ServerCallbacks());
+
+  BLEService *service = server->createService(BLEUUID(SERVICE_UUID));
+
+  BLECharacteristic *characteristic = service->createCharacteristic(
+      BLEUUID(CHARACTERISTIC_UUID),
+      BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_WRITE);
+
+  characteristic->setCallbacks(new CharacteristicCallbacks());
+
+  characteristic->setValue("Hello World");
+
+  service->start();
+
+  BLEAdvertising *advertising = server->getAdvertising();
+  advertising->addServiceUUID(service->getUUID());
+  advertising->start();
+  // END TODO "Refactor this out... -cojo"
 
 #ifdef EINK154in
   my_display = new DisplayEink154in();
@@ -212,8 +452,6 @@ void setup(void)
   lord_of_world_render = new FileRenderer(my_optics, my_display, "/lordof.txt", lord_world_place, lord_world_prev_place);   
 }
 
-unsigned long new_place = 0;
-
 const int MAX_ANALOG_VAL = 4095;
 const float MAX_BATTERY_VOLTAGE = 4.2; // Max LiPoly voltage of a 3.7 battery is 4.2
 
@@ -235,9 +473,6 @@ String get_battery_life() {
   return battery_output;
 }
 
-void(* resetFunc) (void) = 0; //declare reset function @ address 0
-
-
 void loop(void) {
   //int i;
   String menu_string;
@@ -249,6 +484,21 @@ void loop(void) {
   //my_display->draw_box(34, 12, 94, 52);
   //delay(10000);
   //FileRenderer* current_render = 0;
+
+  // TODO: Refactor this out into a proper abstraction (probably at least two actually) -cojo
+  if (!deviceConnected && wasDeviceConnected)
+  {
+    delay(500);                 // give the bluetooth stack the chance to get things ready for restart
+    server->startAdvertising(); // restart advertising
+    DEBUG_LN("Restarting bluetooth advertising");
+    wasDeviceConnected = deviceConnected;
+  }
+  if (deviceConnected && !wasDeviceConnected)
+  {
+    // do any additional desired stuff here on connecting
+    wasDeviceConnected = deviceConnected;
+  }
+  // END TODO "Refactor this out... -cojo"
 
   if (update_box) {
     //my_display->draw_text("Finally", 50, 50);
