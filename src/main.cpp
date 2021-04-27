@@ -81,14 +81,32 @@ IRRemoteInput *remote_input;
 // Whether to redisplay the box or not
 int update_box = 1;
 
+#define NUM_READING_BOOKS 12
+
+#define GOSPEL_MATTHEW 0
+#define GOSPEL_MARK 1
+#define GOSPEL_JOHN 2
+#define LORD_OF_THE_WORLD 3
+#define BODY_SNATCHER 4
+#define LAST_QUESTION 5
+#define LIBRARY_BABEL 6
+#define RATS_WALLS 7
+#define SOFT_RAINS 8
+#define SORRY_DAY 9
+#define SPIRITUAL_SECRET 10
+#define TELL_TALE_HEART 11
+
+const char* reading_book_names[NUM_READING_BOOKS] = {"Gospel Matthew", "Gospel Mark", "Gospel John", "Lord of the World", "Body Snatcher", "Last Question", "Library Babel", "Rats Walls", "Soft Rains", "Sorry Dan", "Spiritual Secret", "Tell Tale Heart" };
+const char* reading_book_abrev[NUM_READING_BOOKS] = {"matt", "mark", "john", "lord", "body", "last", "lib", "rats", "soft", "sorry", "spirit", "tell" };
+const char* reading_book_file_names[NUM_READING_BOOKS] = {"/matt-all.txt", "/mark-all.txt", "/john-all.txt", "/lordof.txt", "/body-snatcher.txt", "/last-question.txt", "/library-babel.txt", "/rats-walls.txt", "/soft-rains.txt", "/sorry-dan.txt", "/spiritual-secret.txt", "/tell-tale-heart.txt" };
+unsigned long reading_book_places[NUM_READING_BOOKS] = {0,0,0,0,0,0,0,0,0,0,0,0};
+unsigned long reading_book_places_prev[NUM_READING_BOOKS] = {0,0,0,0,0,0,0,0,0,0,0,0};
+FileRenderer* book_renderers[NUM_READING_BOOKS];
+
 // Areas the user could be in
-#define MAIN_MENU_AREA 0
-#define MATTHEW_AREA 1
-#define MARK_AREA 2
-#define LUKE_AREA 3
-#define JOHN_AREA 4
-#define LORD_OF_THE_WORLD_AREA 5
-#define SETTINGS_AREA 6
+
+#define SETTINGS_AREA (NUM_READING_BOOKS)
+#define MAIN_MENU_AREA (NUM_READING_BOOKS + 1)
 
 // Here are all the preferences that we will save off
 // Eventually we should put this in an array so it's
@@ -98,43 +116,9 @@ Preferences prefs;
 int local_x_offset = 0;
 int local_y_offset = 0;
 int area_in_browsing = MAIN_MENU_AREA;
-// These, for now, will be the lseek offsets into the files
-// stored locally on device.
-unsigned long matt_place = 0;
-unsigned long mark_place = 0;
-unsigned long luke_place = 0;
-unsigned long john_place = 0;
-unsigned long lord_world_place = 0;
-
-unsigned long matt_prev_place = 0;
-unsigned long mark_prev_place = 0;
-unsigned long luke_prev_place = 0;
-unsigned long john_prev_place = 0;
-unsigned long lord_world_prev_place = 0;
 
 
-// Menu Strings
-#define MATT_MENU_ITEM "Matthew"
-#define MARK_MENU_ITEM "Mark"
-#define LUKE_MENU_ITEM "Luke"
-#define JOHN_MENU_ITEM "John"
-#define LORD_OF_THE_WORLD_MENU_ITEM "Lord of the World"
-#define SETTINGS_MENU_ITEM "!!Settings!!"
-#define TEMP_MENU_ITEM_1 "Temp 1"
-#define TEMP_MENU_ITEM_2 "Temp 2"
-#define TEMP_MENU_ITEM_3 "Temp 3"
-#define TEMP_MENU_ITEM_4 "Temp 4"
-#define TEMP_MENU_ITEM_5 "Temp 5"
-#define TEMP_MENU_ITEM_6 "Temp 6"
-#define TEMP_MENU_ITEM_7 "Temp 7"
-#define TEMP_MENU_ITEM_8 "Temp 8"
-#define TEMP_MENU_ITEM_9 "Temp 9"
-
-FileRenderer* matt_render;
-FileRenderer* mark_render;
-FileRenderer* luke_render;
-FileRenderer* john_render;
-FileRenderer* lord_of_world_render;
+#define SETTINGS_MENU_TEXT "**SETTINGS**"
 
 unsigned long new_place = 0;
 
@@ -197,33 +181,9 @@ class CharacteristicCallbacks : public BLECharacteristicCallbacks
           if (area_in_browsing == SETTINGS_AREA)
             local_x_offset--;
           else {
-            switch (area_in_browsing) {
-              case MATTHEW_AREA:
-                 matt_place = matt_prev_place;
-                 prefs.putULong("matt-pr-place", matt_place);
-                
-              break;
-              case MARK_AREA:
-                 mark_place = mark_prev_place;
-                 prefs.putULong("mark-pr-place", mark_place);
-            
-              break;
-              case LUKE_AREA:
-                 luke_place = luke_prev_place;
-                 prefs.putULong("luke-pr-place", luke_place);
-            
-              break;
-              case JOHN_AREA:
-                 john_place = john_prev_place;
-                 prefs.putULong("john-pr-place", john_place);
-            
-              break;
-              case LORD_OF_THE_WORLD_AREA:
-                 lord_world_place = lord_world_prev_place;
-                 prefs.putULong("lord-pr-place", lord_world_place);
-          
-              break;
-            }
+            String prefs_name = String(reading_book_abrev[area_in_browsing-1]) + "-pr-place";
+            reading_book_places[area_in_browsing] = reading_book_places_prev[area_in_browsing];
+            prefs.putULong(prefs_name.c_str(), reading_book_places[area_in_browsing]);
           }
           update_box = 1;
           //}
@@ -235,47 +195,13 @@ class CharacteristicCallbacks : public BLECharacteristicCallbacks
          if (area_in_browsing == SETTINGS_AREA)
             local_x_offset++;
           else {
-           switch (area_in_browsing) {
-              case MATTHEW_AREA:
-                matt_prev_place = matt_place;
-                matt_place = new_place;
-                prefs.putULong("matt-pr-place", matt_prev_place);
-                prefs.putULong("matt-place", matt_place);
-               
-              break;
-              case MARK_AREA:
-                mark_prev_place = mark_place;
-                mark_place = new_place;
-                prefs.putULong("mark-pr-place", mark_prev_place);
-                prefs.putULong("mark-place", mark_place);
-             
-              break;
-              case LUKE_AREA:
-                luke_prev_place = luke_place;
-                luke_place = new_place;
-                prefs.putULong("luke-pr-place", luke_prev_place);
-                prefs.putULong("luke-place", luke_place);
-                
-              break;
-              case JOHN_AREA:
-                john_prev_place = john_place;
-                john_place = new_place;
-                DEBUG_VAR(john_prev_place);
-                DEBUG_LN(" is the john old place");
-                DEBUG_VAR(john_place);
-                DEBUG_LN(" is the john new place");
-                prefs.putULong("john-pr-place", john_prev_place);
-                prefs.putULong("john-place", john_place);
-              
-              break;
-              case LORD_OF_THE_WORLD_AREA:
-                lord_world_prev_place = lord_world_place;
-                lord_world_place = new_place;
-                prefs.putULong("lord-pr-place", lord_world_prev_place);
-                prefs.putULong("lord-place", lord_world_place);
-               
-              break;
-           }
+            String prefs_prev_name = String(reading_book_abrev[area_in_browsing]) + "-pr-place";
+            String prefs_name = String(reading_book_abrev[area_in_browsing]) + "-place";
+
+            reading_book_places_prev[area_in_browsing] = reading_book_places[area_in_browsing];
+            reading_book_places[area_in_browsing] = new_place;
+            prefs.putULong(prefs_name.c_str(), reading_book_places[area_in_browsing]);
+            prefs.putULong(prefs_prev_name.c_str(), reading_book_places_prev[area_in_browsing]);
           }
           update_box = 1;
           //}
@@ -334,53 +260,9 @@ class CharacteristicCallbacks : public BLECharacteristicCallbacks
           else if (area_in_browsing == MAIN_MENU_AREA) {
             // CAN FIX THIS NOW TO JUST DO ONE ASSIGNMENT BASED ON THE 
             // RETURN RESULT OF THE MENU!
-            switch (main_menu->get_curr_selection() + 1) {
-              case 1:
-                area_in_browsing = MATTHEW_AREA;
-                prefs.putInt("browse-area", area_in_browsing);
-                update_box = 1;
-                break;
-              case 2:
-                area_in_browsing = MARK_AREA;
-                prefs.putInt("browse-area", area_in_browsing);
-                update_box = 1;
-                break;
-              case 3:
-                area_in_browsing = LUKE_AREA;
-                prefs.putInt("browse-area", area_in_browsing);
-                update_box = 1;
-                break;
-              case 4:
-                area_in_browsing = JOHN_AREA;
-                prefs.putInt("browse-area", area_in_browsing);
-                update_box = 1;
-                break;
-              case 5:
-                area_in_browsing = LORD_OF_THE_WORLD_AREA;
-                prefs.putInt("browse-area", area_in_browsing);
-                update_box = 1;
-                break;
-              case 6:
-                area_in_browsing = SETTINGS_AREA;
-                prefs.putInt("browse-area", area_in_browsing);
-                update_box = 1;
-                break;
-             /// To be added
-              case 7:
-
-              case 8:
-
-              case 9:
-
-              case 10:
-
-              case 11:
-
-              case 12:
-
-              case 13:
-                break;
-            }
+            area_in_browsing = main_menu->get_curr_selection() + 1;
+            prefs.putInt("browse-area", area_in_browsing);
+            update_box = 1;
           }
           break;
         case BACK:
@@ -453,22 +335,9 @@ void setup(void)
 
   box_renderer = new Renderer(my_optics, my_display);
 
-  main_menu = new MenuSystem();
-  main_menu->add_menu_item(MATT_MENU_ITEM);
-  main_menu->add_menu_item(MARK_MENU_ITEM);
-  main_menu->add_menu_item(LUKE_MENU_ITEM);
-  main_menu->add_menu_item(JOHN_MENU_ITEM);
-  main_menu->add_menu_item(LORD_OF_THE_WORLD_MENU_ITEM);
-  main_menu->add_menu_item(SETTINGS_MENU_ITEM);
-  main_menu->add_menu_item(TEMP_MENU_ITEM_1);
-  main_menu->add_menu_item(TEMP_MENU_ITEM_2);
-  main_menu->add_menu_item(TEMP_MENU_ITEM_3);
-  main_menu->add_menu_item(TEMP_MENU_ITEM_4);
-  main_menu->add_menu_item(TEMP_MENU_ITEM_5);
-  main_menu->add_menu_item(TEMP_MENU_ITEM_6);
-  main_menu->add_menu_item(TEMP_MENU_ITEM_7);
-  main_menu->add_menu_item(TEMP_MENU_ITEM_8);
-  main_menu->add_menu_item(TEMP_MENU_ITEM_9);
+  
+  for (int plc = 0; plc < NUM_READING_BOOKS; plc++) {
+  }
 
   remote_input = new IRRemoteInput();
   remote_input->start_remote(IR_REMOTE_INPUT_PIN);
@@ -480,22 +349,25 @@ void setup(void)
   // ugly way to clear the screen
   local_x_offset = prefs.getInt("x-offset");
   local_y_offset = prefs.getInt("y-offset");
-  area_in_browsing = prefs.getInt("browse-area");
-  matt_place = prefs.getULong("matt-place");
-  mark_place = prefs.getULong("mark-place");
-  luke_place = prefs.getULong("luke-place");
-  john_place = prefs.getULong("john-place");
-  lord_world_place = prefs.getULong("lord-place");
+  area_in_browsing = prefs.getInt("browse-area", MAIN_MENU_AREA);
 
-  matt_prev_place = prefs.getULong("matt-pr-place");
-  mark_prev_place = prefs.getULong("mark-pr-place");
-  luke_prev_place = prefs.getULong("luke-pr-place");
-  john_prev_place = prefs.getULong("john-pr-place");
-  lord_world_prev_place = prefs.getULong("lord-pr-place");
-  
   DEBUG_VAR(area_in_browsing);
   DEBUG_LN(" was the area read in");
 
+
+  main_menu = new MenuSystem();
+
+  for (int plc = 0; plc < NUM_READING_BOOKS; plc++) {
+      String name = String(reading_book_abrev[plc]) + "-place";
+      String name_prev = String(reading_book_abrev[plc]) + "-pr-place";
+      main_menu->add_menu_item(reading_book_names[plc]);
+      reading_book_places[plc] = prefs.getULong(name.c_str());
+      reading_book_places_prev[plc] = prefs.getULong(name_prev.c_str());
+      book_renderers[plc] = new FileRenderer(my_optics, my_display, reading_book_file_names[plc], reading_book_places[plc], reading_book_places_prev[plc]);
+  }
+  
+  main_menu->add_menu_item(SETTINGS_MENU_TEXT);
+ 
   //box_renderer->render_max_box_with_text(local_x_offset,local_y_offset, "The Lord is my shepherd\n");
   box_renderer->render_max_box(local_x_offset, local_y_offset);
   delay(250);
@@ -504,13 +376,7 @@ void setup(void)
   //box_renderer->render_max_box(local_x_offset, local_y_offset);
   my_display->set_partial_refresh();
 
-  //box_renderer->render_max_box_with_text(local_x_offset, local_y_offset, main_menu->get_whole_menu_as_string());
-
-  matt_render = new FileRenderer(my_optics, my_display, "/matt-all.txt", matt_place, matt_prev_place);
-  mark_render = new FileRenderer(my_optics, my_display, "/mark-all.txt", mark_place, mark_prev_place);
-  luke_render = new FileRenderer(my_optics, my_display, "/luke-all.txt", luke_place, luke_prev_place);
-  john_render = new FileRenderer(my_optics, my_display, "/john-all.txt", john_place, john_prev_place);
-  lord_of_world_render = new FileRenderer(my_optics, my_display, "/lordof.txt", lord_world_place, lord_world_prev_place);   
+  //box_renderer->render_max_box_with_text(local_x_offset, local_y_offset, main_menu->get_whole_menu_as_string();
 }
 
 const int MAX_ANALOG_VAL = 4095;
@@ -568,6 +434,7 @@ void loop(void) {
     DEBUG_LN("UPDATING THE BOX!");
 
     switch (area_in_browsing) {
+      // handle all non-content here, default will be all content
       case MAIN_MENU_AREA:
         menu_string = main_menu->get_menu_range_as_string(cur_menu_page * NUM_LINES_PER_MENU_PAGE + 1, cur_menu_page * NUM_LINES_PER_MENU_PAGE + 5);
         DEBUG_LN("UPDATING THE MENU WITH CURR MENU_PAGE: ");
@@ -577,37 +444,20 @@ void loop(void) {
         total_to_display = menu_string + String("\n\n") + bat_life;
         box_renderer->render_max_box_with_text(local_x_offset, local_y_offset, total_to_display);
         break;
-      case MATTHEW_AREA:
-          new_place = matt_render->render_page_with_box(matt_place, local_x_offset, local_y_offset);
-        //current_render = matt_render;
-        break;
-      case MARK_AREA:
-          new_place = mark_render->render_page_with_box(mark_place, local_x_offset, local_y_offset);
-        //current_render = mark_render;
-        break;
-      case LUKE_AREA:
-          new_place = luke_render->render_page_with_box(luke_place, local_x_offset, local_y_offset);
-        //current_render = luke_render;
-        break;
-      case JOHN_AREA:
-          DEBUG_VAR(john_place);
-          DEBUG_LN(" is where we are rendering JOHN");
-          new_place = john_render->render_page_with_box(john_place, local_x_offset, local_y_offset);
-          DEBUG_VAR(new_place);
-          DEBUG_LN(" is the new place in JOHN");
-        //current_render = john_render;
-        break;
-      case LORD_OF_THE_WORLD_AREA:
-        new_place = lord_of_world_render->render_page_with_box(lord_world_place, local_x_offset, local_y_offset);
-        //current_render = lord_of_world_render;
-        break;
       case SETTINGS_AREA:
         menu_string = "Press arrows to move\nbox around to your\nliking. Then press\nenter when done!\nHave a nice day.\n";
         bat_life = get_battery_life();
         total_to_display = menu_string + String("\n\n") + bat_life;
         box_renderer->render_max_box_with_text(local_x_offset, local_y_offset, total_to_display);
         break;
-
+      // All the contents are the rest of the menu items
+      default:
+          DEBUG_LN(" Rendering some text");
+          new_place = book_renderers[area_in_browsing]->render_page_with_box(reading_book_places[area_in_browsing], local_x_offset, local_y_offset);
+          DEBUG_VAR(new_place);
+          DEBUG_LN(" is the new place in the text");
+        //current_render = john_render;
+        break;
     }
     //my_display->draw_box(start_x, start_y, end_x, end_y);
     update_box = 0;
@@ -619,7 +469,7 @@ void loop(void) {
 
   if (remote_input->check_release()) {
     switch(remote_input->get_code()) {
-        case SETUP:
+       case SETUP:
           prefs.clear();
           DEBUG_LN("CLEARED PREFERENCES!");
           break;
@@ -633,33 +483,9 @@ void loop(void) {
           if (area_in_browsing == SETTINGS_AREA)
             local_x_offset--;
           else {
-            switch (area_in_browsing) {
-              case MATTHEW_AREA:
-                 matt_place = matt_prev_place;
-                 prefs.putULong("matt-pr-place", matt_place);
-                
-              break;
-              case MARK_AREA:
-                 mark_place = mark_prev_place;
-                 prefs.putULong("mark-pr-place", mark_place);
-            
-              break;
-              case LUKE_AREA:
-                 luke_place = luke_prev_place;
-                 prefs.putULong("luke-pr-place", luke_place);
-            
-              break;
-              case JOHN_AREA:
-                 john_place = john_prev_place;
-                 prefs.putULong("john-pr-place", john_place);
-            
-              break;
-              case LORD_OF_THE_WORLD_AREA:
-                 lord_world_place = lord_world_prev_place;
-                 prefs.putULong("lord-pr-place", lord_world_place);
-          
-              break;
-            }
+            String prefs_name = String(reading_book_abrev[area_in_browsing]) + "-pr-place";
+            reading_book_places[area_in_browsing] = reading_book_places_prev[area_in_browsing];
+            prefs.putULong(prefs_name.c_str(), reading_book_places[area_in_browsing]);
           }
           update_box = 1;
           //}
@@ -671,47 +497,13 @@ void loop(void) {
          if (area_in_browsing == SETTINGS_AREA)
             local_x_offset++;
           else {
-           switch (area_in_browsing) {
-              case MATTHEW_AREA:
-                matt_prev_place = matt_place;
-                matt_place = new_place;
-                prefs.putULong("matt-pr-place", matt_prev_place);
-                prefs.putULong("matt-place", matt_place);
-               
-              break;
-              case MARK_AREA:
-                mark_prev_place = mark_place;
-                mark_place = new_place;
-                prefs.putULong("mark-pr-place", mark_prev_place);
-                prefs.putULong("mark-place", mark_place);
-             
-              break;
-              case LUKE_AREA:
-                luke_prev_place = luke_place;
-                luke_place = new_place;
-                prefs.putULong("luke-pr-place", luke_prev_place);
-                prefs.putULong("luke-place", luke_place);
-                
-              break;
-              case JOHN_AREA:
-                john_prev_place = john_place;
-                john_place = new_place;
-                DEBUG_VAR(john_prev_place);
-                DEBUG_LN(" is the john old place");
-                DEBUG_VAR(john_place);
-                DEBUG_LN(" is the john new place");
-                prefs.putULong("john-pr-place", john_prev_place);
-                prefs.putULong("john-place", john_place);
-              
-              break;
-              case LORD_OF_THE_WORLD_AREA:
-                lord_world_prev_place = lord_world_place;
-                lord_world_place = new_place;
-                prefs.putULong("lord-pr-place", lord_world_prev_place);
-                prefs.putULong("lord-place", lord_world_place);
-               
-              break;
-           }
+            String prefs_prev_name = String(reading_book_abrev[area_in_browsing]) + "-pr-place";
+            String prefs_name = String(reading_book_abrev[area_in_browsing]) + "-place";
+
+            reading_book_places_prev[area_in_browsing] = reading_book_places[area_in_browsing];
+            reading_book_places[area_in_browsing] = new_place;
+            prefs.putULong(prefs_name.c_str(), reading_book_places[area_in_browsing]);
+            prefs.putULong(prefs_prev_name.c_str(), reading_book_places_prev[area_in_browsing]);
           }
           update_box = 1;
           //}
@@ -770,53 +562,9 @@ void loop(void) {
           else if (area_in_browsing == MAIN_MENU_AREA) {
             // CAN FIX THIS NOW TO JUST DO ONE ASSIGNMENT BASED ON THE 
             // RETURN RESULT OF THE MENU!
-            switch (main_menu->get_curr_selection() + 1) {
-              case 1:
-                area_in_browsing = MATTHEW_AREA;
-                prefs.putInt("browse-area", area_in_browsing);
-                update_box = 1;
-                break;
-              case 2:
-                area_in_browsing = MARK_AREA;
-                prefs.putInt("browse-area", area_in_browsing);
-                update_box = 1;
-                break;
-              case 3:
-                area_in_browsing = LUKE_AREA;
-                prefs.putInt("browse-area", area_in_browsing);
-                update_box = 1;
-                break;
-              case 4:
-                area_in_browsing = JOHN_AREA;
-                prefs.putInt("browse-area", area_in_browsing);
-                update_box = 1;
-                break;
-              case 5:
-                area_in_browsing = LORD_OF_THE_WORLD_AREA;
-                prefs.putInt("browse-area", area_in_browsing);
-                update_box = 1;
-                break;
-              case 6:
-                area_in_browsing = SETTINGS_AREA;
-                prefs.putInt("browse-area", area_in_browsing);
-                update_box = 1;
-                break;
-             /// To be added
-              case 7:
-
-              case 8:
-
-              case 9:
-
-              case 10:
-
-              case 11:
-
-              case 12:
-
-              case 13:
-                break;
-            }
+            area_in_browsing = main_menu->get_curr_selection();
+            prefs.putInt("browse-area", area_in_browsing);
+            update_box = 1;
           }
           break;
         case BACK:
