@@ -290,7 +290,7 @@ void setup(void)
    //prefs.clear();
 
     // Launch SPIFFS file system  
-  if(!SPIFFS.begin()){ 
+  if(!SPIFFS.begin(false, "/spiffs", NUM_READING_BOOKS, NULL)){ 
     DEBUG_LN("An Error has occurred while mounting SPIFFS");  
   }
 
