@@ -89,26 +89,27 @@ BLERemoteInput *ble_remote_input;
 // Whether to redisplay the box or not
 int update_box = 1;
 
-#define NUM_READING_BOOKS 12
+#define NUM_READING_BOOKS 13
 
 #define GOSPEL_MATTHEW 0
 #define GOSPEL_MARK 1
-#define GOSPEL_JOHN 2
-#define LORD_OF_THE_WORLD 3
-#define BODY_SNATCHER 4
-#define LAST_QUESTION 5
-#define LIBRARY_BABEL 6
-#define RATS_WALLS 7
-#define SOFT_RAINS 8
-#define SORRY_DAY 9
-#define SPIRITUAL_SECRET 10
-#define TELL_TALE_HEART 11
+#define GOSPEL_LUKE 2
+#define GOSPEL_JOHN 3
+#define LORD_OF_THE_WORLD 4
+#define BODY_SNATCHER 5
+#define LAST_QUESTION 6
+#define LIBRARY_BABEL 7
+#define RATS_WALLS 8
+#define SOFT_RAINS 9
+#define SORRY_DAY 10
+#define SPIRITUAL_SECRET 11
+#define TELL_TALE_HEART 12
 
-const char* reading_book_names[NUM_READING_BOOKS] = {"Gospel Matthew", "Gospel Mark", "Gospel John", "Lord of the World", "Body Snatcher", "Last Question", "Library Babel", "Rats Walls", "Soft Rains", "Sorry Dan", "Spiritual Secret", "Tell Tale Heart" };
-const char* reading_book_abrev[NUM_READING_BOOKS] = {"matt", "mark", "john", "lord", "body", "last", "lib", "rats", "soft", "sorry", "spirit", "tell" };
-const char* reading_book_file_names[NUM_READING_BOOKS] = {"/matt-all.txt", "/mark-all.txt", "/john-all.txt", "/lordof.txt", "/body-snatcher.txt", "/last-question.txt", "/library-babel.txt", "/rats-walls.txt", "/soft-rains.txt", "/sorry-dan.txt", "/spiritual-secret.txt", "/tell-tale-heart.txt" };
-unsigned long reading_book_places[NUM_READING_BOOKS] = {0,0,0,0,0,0,0,0,0,0,0,0};
-unsigned long reading_book_places_prev[NUM_READING_BOOKS] = {0,0,0,0,0,0,0,0,0,0,0,0};
+const char* reading_book_names[NUM_READING_BOOKS] = {"Gospel Matthew", "Gospel Mark", "Gospel Luke", "Gospel John", "Lord of the World", "Body Snatcher", "Last Question", "Library Babel", "Rats Walls", "Soft Rains", "Sorry Dan", "Spiritual Secret", "Tell Tale Heart" };
+const char* reading_book_abrev[NUM_READING_BOOKS] = {"matt", "mark", "luke", "john", "lord", "body", "last", "lib", "rats", "soft", "sorry", "spirit", "tell" };
+const char* reading_book_file_names[NUM_READING_BOOKS] = {"/matt-all.txt", "/mark-all.txt", "/luke-all.txt", "/john-all.txt", "/lordof.txt", "/body-snatcher.txt", "/last-question.txt", "/library-babel.txt", "/rats-walls.txt", "/soft-rains.txt", "/sorry-dan.txt", "/spiritual-secret.txt", "/tell-tale-heart.txt" };
+unsigned long reading_book_places[NUM_READING_BOOKS] = {0,0,0,0,0,0,0,0,0,0,0,0,0};
+unsigned long reading_book_places_prev[NUM_READING_BOOKS] = {0,0,0,0,0,0,0,0,0,0,0,0,0};
 FileRenderer* book_renderers[NUM_READING_BOOKS];
 
 // Areas the user could be in
