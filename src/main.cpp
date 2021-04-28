@@ -38,7 +38,8 @@
 #define OLED96in
 
 //#define PlanoConvex20x40
-#define PlanoConvex16x36
+//#define PlanoConvex16x36
+#define Hastings20x40_3
 
 #include "Displays/AllDisplays.hpp"
 #include "Optics/AllOptics.hpp"
@@ -72,6 +73,10 @@ OpticsPlanoConvex20mmX40mm* my_optics;
 
 #ifdef PlanoConvex16x36
 OpticsPlanoConvex16mmX36mm* my_optics;
+#endif
+
+#ifdef Hastings20x40_3
+OpticsHastings20mmX40_3mm* my_optics;
 #endif
 
 Renderer* box_renderer;
@@ -163,6 +168,10 @@ void setup(void)
   
 #ifdef PlanoConvex16x36
   my_optics = new OpticsPlanoConvex16mmX36mm();
+#endif
+
+#ifdef Hastings20x40_3
+  my_optics = new OpticsHastings20mmX40_3mm();
 #endif
 
   box_renderer = new Renderer(my_optics, my_display);

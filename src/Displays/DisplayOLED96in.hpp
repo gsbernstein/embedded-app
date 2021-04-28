@@ -12,8 +12,8 @@
 #define OLED96in_X_PIXELS 128
 #define OLED96in_Y_PIXELS 64
 
-#define OLED96in_WIDTH_IN_MM 25
-#define OLED96in_HEIGHT_IN_MM 14
+#define OLED96in_WIDTH_IN_MM 22
+#define OLED96in_HEIGHT_IN_MM 11
 
 
 class DisplayOLED96in : public DisplaySystem {
