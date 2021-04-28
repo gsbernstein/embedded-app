@@ -45,7 +45,9 @@
 #include "Renderers/Renderer.hpp"
 #include "Renderers/FileRenderer.hpp"
 #include "Menus/MenuSystem.hpp"
+#include "Inputs/RemoteInput.hpp"
 #include "Inputs/IRRemoteInput.hpp"
+#include "Inputs/BLERemoteInput.hpp"
 
 #include "sindarin-debug.h"
 
@@ -74,7 +76,8 @@ OpticsPlanoConvex16mmX36mm* my_optics;
 
 Renderer* box_renderer;
 MenuSystem* main_menu;
-IRRemoteInput *remote_input;
+IRRemoteInput *ir_remote_input;
+BLERemoteInput *ble_remote_input;
 
 #define IR_REMOTE_INPUT_PIN 13
 
@@ -127,156 +130,6 @@ void (*resetFunc)(void) = 0; //declare reset function @ address 0
 int cur_menu_page = 0;
 #define NUM_LINES_PER_MENU_PAGE 5
 
-// TODO: Refactor this out into a proper abstraction (probably at least two actually) -cojo
-#include <BLEDevice.h>
-#include <BLEServer.h>
-#include <BLEUtils.h>
-#define SERVICE_UUID "db65598c-04b1-469f-833f-517f285db256"
-#define CHARACTERISTIC_UUID "ed0c3501-a3cb-499f-93ad-2acbaa971d63"
-
-BLEServer *server = NULL;
-bool deviceConnected = false;
-bool wasDeviceConnected = false;
-
-class ServerCallbacks : public BLEServerCallbacks
-{
-  void onConnect(BLEServer *server)
-  {
-    DEBUG_LN("BLE client connected to our server!");
-    deviceConnected = true;
-  }
-
-  void onDisconnect(BLEServer *server)
-  {
-    DEBUG_LN("BLE client disconnected from our server!");
-    deviceConnected = false;
-  }
-};
-
-class CharacteristicCallbacks : public BLECharacteristicCallbacks
-{
-  void onWrite(BLECharacteristic *characteristic)
-  {
-    std::string value = characteristic->getValue();
-    if (value.length() > 0)
-    {
-      DEBUG_LN("*********");
-      DEBUG_F("New value: %.2x \n", value[0]);
-      DEBUG_LN("*********");
-    }
-
-    switch (value.data()[0])
-    {
-        case SETUP:
-          prefs.clear();
-          DEBUG_LN("CLEARED PREFERENCES!");
-          break;
-        case STOP:
-          DEBUG_LN("RESETTING BOARD BY SEG FAULT!");
-          resetFunc();
-          break;
-        case CHANNEL_MINUS:
-          // TODO: Check bounds
-          //if (start_x != 0) {
-          if (area_in_browsing == SETTINGS_AREA)
-            local_x_offset--;
-          else {
-            String prefs_name = String(reading_book_abrev[area_in_browsing-1]) + "-pr-place";
-            reading_book_places[area_in_browsing] = reading_book_places_prev[area_in_browsing];
-            prefs.putULong(prefs_name.c_str(), reading_book_places[area_in_browsing]);
-          }
-          update_box = 1;
-          //}
-          break;
-        case CHANNEL_PLUS:
-          // TODO:
-          // Check to be sure we don't go off the end of the screen
-          //if (end_x != my_display->get_x()) {
-         if (area_in_browsing == SETTINGS_AREA)
-            local_x_offset++;
-          else {
-            String prefs_prev_name = String(reading_book_abrev[area_in_browsing]) + "-pr-place";
-            String prefs_name = String(reading_book_abrev[area_in_browsing]) + "-place";
-
-            reading_book_places_prev[area_in_browsing] = reading_book_places[area_in_browsing];
-            reading_book_places[area_in_browsing] = new_place;
-            prefs.putULong(prefs_name.c_str(), reading_book_places[area_in_browsing]);
-            prefs.putULong(prefs_prev_name.c_str(), reading_book_places_prev[area_in_browsing]);
-          }
-          update_box = 1;
-          //}
-          break;
-        case PREV:
-          // TODO: Check bounds
-          //if (start_y != 0) {
-          if (area_in_browsing == SETTINGS_AREA)
-            local_y_offset--;
-          else if (area_in_browsing == MAIN_MENU_AREA) {
-            if (main_menu->prev_selection()) {
-              // Hit a page boundary -- update the page!
-                if ((main_menu->get_curr_selection() % NUM_LINES_PER_MENU_PAGE) == NUM_LINES_PER_MENU_PAGE - 1) {
-                  cur_menu_page--;
-                }
-            }
-          } 
-          else {
-
-          }
-          update_box = 1;
-          //}
-          break;
-        case NEXT:
-          // TODO: Check to be sure we don't go off the end of the screen
-          // if (end_y != my_display->get_y()) {
-          if (area_in_browsing == SETTINGS_AREA)
-            local_y_offset++;
-          else if (area_in_browsing == MAIN_MENU_AREA) {
-            if (main_menu->next_selection()) {
-              // Hit a page boundary -- update the page!
-              if (main_menu->get_curr_selection() % NUM_LINES_PER_MENU_PAGE == 0) {
-                  cur_menu_page++;
-              }
-            }
-          }
-          else {
-
-          }
-          update_box = 1;
-          //}
-          break;
-        case ENTER:
-          if (area_in_browsing == SETTINGS_AREA) {
-            prefs.putInt("x-offset", local_x_offset);
-            prefs.putInt("y-offset", local_y_offset);
-            DEBUG_LN("Saving off x and y offset to preferences");
-            DEBUG_VAR(local_x_offset);
-            DEBUG_LN(" is the x offset");
-            DEBUG_VAR(local_y_offset);
-            DEBUG_LN(" is the y offset");
-            area_in_browsing = MAIN_MENU_AREA;
-            prefs.putInt("browse-area", area_in_browsing);
-            update_box = 1;
-          }
-          else if (area_in_browsing == MAIN_MENU_AREA) {
-            // CAN FIX THIS NOW TO JUST DO ONE ASSIGNMENT BASED ON THE 
-            // RETURN RESULT OF THE MENU!
-            area_in_browsing = main_menu->get_curr_selection() + 1;
-            prefs.putInt("browse-area", area_in_browsing);
-            update_box = 1;
-          }
-          break;
-        case BACK:
-          area_in_browsing = MAIN_MENU_AREA;
-          prefs.putInt("browse-area", area_in_browsing);
-          update_box = 1;
-        break;
-        default:
-        break;    
-    }
-  }
-};
-// END TOOD "Refactor this out... -cojo"
-
 void setup(void)
 {
   if (Serial) Serial.begin(115200);
@@ -294,27 +147,6 @@ void setup(void)
     DEBUG_LN("An Error has occurred while mounting SPIFFS");  
   }
 
-  // TODO: Refactor this out into a proper abstraction (probably at least two actually) -cojo
-  BLEDevice::init("Sindarin (April)");
-  server = BLEDevice::createServer();
-  server->setCallbacks(new ServerCallbacks());
-
-  BLEService *service = server->createService(BLEUUID(SERVICE_UUID));
-
-  BLECharacteristic *characteristic = service->createCharacteristic(
-      BLEUUID(CHARACTERISTIC_UUID),
-      BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_WRITE);
-
-  characteristic->setCallbacks(new CharacteristicCallbacks());
-
-  characteristic->setValue("Hello World");
-
-  service->start();
-
-  BLEAdvertising *advertising = server->getAdvertising();
-  advertising->addServiceUUID(service->getUUID());
-  advertising->start();
-  // END TODO "Refactor this out... -cojo"
 
 #ifdef EINK154in
   my_display = new DisplayEink154in();
@@ -339,8 +171,11 @@ void setup(void)
   for (int plc = 0; plc < NUM_READING_BOOKS; plc++) {
   }
 
-  remote_input = new IRRemoteInput();
-  remote_input->start_remote(IR_REMOTE_INPUT_PIN);
+  ir_remote_input = new IRRemoteInput();
+  ir_remote_input->start_remote(IR_REMOTE_INPUT_PIN);
+
+  ble_remote_input = new BLERemoteInput();
+  ble_remote_input->start_remote();
 
   // Load the preferences
   //
@@ -412,20 +247,7 @@ void loop(void) {
   //delay(10000);
   //FileRenderer* current_render = 0;
 
-  // TODO: Refactor this out into a proper abstraction (probably at least two actually) -cojo
-  if (!deviceConnected && wasDeviceConnected)
-  {
-    delay(500);                 // give the bluetooth stack the chance to get things ready for restart
-    server->startAdvertising(); // restart advertising
-    DEBUG_LN("Restarting bluetooth advertising");
-    wasDeviceConnected = deviceConnected;
-  }
-  if (deviceConnected && !wasDeviceConnected)
-  {
-    // do any additional desired stuff here on connecting
-    wasDeviceConnected = deviceConnected;
-  }
-  // END TODO "Refactor this out... -cojo"
+  
 
   if (update_box) {
     //my_display->draw_text("Finally", 50, 50);
@@ -465,10 +287,27 @@ void loop(void) {
 
 
   // Always have to do a check press and check release. In this case, we don't care about press.
-  remote_input->check_press();
+  ir_remote_input->check_press();
+  ble_remote_input->check_press();
 
-  if (remote_input->check_release()) {
-    switch(remote_input->get_code()) {
+  // We could do this better by iterating, but fine for now with only 2 input devices.
+  // Note that if an IR input comes in and then a BLE input comes at the same time,
+  // it may only get one of them. This seems unlikely.
+  int got_a_release = 0;
+  int code_from_release = 0;
+
+  if (ir_remote_input->check_release()) {
+    got_a_release = 1;
+    code_from_release = ir_remote_input->get_code();
+  }
+
+  if (ble_remote_input->check_release()) {
+    got_a_release = 1;
+    code_from_release = ble_remote_input->get_code();
+  }
+
+  if (got_a_release) {
+    switch(code_from_release) {
        case SETUP:
           prefs.clear();
           DEBUG_LN("CLEARED PREFERENCES!");
