@@ -284,8 +284,9 @@ void loop(void) {
         break;
       // All the contents are the rest of the menu items
       default:
-          DEBUG_LN(" Rendering some text");
-          new_place = book_renderers[area_in_browsing]->render_page_with_box(reading_book_places[area_in_browsing], local_x_offset, local_y_offset);
+          DEBUG_LN(" Rendering some text in READ MODE");
+          if (book_renderers[area_in_browsing]->get_read_mode() == PAGE_READ)
+            new_place = book_renderers[area_in_browsing]->render_page_with_box(reading_book_places[area_in_browsing], local_x_offset, local_y_offset);
           DEBUG_VAR(new_place);
           DEBUG_LN(" is the new place in the text");
         //current_render = john_render;
@@ -295,6 +296,8 @@ void loop(void) {
     update_box = 0;
   }
 
+  if (area_in_browsing < SETTINGS_AREA)
+    book_renderers[area_in_browsing]->render_continue_screed(local_x_offset, local_y_offset);
 
   // Always have to do a check press and check release. In this case, we don't care about press.
   ir_remote_input->check_press();
@@ -371,7 +374,8 @@ void loop(void) {
             }
           } 
           else {
-
+            if (book_renderers[area_in_browsing]->get_read_mode() == SCREED_READ)
+              book_renderers[area_in_browsing]->increase_speed();
           }
           update_box = 1;
           //}
@@ -390,7 +394,8 @@ void loop(void) {
             }
           }
           else {
-
+              if (book_renderers[area_in_browsing]->get_read_mode() == SCREED_READ)
+                book_renderers[area_in_browsing]->decrease_speed();
           }
           update_box = 1;
           //}
@@ -419,6 +424,12 @@ void loop(void) {
         case BACK:
           area_in_browsing = MAIN_MENU_AREA;
           prefs.putInt("browse-area", area_in_browsing);
+          update_box = 1;
+        break;
+        case NOP_BUTTON:
+          if ((area_in_browsing != SETTINGS_AREA) && (area_in_browsing != MAIN_MENU_AREA)) {
+            book_renderers[area_in_browsing]->flip_read_mode();
+          }
           update_box = 1;
         break;
         default:

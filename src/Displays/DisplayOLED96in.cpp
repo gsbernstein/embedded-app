@@ -5,6 +5,7 @@
 // Set up the U8g2lib display
 DisplayOLED96in::DisplayOLED96in() {
     font = u8g2_font_tom_thumb_4x6_tf;
+    big_font = u8g2_font_6x13_tf;
     u8g2 = new U8G2_SSD1306_128X64_NONAME_F_HW_I2C(U8G2_R0, /* reset=*/ U8X8_PIN_NONE, I2C_SCL, I2C_SDA);
     if (u8g2) {
         u8g2->begin();
@@ -57,6 +58,21 @@ void DisplayOLED96in::draw_text_in_box(String new_text, int start_x, int start_y
     } while (u8g2->nextPage());
 
 }
+
+void DisplayOLED96in::draw_big_word_in_box(String new_text, int start_x, int start_y, int end_x, int end_y) {
+    int width = 0;
+    u8g2->setFontPosCenter();
+    u8g2->setFont(big_font);
+    u8g2->firstPage();
+    width = get_text_width(new_text.c_str());
+
+    do {
+        draw_box_cmds_only(start_x, start_y, end_x, end_y);
+        draw_text_cmds_only(new_text, start_x+(end_x-start_x)/2 - width/2, (end_y-start_y)/2);
+    } while (u8g2->nextPage());
+
+}
+
 
 void DisplayOLED96in::draw_box_cmds_only(int start_x, int start_y, int end_x, int end_y) {
   u8g2->drawLine(start_x, start_y, end_x, start_y);

@@ -27,6 +27,7 @@ class DisplayOLED96in : public DisplaySystem {
         void draw_text(String new_text);
         void draw_text(String new_text, int x, int y);
         void draw_text_in_box(String new_text, int start_x, int start_y, int end_x, int end_y);
+        void draw_big_word_in_box(String new_text, int start_x, int start_y, int end_x, int end_y);
         
         int get_text_height();
         int get_text_width(const char* buffer);
@@ -44,6 +45,8 @@ class DisplayOLED96in : public DisplaySystem {
         void draw_box_cmds_only(int x_start, int y_start, int x_end, int y_end);
 
         const uint8_t* font;
+        const uint8_t* big_font;
+
         U8G2_SSD1306_128X64_NONAME_F_HW_I2C* u8g2;
 };
 

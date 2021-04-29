@@ -54,6 +54,8 @@ class DisplaySystem {
 
         virtual void draw_text_in_box(String new_text, int start_x, int start_y, int end_x, int end_y) = 0;
 
+        virtual void draw_big_word_in_box(String new_text, int start_x, int start_y, int end_x, int end_y) = 0;
+
         DisplaySystem();
         ~DisplaySystem();
 

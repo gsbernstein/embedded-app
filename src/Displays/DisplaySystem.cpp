@@ -104,7 +104,10 @@ void DisplaySystem::split_string_to_lines() {
     // array, but if \n is the last character, we don't need to do anything and
     // we can decrement num_lines since the above loop assumes that there will
     // be more characters after the \n.
-    if (start_pos != end_pos)
+    //
+    // The second part of this || is to handle when there's just a single line with
+    // a single character on it with no \n.
+    if ((start_pos != end_pos) || string_to_draw.charAt(end_pos) != '\n')
         lines[num_lines-1] = string_to_draw.substring(start_pos, end_pos+1);
     else
         num_lines--;
