@@ -110,6 +110,7 @@ const char* reading_book_abrev[NUM_READING_BOOKS] = {"matt", "mark", "luke", "jo
 const char* reading_book_file_names[NUM_READING_BOOKS] = {"/matt-all.txt", "/mark-all.txt", "/luke-all.txt", "/john-all.txt", "/lordof.txt", "/body-snatcher.txt", "/last-question.txt", "/library-babel.txt", "/rats-walls.txt", "/soft-rains.txt", "/sorry-dan.txt", "/spiritual-secret.txt", "/tell-tale-heart.txt" };
 unsigned long reading_book_places[NUM_READING_BOOKS] = {0,0,0,0,0,0,0,0,0,0,0,0,0};
 unsigned long reading_book_places_prev[NUM_READING_BOOKS] = {0,0,0,0,0,0,0,0,0,0,0,0,0};
+unsigned long reading_book_screed_places[NUM_READING_BOOKS] = {0,0,0,0,0,0,0,0,0,0,0,0,0};
 FileRenderer* book_renderers[NUM_READING_BOOKS];
 
 // Areas the user could be in
@@ -297,7 +298,7 @@ void loop(void) {
   }
 
   if (area_in_browsing < SETTINGS_AREA)
-    book_renderers[area_in_browsing]->render_continue_screed(local_x_offset, local_y_offset);
+    reading_book_screed_places[area_in_browsing] = book_renderers[area_in_browsing]->render_continue_screed(local_x_offset, local_y_offset);
 
   // Always have to do a check press and check release. In this case, we don't care about press.
   ir_remote_input->check_press();
@@ -422,13 +423,32 @@ void loop(void) {
           }
           break;
         case BACK:
+          if (book_renderers[area_in_browsing]->get_read_mode() == SCREED_READ) {
+              String prefs_prev_name = String(reading_book_abrev[area_in_browsing]) + "-pr-place";
+              String prefs_name = String(reading_book_abrev[area_in_browsing]) + "-place";
+
+              reading_book_places_prev[area_in_browsing] = reading_book_places[area_in_browsing];
+              reading_book_places[area_in_browsing] = reading_book_screed_places[area_in_browsing];
+              prefs.putULong(prefs_name.c_str(), reading_book_places[area_in_browsing]);
+              prefs.putULong(prefs_prev_name.c_str(), reading_book_places_prev[area_in_browsing]);
+          }
           area_in_browsing = MAIN_MENU_AREA;
           prefs.putInt("browse-area", area_in_browsing);
           update_box = 1;
+          
         break;
         case NOP_BUTTON:
           if ((area_in_browsing != SETTINGS_AREA) && (area_in_browsing != MAIN_MENU_AREA)) {
             book_renderers[area_in_browsing]->flip_read_mode();
+            if (book_renderers[area_in_browsing]->get_read_mode() == PAGE_READ) {
+              String prefs_prev_name = String(reading_book_abrev[area_in_browsing]) + "-pr-place";
+              String prefs_name = String(reading_book_abrev[area_in_browsing]) + "-place";
+              // Still buggy
+              reading_book_places_prev[area_in_browsing] = reading_book_places[area_in_browsing];
+              reading_book_places[area_in_browsing] = reading_book_screed_places[area_in_browsing];
+              prefs.putULong(prefs_name.c_str(), reading_book_places[area_in_browsing]);
+              prefs.putULong(prefs_prev_name.c_str(), reading_book_places_prev[area_in_browsing]);
+            }
           }
           update_box = 1;
         break;
