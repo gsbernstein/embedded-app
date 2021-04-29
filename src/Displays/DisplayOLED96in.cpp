@@ -1,5 +1,6 @@
 #include "DisplayOLED96in.hpp"
 #include "sindarin-debug.h"
+#include "friend.h"
 #include <U8g2lib.h>
 
 // Set up the U8g2lib display
@@ -23,6 +24,13 @@ DisplayOLED96in::~DisplayOLED96in () {
         delete u8g2;
 }
 
+// Show off the "Friend" graphic.
+void DisplayOLED96in::display_splash_screen() {
+    u8g2->firstPage();
+    do {
+        u8g2->drawXBM(0,6, FRIEND_WIDTH, FRIEND_HEIGHT, friend_bits);
+    } while (u8g2->nextPage());
+}
 
 void DisplayOLED96in::set_partial_refresh() {
     partial_refresh = 1;

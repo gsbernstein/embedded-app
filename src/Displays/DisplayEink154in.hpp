@@ -66,6 +66,7 @@ class DisplayEink154in : public DisplaySystem {
         void unset_partial_refresh();
         int get_partial_refresh();
 
+        void display_splash_screen();
         
         void set_font(const uint8_t* new_font);
 

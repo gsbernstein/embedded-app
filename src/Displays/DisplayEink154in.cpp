@@ -20,6 +20,11 @@ DisplayEink154in::DisplayEink154in() {
 
 }
 
+// Fill in with the right splash screen for Eink
+void DisplayEink154in::display_splash_screen() {
+
+}
+
 DisplayEink154in::~DisplayEink154in() {
     if (display)
         delete display;

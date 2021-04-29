@@ -191,7 +191,9 @@ void setup(void)
   // Load the preferences
   //
   //my_display->draw_text("testing testing hi there!\ntwo lines\nthreelines\n\n\n\nskipthreelines\n", 0, 0);
-  delay(1000);
+  my_display->display_splash_screen();
+
+  delay(500);
   // ugly way to clear the screen
   local_x_offset = prefs.getInt("x-offset");
   local_y_offset = prefs.getInt("y-offset");

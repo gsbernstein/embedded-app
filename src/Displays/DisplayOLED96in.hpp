@@ -34,7 +34,8 @@ class DisplayOLED96in : public DisplaySystem {
         
         void set_font(const uint8_t* new_font);
 
-
+        void display_splash_screen();
+        
         void set_partial_refresh();
         void unset_partial_refresh();
         int get_partial_refresh();
