@@ -31,8 +31,10 @@
 
 #include <Arduino.h>
 #include <Preferences.h>
+#include <ArduinoJson.h>
 
 #include "SPIFFS.h"
+#include "mbedtls/md.h"
 
 //#define EINK154in
 #define OLED96in
@@ -41,6 +43,7 @@
 //#define PlanoConvex16x36
 #define Hastings20x40_3
 
+#include "Contents/Readable.hpp"
 #include "Displays/AllDisplays.hpp"
 #include "Optics/AllOptics.hpp"
 #include "Renderers/Renderer.hpp"
@@ -89,34 +92,7 @@ BLERemoteInput *ble_remote_input;
 // Whether to redisplay the box or not
 int update_box = 1;
 
-#define NUM_READING_BOOKS 13
-
-#define GOSPEL_MATTHEW 0
-#define GOSPEL_MARK 1
-#define GOSPEL_LUKE 2
-#define GOSPEL_JOHN 3
-#define LORD_OF_THE_WORLD 4
-#define BODY_SNATCHER 5
-#define LAST_QUESTION 6
-#define LIBRARY_BABEL 7
-#define RATS_WALLS 8
-#define SOFT_RAINS 9
-#define SORRY_DAY 10
-#define SPIRITUAL_SECRET 11
-#define TELL_TALE_HEART 12
-
-const char* reading_book_names[NUM_READING_BOOKS] = {"Gospel Matthew", "Gospel Mark", "Gospel Luke", "Gospel John", "Lord of the World", "Body Snatcher", "Last Question", "Library Babel", "Rats Walls", "Soft Rains", "Sorry Dan", "Spiritual Secret", "Tell Tale Heart" };
-const char* reading_book_abrev[NUM_READING_BOOKS] = {"matt", "mark", "luke", "john", "lord", "body", "last", "lib", "rats", "soft", "sorry", "spirit", "tell" };
-const char* reading_book_file_names[NUM_READING_BOOKS] = {"/matt-all.txt", "/mark-all.txt", "/luke-all.txt", "/john-all.txt", "/lordof.txt", "/body-snatcher.txt", "/last-question.txt", "/library-babel.txt", "/rats-walls.txt", "/soft-rains.txt", "/sorry-dan.txt", "/spiritual-secret.txt", "/tell-tale-heart.txt" };
-unsigned long reading_book_places[NUM_READING_BOOKS] = {0,0,0,0,0,0,0,0,0,0,0,0,0};
-unsigned long reading_book_places_prev[NUM_READING_BOOKS] = {0,0,0,0,0,0,0,0,0,0,0,0,0};
-unsigned long reading_book_screed_places[NUM_READING_BOOKS] = {0,0,0,0,0,0,0,0,0,0,0,0,0};
-FileRenderer* book_renderers[NUM_READING_BOOKS];
-
-// Areas the user could be in
-
-#define SETTINGS_AREA (NUM_READING_BOOKS)
-#define MAIN_MENU_AREA (NUM_READING_BOOKS + 1)
+FileRenderer *book_renderer = nullptr;
 
 // Here are all the preferences that we will save off
 // Eventually we should put this in an array so it's
@@ -125,8 +101,7 @@ FileRenderer* book_renderers[NUM_READING_BOOKS];
 Preferences prefs;
 int local_x_offset = 0;
 int local_y_offset = 0;
-int area_in_browsing = MAIN_MENU_AREA;
-
+int area_in_browsing = 0;
 
 #define SETTINGS_MENU_TEXT "**SETTINGS**"
 
@@ -136,6 +111,9 @@ void (*resetFunc)(void) = 0; //declare reset function @ address 0
 
 int cur_menu_page = 0;
 #define NUM_LINES_PER_MENU_PAGE 5
+
+DynamicJsonDocument *manifest = nullptr;
+std::vector<Readable> readables;
 
 void setup(void)
 {
@@ -149,11 +127,27 @@ void setup(void)
   // Then recomment after loading onto board and restart.
    //prefs.clear();
 
-    // Launch SPIFFS file system  
-  if(!SPIFFS.begin(false, "/spiffs", NUM_READING_BOOKS, NULL)){ 
-    DEBUG_LN("An Error has occurred while mounting SPIFFS");  
+    // Launch SPIFFS file system
+  if (!SPIFFS.begin(false, "/spiffs", 255, NULL))
+  {
+    DEBUG_LN("An Error has occurred while mounting SPIFFS");
   }
 
+  DEBUG_F("Free heap: %d\n", ESP.getFreeHeap());
+  manifest = new DynamicJsonDocument(2048);
+  File manifestFile = SPIFFS.open("/manifest.json");
+  if (!manifestFile)
+  {
+    DEBUG_LN("Failed to open manifest file.");
+  }
+  deserializeJson(*manifest, manifestFile);
+  manifestFile.close();
+
+  JsonArray array = manifest->as<JsonArray>();
+  for (JsonVariant v : array)
+  {
+    readables.emplace_back(v["id"], v["name"], v["path"]);
+  }
 
 #ifdef EINK154in
   my_display = new DisplayEink154in();
@@ -178,10 +172,6 @@ void setup(void)
 
   box_renderer = new Renderer(my_optics, my_display);
 
-  
-  for (int plc = 0; plc < NUM_READING_BOOKS; plc++) {
-  }
-
   ir_remote_input = new IRRemoteInput();
   ir_remote_input->start_remote(IR_REMOTE_INPUT_PIN);
 
@@ -197,7 +187,8 @@ void setup(void)
   // ugly way to clear the screen
   local_x_offset = prefs.getInt("x-offset");
   local_y_offset = prefs.getInt("y-offset");
-  area_in_browsing = prefs.getInt("browse-area", MAIN_MENU_AREA);
+  // Default area for browsing should be MAIN MENU which is readables length + 1 (length is SETTINGS MENU)
+  area_in_browsing = prefs.getInt("browse-area", readables.size() + 1);
 
   DEBUG_VAR(area_in_browsing);
   DEBUG_LN(" was the area read in");
@@ -205,15 +196,23 @@ void setup(void)
 
   main_menu = new MenuSystem();
 
-  for (int plc = 0; plc < NUM_READING_BOOKS; plc++) {
-      String name = String(reading_book_abrev[plc]) + "-place";
-      String name_prev = String(reading_book_abrev[plc]) + "-pr-place";
-      main_menu->add_menu_item(reading_book_names[plc]);
-      reading_book_places[plc] = prefs.getULong(name.c_str());
-      reading_book_places_prev[plc] = prefs.getULong(name_prev.c_str());
-      book_renderers[plc] = new FileRenderer(my_optics, my_display, reading_book_file_names[plc], reading_book_places[plc], reading_book_places_prev[plc]);
+  DEBUG_F("Free heap: %d\n", ESP.getFreeHeap());
+  for (Readable &r : readables)
+  {
+    String name = String(r.id) + "-p";
+    String name_prev = String(r.id) + "-pr-p";
+    main_menu->add_menu_item(r.name);
+    r.place = prefs.getULong(name.c_str());
+    r.place_prev = prefs.getULong(name_prev.c_str());
+    DEBUG_F("Value for %s - %u / %u\n", r.id, r.place, r.place_prev);
+    DEBUG_F("Free heap: %d\n", ESP.getFreeHeap());
   }
-  
+
+  if (area_in_browsing < readables.size())
+  {
+    book_renderer = new FileRenderer(my_optics, my_display, readables[area_in_browsing]);
+  }
+
   main_menu->add_menu_item(SETTINGS_MENU_TEXT);
  
   //box_renderer->render_max_box_with_text(local_x_offset,local_y_offset, "The Lord is my shepherd\n");
@@ -223,6 +222,8 @@ void setup(void)
     
   //box_renderer->render_max_box(local_x_offset, local_y_offset);
   my_display->set_partial_refresh();
+
+  DEBUG_F("Free heap: %d\n", ESP.getFreeHeap());
 
   //box_renderer->render_max_box_with_text(local_x_offset, local_y_offset, main_menu->get_whole_menu_as_string();
 }
@@ -245,6 +246,7 @@ String get_battery_life() {
   float batteryFraction = voltageLevel / MAX_BATTERY_VOLTAGE;
   String battery_output = "  Percent: " + String(batteryFraction * 100) + "%";
   DEBUG_LN(battery_output.c_str());
+  DEBUG_F("Free heap: %d\n", ESP.getFreeHeap());
   return battery_output;
 }
 
@@ -260,47 +262,44 @@ void loop(void) {
   //delay(10000);
   //FileRenderer* current_render = 0;
 
-  
-
-  if (update_box) {
-    //my_display->draw_text("Finally", 50, 50);
-    
+  if (update_box)
+  {
     // box_renderer->render_max_box(local_x_offset, local_y_offset);
     DEBUG_LN("UPDATING THE BOX!");
 
-    switch (area_in_browsing) {
-      // handle all non-content here, default will be all content
-      case MAIN_MENU_AREA:
-        menu_string = main_menu->get_menu_range_as_string(cur_menu_page * NUM_LINES_PER_MENU_PAGE + 1, cur_menu_page * NUM_LINES_PER_MENU_PAGE + 5);
-        DEBUG_LN("UPDATING THE MENU WITH CURR MENU_PAGE: ");
-        DEBUG_VAR(cur_menu_page);
-        DEBUG_LN(" is the current menu page");
-        bat_life = get_battery_life();
-        total_to_display = menu_string + String("\n\n") + bat_life;
-        box_renderer->render_max_box_with_text(local_x_offset, local_y_offset, total_to_display);
-        break;
-      case SETTINGS_AREA:
-        menu_string = "Press arrows to move\nbox around to your\nliking. Then press\nenter when done!\nHave a nice day.\n";
-        bat_life = get_battery_life();
-        total_to_display = menu_string + String("\n\n") + bat_life;
-        box_renderer->render_max_box_with_text(local_x_offset, local_y_offset, total_to_display);
-        break;
+    // MAIN MENU is readables length + 1 (length is SETTINGS MENU)
+    if (area_in_browsing == readables.size() + 1)
+    {
+      menu_string = main_menu->get_menu_range_as_string(cur_menu_page * NUM_LINES_PER_MENU_PAGE + 1, cur_menu_page * NUM_LINES_PER_MENU_PAGE + 5);
+      DEBUG_LN("UPDATING THE MENU WITH CURR MENU_PAGE: ");
+      DEBUG_VAR(cur_menu_page);
+      DEBUG_LN(" is the current menu page");
+      bat_life = get_battery_life();
+      total_to_display = menu_string + String("\n\n") + bat_life;
+      box_renderer->render_max_box_with_text(local_x_offset, local_y_offset, total_to_display);
+    }
+    else if (area_in_browsing == readables.size())
+    {
+      menu_string = "Press arrows to move\nbox around to your\nliking. Then press\nenter when done!\nHave a nice day.\n";
+      bat_life = get_battery_life();
+      total_to_display = menu_string + String("\n\n") + bat_life;
+      box_renderer->render_max_box_with_text(local_x_offset, local_y_offset, total_to_display);
+    }
+    else
+    {
       // All the contents are the rest of the menu items
-      default:
-          DEBUG_LN(" Rendering some text in READ MODE");
-          if (book_renderers[area_in_browsing]->get_read_mode() == PAGE_READ)
-            new_place = book_renderers[area_in_browsing]->render_page_with_box(reading_book_places[area_in_browsing], local_x_offset, local_y_offset);
-          DEBUG_VAR(new_place);
-          DEBUG_LN(" is the new place in the text");
-        //current_render = john_render;
-        break;
+      DEBUG_LN(" Rendering some text in READ MODE");
+      if (book_renderer != nullptr && book_renderer->get_read_mode() == PAGE_READ)
+        new_place = book_renderer->render_page_with_box(readables[area_in_browsing].place, local_x_offset, local_y_offset);
+      DEBUG_VAR(new_place);
+      DEBUG_LN(" is the new place in the text");
     }
     //my_display->draw_box(start_x, start_y, end_x, end_y);
     update_box = 0;
   }
 
-  if (area_in_browsing < SETTINGS_AREA)
-    reading_book_screed_places[area_in_browsing] = book_renderers[area_in_browsing]->render_continue_screed(local_x_offset, local_y_offset);
+  if (area_in_browsing < readables.size())
+    readables[area_in_browsing].place_screed = book_renderer->render_continue_screed(local_x_offset, local_y_offset);
 
   // Always have to do a check press and check release. In this case, we don't care about press.
   ir_remote_input->check_press();
@@ -335,12 +334,14 @@ void loop(void) {
         case CHANNEL_MINUS:
           // TODO: Check bounds
           //if (start_x != 0) {
-          if (area_in_browsing == SETTINGS_AREA)
+          // Check against readables.size() because it is == SETTINGS_MENU
+          if (area_in_browsing == readables.size())
             local_x_offset--;
-          else {
-            String prefs_name = String(reading_book_abrev[area_in_browsing]) + "-pr-place";
-            reading_book_places[area_in_browsing] = reading_book_places_prev[area_in_browsing];
-            prefs.putULong(prefs_name.c_str(), reading_book_places[area_in_browsing]);
+          else if (area_in_browsing < readables.size())
+          {
+            String prefs_name = String(readables[area_in_browsing].id) + "-pr-p";
+            readables[area_in_browsing].place = readables[area_in_browsing].place_prev;
+            prefs.putULong(prefs_name.c_str(), readables[area_in_browsing].place);
           }
           update_box = 1;
           //}
@@ -349,16 +350,18 @@ void loop(void) {
           // TODO:
           // Check to be sure we don't go off the end of the screen
           //if (end_x != my_display->get_x()) {
-         if (area_in_browsing == SETTINGS_AREA)
+          // Check against readables.size() because it is == SETTINGS_MENU
+          if (area_in_browsing == readables.size())
             local_x_offset++;
-          else {
-            String prefs_prev_name = String(reading_book_abrev[area_in_browsing]) + "-pr-place";
-            String prefs_name = String(reading_book_abrev[area_in_browsing]) + "-place";
+          else if (area_in_browsing < readables.size())
+          {
+            String prefs_prev_name = String(readables[area_in_browsing].id) + "-pr-p";
+            String prefs_name = String(readables[area_in_browsing].id) + "-p";
 
-            reading_book_places_prev[area_in_browsing] = reading_book_places[area_in_browsing];
-            reading_book_places[area_in_browsing] = new_place;
-            prefs.putULong(prefs_name.c_str(), reading_book_places[area_in_browsing]);
-            prefs.putULong(prefs_prev_name.c_str(), reading_book_places_prev[area_in_browsing]);
+            readables[area_in_browsing].place_prev = readables[area_in_browsing].place;
+            readables[area_in_browsing].place = new_place;
+            prefs.putULong(prefs_name.c_str(), readables[area_in_browsing].place);
+            prefs.putULong(prefs_prev_name.c_str(), readables[area_in_browsing].place_prev);
           }
           update_box = 1;
           //}
@@ -366,19 +369,22 @@ void loop(void) {
         case PREV:
           // TODO: Check bounds
           //if (start_y != 0) {
-          if (area_in_browsing == SETTINGS_AREA)
+          // Check against readables.size() because it is == SETTINGS_MENU
+          if (area_in_browsing == readables.size())
             local_y_offset--;
-          else if (area_in_browsing == MAIN_MENU_AREA) {
+          // Check against readables.size() + 1 because it is == MAIN_MENU
+          else if (area_in_browsing == readables.size() + 1)
+          {
             if (main_menu->prev_selection()) {
               // Hit a page boundary -- update the page!
                 if ((main_menu->get_curr_selection() % NUM_LINES_PER_MENU_PAGE) == NUM_LINES_PER_MENU_PAGE - 1) {
                   cur_menu_page--;
                 }
             }
-          } 
+          }
           else {
-            if (book_renderers[area_in_browsing]->get_read_mode() == SCREED_READ)
-              book_renderers[area_in_browsing]->increase_speed();
+            if (book_renderer->get_read_mode() == SCREED_READ)
+              book_renderer->increase_speed();
           }
           update_box = 1;
           //}
@@ -386,9 +392,12 @@ void loop(void) {
         case NEXT:
           // TODO: Check to be sure we don't go off the end of the screen
           // if (end_y != my_display->get_y()) {
-          if (area_in_browsing == SETTINGS_AREA)
+          // Check against readables.size() because it is == SETTINGS_MENU
+          if (area_in_browsing == readables.size())
             local_y_offset++;
-          else if (area_in_browsing == MAIN_MENU_AREA) {
+          // Check against readables.size() + 1 because it is == MAIN_MENU
+          else if (area_in_browsing == readables.size() + 1)
+          {
             if (main_menu->next_selection()) {
               // Hit a page boundary -- update the page!
               if (main_menu->get_curr_selection() % NUM_LINES_PER_MENU_PAGE == 0) {
@@ -397,14 +406,16 @@ void loop(void) {
             }
           }
           else {
-              if (book_renderers[area_in_browsing]->get_read_mode() == SCREED_READ)
-                book_renderers[area_in_browsing]->decrease_speed();
+            if (book_renderer->get_read_mode() == SCREED_READ)
+              book_renderer->decrease_speed();
           }
           update_box = 1;
           //}
           break;
         case ENTER:
-          if (area_in_browsing == SETTINGS_AREA) {
+          // Check against readables.size() because it is == SETTINGS_MENU
+          if (area_in_browsing == readables.size())
+          {
             prefs.putInt("x-offset", local_x_offset);
             prefs.putInt("y-offset", local_y_offset);
             DEBUG_LN("Saving off x and y offset to preferences");
@@ -412,45 +423,60 @@ void loop(void) {
             DEBUG_LN(" is the x offset");
             DEBUG_VAR(local_y_offset);
             DEBUG_LN(" is the y offset");
-            area_in_browsing = MAIN_MENU_AREA;
+            // Set to MAIN_MENU (readables.size() + 1)
+            area_in_browsing = readables.size() + 1;
             prefs.putInt("browse-area", area_in_browsing);
             update_box = 1;
           }
-          else if (area_in_browsing == MAIN_MENU_AREA) {
+          else if (area_in_browsing == readables.size() + 1)
+          {
             // CAN FIX THIS NOW TO JUST DO ONE ASSIGNMENT BASED ON THE 
             // RETURN RESULT OF THE MENU!
             area_in_browsing = main_menu->get_curr_selection();
+            if (book_renderer != nullptr)
+            {
+              delete book_renderer;
+              book_renderer = nullptr;
+            }
+            book_renderer = new FileRenderer(my_optics, my_display, readables[area_in_browsing]);
             prefs.putInt("browse-area", area_in_browsing);
             update_box = 1;
           }
           break;
         case BACK:
-          if (book_renderers[area_in_browsing]->get_read_mode() == SCREED_READ) {
-              String prefs_prev_name = String(reading_book_abrev[area_in_browsing]) + "-pr-place";
-              String prefs_name = String(reading_book_abrev[area_in_browsing]) + "-place";
-
-              reading_book_places_prev[area_in_browsing] = reading_book_places[area_in_browsing];
-              reading_book_places[area_in_browsing] = reading_book_screed_places[area_in_browsing];
-              prefs.putULong(prefs_name.c_str(), reading_book_places[area_in_browsing]);
-              prefs.putULong(prefs_prev_name.c_str(), reading_book_places_prev[area_in_browsing]);
+          if (book_renderer->get_read_mode() == SCREED_READ)
+          {
+            String prefs_prev_name = String(readables[area_in_browsing].id) + "-pr-p";
+            String prefs_name = String(readables[area_in_browsing].id) + "-p";
+            readables[area_in_browsing].place_prev = readables[area_in_browsing].place;
+            readables[area_in_browsing].place = readables[area_in_browsing].place_screed;
+            prefs.putULong(prefs_name.c_str(), readables[area_in_browsing].place);
+            prefs.putULong(prefs_prev_name.c_str(), readables[area_in_browsing].place_prev);
           }
-          area_in_browsing = MAIN_MENU_AREA;
+
+          // Set to MAIN_MENU (readables.size() + 1)
+          area_in_browsing = readables.size() + 1;
           prefs.putInt("browse-area", area_in_browsing);
           update_box = 1;
-          
+          if (book_renderer != nullptr)
+          {
+            delete book_renderer;
+            book_renderer = nullptr;
+          }
         break;
         case NOP_BUTTON:
-          if ((area_in_browsing != SETTINGS_AREA) && (area_in_browsing != MAIN_MENU_AREA)) {
-            book_renderers[area_in_browsing]->flip_read_mode();
-            if (book_renderers[area_in_browsing]->get_read_mode() == PAGE_READ) {
-              String prefs_prev_name = String(reading_book_abrev[area_in_browsing]) + "-pr-place";
-              String prefs_name = String(reading_book_abrev[area_in_browsing]) + "-place";
-              // Still buggy
-              reading_book_places_prev[area_in_browsing] = reading_book_places[area_in_browsing];
-              reading_book_places[area_in_browsing] = reading_book_screed_places[area_in_browsing];
-              prefs.putULong(prefs_name.c_str(), reading_book_places[area_in_browsing]);
-              prefs.putULong(prefs_prev_name.c_str(), reading_book_places_prev[area_in_browsing]);
+          if (area_in_browsing < readables.size())
+          {
+            if (book_renderer->get_read_mode() == SCREED_READ)
+            {
+              String prefs_prev_name = String(readables[area_in_browsing].id) + "-pr-p";
+              String prefs_name = String(readables[area_in_browsing].id) + "-p";
+              readables[area_in_browsing].place_prev = readables[area_in_browsing].place;
+              readables[area_in_browsing].place = readables[area_in_browsing].place_screed;
+              prefs.putULong(prefs_name.c_str(), readables[area_in_browsing].place);
+              prefs.putULong(prefs_prev_name.c_str(), readables[area_in_browsing].place_prev);
             }
+            book_renderer->flip_read_mode();
           }
           update_box = 1;
         break;
