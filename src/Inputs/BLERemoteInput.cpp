@@ -3,7 +3,6 @@
 #include "sindarin-debug.h"
 #include <Arduino.h>
 
-#define SERVICE_UUID "db65598c-04b1-469f-833f-517f285db256"
 #define CHARACTERISTIC_UUID "ed0c3501-a3cb-499f-93ad-2acbaa971d63"
 
 
@@ -21,27 +20,15 @@ void BLERemoteInput::start_remote() {
   deviceConnected = false;
   wasDeviceConnected = false;
 
-  // TODO: Refactor this out into a proper abstraction (probably at least two actually) -cojo
-  BLEDevice::init("Sindarin (April)");
-  server = BLEDevice::createServer();
-  server->setCallbacks(new ServerCallbacks(this));
+  BLEManager::getInstance()->server->setCallbacks(new ServerCallbacks(this));
 
-  BLEService *service = server->createService(BLEUUID(SERVICE_UUID));
-
-  BLECharacteristic *characteristic = service->createCharacteristic(
+  BLECharacteristic *characteristic = BLEManager::getInstance()->service->createCharacteristic(
       BLEUUID(CHARACTERISTIC_UUID),
       BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_WRITE);
 
   characteristic->setCallbacks(new CharacteristicCallbacks(this));
 
   characteristic->setValue("Hello World");
-
-  service->start();
-
-  BLEAdvertising *advertising = server->getAdvertising();
-  advertising->addServiceUUID(service->getUUID());
-  advertising->start();
-  // END TODO "Refactor this out... -cojo"
 }
 
 int BLERemoteInput::check_press() {

@@ -48,6 +48,7 @@
 #include "Optics/AllOptics.hpp"
 #include "Renderers/Renderer.hpp"
 #include "Renderers/FileRenderer.hpp"
+#include "Renderers/RawRenderer.hpp"
 #include "Menus/MenuSystem.hpp"
 #include "Inputs/RemoteInput.hpp"
 #include "Inputs/IRRemoteInput.hpp"
@@ -93,6 +94,8 @@ BLERemoteInput *ble_remote_input;
 int update_box = 1;
 
 FileRenderer *book_renderer = nullptr;
+RawRenderer *raw_renderer = nullptr;
+unsigned long raw_place = 0, raw_place_prev = 0;
 
 // Here are all the preferences that we will save off
 // Eventually we should put this in an array so it's
@@ -178,6 +181,37 @@ void setup(void)
   ble_remote_input = new BLERemoteInput();
   ble_remote_input->start_remote();
 
+  // TEST: Setup receiver for new data via BLE
+  BLECharacteristic *newDataCharacteristic = BLEManager::getInstance()->service->createCharacteristic(
+      BLEUUID("6851fc86-9284-4ff9-9ea8-82e22bc2f1b1"),
+      BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_WRITE);
+
+  class DataCharacteristicCallbacks : public BLECharacteristicCallbacks
+  {
+  public:
+    RawRenderer **renderer = nullptr;
+    int *update_flag;
+    DataCharacteristicCallbacks(RawRenderer **render, int *update_box) : renderer(render), update_flag(update_box) {}
+
+    void onWrite(BLECharacteristic *characteristic)
+    {
+      std::string value = characteristic->getValue();
+      *renderer = new RawRenderer(my_optics, my_display, value);
+      *update_flag = 1;
+      if (value.length() > 0)
+      {
+        DEBUG_LN("*********");
+        DEBUG_F("New value: %s \n", value);
+        DEBUG_LN("*********");
+      }
+    }
+  };
+
+  newDataCharacteristic->setCallbacks(new DataCharacteristicCallbacks(&raw_renderer, &update_box));
+  // END TEST code
+
+  BLEManager::getInstance()->startServiceAndAdvertising();
+
   // Load the preferences
   //
   //my_display->draw_text("testing testing hi there!\ntwo lines\nthreelines\n\n\n\nskipthreelines\n", 0, 0);
@@ -204,7 +238,6 @@ void setup(void)
     main_menu->add_menu_item(r.name);
     r.place = prefs.getULong(name.c_str());
     r.place_prev = prefs.getULong(name_prev.c_str());
-    DEBUG_F("Value for %s - %u / %u\n", r.id, r.place, r.place_prev);
     DEBUG_F("Free heap: %d\n", ESP.getFreeHeap());
   }
 
@@ -268,7 +301,17 @@ void loop(void) {
     DEBUG_LN("UPDATING THE BOX!");
 
     // MAIN MENU is readables length + 1 (length is SETTINGS MENU)
-    if (area_in_browsing == readables.size() + 1)
+    if (raw_renderer != nullptr)
+    {
+      if (raw_renderer != nullptr && raw_renderer->get_read_mode() == PAGE_READ)
+      {
+        DEBUG_LN(" Rendering some remote text in READ MODE");
+        new_place = raw_renderer->render_page_with_box(raw_place, local_x_offset, local_y_offset);
+        DEBUG_VAR(new_place);
+        DEBUG_LN(" is the new place in the text");
+      }
+    }
+    else if (area_in_browsing == readables.size() + 1)
     {
       menu_string = main_menu->get_menu_range_as_string(cur_menu_page * NUM_LINES_PER_MENU_PAGE + 1, cur_menu_page * NUM_LINES_PER_MENU_PAGE + 5);
       DEBUG_LN("UPDATING THE MENU WITH CURR MENU_PAGE: ");
@@ -288,17 +331,21 @@ void loop(void) {
     else
     {
       // All the contents are the rest of the menu items
-      DEBUG_LN(" Rendering some text in READ MODE");
       if (book_renderer != nullptr && book_renderer->get_read_mode() == PAGE_READ)
+      {
+        DEBUG_LN(" Rendering some text in READ MODE");
         new_place = book_renderer->render_page_with_box(readables[area_in_browsing].place, local_x_offset, local_y_offset);
-      DEBUG_VAR(new_place);
-      DEBUG_LN(" is the new place in the text");
+        DEBUG_VAR(new_place);
+        DEBUG_LN(" is the new place in the text");
+      }
     }
     //my_display->draw_box(start_x, start_y, end_x, end_y);
     update_box = 0;
   }
 
-  if (area_in_browsing < readables.size())
+  if (raw_renderer != nullptr)
+    raw_renderer->render_continue_screed(local_x_offset, local_x_offset);
+  else if (area_in_browsing < readables.size())
     readables[area_in_browsing].place_screed = book_renderer->render_continue_screed(local_x_offset, local_y_offset);
 
   // Always have to do a check press and check release. In this case, we don't care about press.
@@ -334,8 +381,12 @@ void loop(void) {
         case CHANNEL_MINUS:
           // TODO: Check bounds
           //if (start_x != 0) {
+          if (raw_renderer != nullptr)
+          {
+            raw_place = raw_place_prev;
+          }
           // Check against readables.size() because it is == SETTINGS_MENU
-          if (area_in_browsing == readables.size())
+          else if (area_in_browsing == readables.size())
             local_x_offset--;
           else if (area_in_browsing < readables.size())
           {
@@ -350,8 +401,13 @@ void loop(void) {
           // TODO:
           // Check to be sure we don't go off the end of the screen
           //if (end_x != my_display->get_x()) {
+          if (raw_renderer != nullptr)
+          {
+            raw_place_prev = raw_place;
+            raw_place = new_place;
+          }
           // Check against readables.size() because it is == SETTINGS_MENU
-          if (area_in_browsing == readables.size())
+          else if (area_in_browsing == readables.size())
             local_x_offset++;
           else if (area_in_browsing < readables.size())
           {
@@ -369,8 +425,13 @@ void loop(void) {
         case PREV:
           // TODO: Check bounds
           //if (start_y != 0) {
+          if (raw_renderer != nullptr)
+          {
+            if (raw_renderer->get_read_mode() == SCREED_READ)
+              raw_renderer->increase_speed();
+          }
           // Check against readables.size() because it is == SETTINGS_MENU
-          if (area_in_browsing == readables.size())
+          else if (area_in_browsing == readables.size())
             local_y_offset--;
           // Check against readables.size() + 1 because it is == MAIN_MENU
           else if (area_in_browsing == readables.size() + 1)
@@ -392,8 +453,13 @@ void loop(void) {
         case NEXT:
           // TODO: Check to be sure we don't go off the end of the screen
           // if (end_y != my_display->get_y()) {
+          if (raw_renderer != nullptr)
+          {
+            if (raw_renderer->get_read_mode() == SCREED_READ)
+              raw_renderer->decrease_speed();
+          }
           // Check against readables.size() because it is == SETTINGS_MENU
-          if (area_in_browsing == readables.size())
+          else if (area_in_browsing == readables.size())
             local_y_offset++;
           // Check against readables.size() + 1 because it is == MAIN_MENU
           else if (area_in_browsing == readables.size() + 1)
@@ -444,7 +510,7 @@ void loop(void) {
           }
           break;
         case BACK:
-          if (book_renderer->get_read_mode() == SCREED_READ)
+          if (book_renderer != nullptr && book_renderer->get_read_mode() == SCREED_READ)
           {
             String prefs_prev_name = String(readables[area_in_browsing].id) + "-pr-p";
             String prefs_name = String(readables[area_in_browsing].id) + "-p";
@@ -463,9 +529,19 @@ void loop(void) {
             delete book_renderer;
             book_renderer = nullptr;
           }
+          if (raw_renderer != nullptr)
+          {
+            delete raw_renderer;
+            raw_renderer = nullptr;
+            raw_place = 0;
+          }
         break;
         case NOP_BUTTON:
-          if (area_in_browsing < readables.size())
+          if (raw_renderer != nullptr)
+          {
+            raw_renderer->flip_read_mode();
+          }
+          else if (area_in_browsing < readables.size())
           {
             if (book_renderer->get_read_mode() == SCREED_READ)
             {

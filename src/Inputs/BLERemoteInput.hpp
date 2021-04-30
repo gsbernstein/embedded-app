@@ -2,6 +2,7 @@
 #define BLERemoteInput_H
 
 #include "RemoteInput.hpp"
+#include "Communications/BLEManager.hpp"
 #include "sindarin-debug.h"
 
 #include <BLEDevice.h>
