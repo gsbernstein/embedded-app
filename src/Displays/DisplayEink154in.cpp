@@ -7,7 +7,7 @@ DisplayEink154in::DisplayEink154in() {
     display = new GxEPD2_DISPLAY_CLASS<GxEPD2_DRIVER_CLASS, MAX_HEIGHT(GxEPD2_DRIVER_CLASS)>(GxEPD2_DRIVER_CLASS(/*CS=5*/ 14, /*DC=*/ 15, /*RST=*/ 27, /*BUSY=*/ 13));
 
     display->init();
-    display->setRotation(1);
+    display->setRotation(2);
     u8g2Fonts.begin(*display);
     u8g2Fonts.setFont(font);
     DEBUG_LN("Set up display");

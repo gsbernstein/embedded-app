@@ -67,6 +67,8 @@ class DisplayEink154in : public DisplaySystem {
         int get_partial_refresh();
 
         void display_splash_screen();
+
+        void draw_big_word_in_box(String new_text, int start_x, int start_y, int end_x, int end_y) { assert(0); }
         
         void set_font(const uint8_t* new_font);
 

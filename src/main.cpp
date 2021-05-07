@@ -36,8 +36,8 @@
 #include "SPIFFS.h"
 #include "mbedtls/md.h"
 
-//#define EINK154in
-#define OLED96in
+#define EINK154in
+//#define OLED96in
 
 //#define PlanoConvex20x40
 //#define PlanoConvex16x36
@@ -504,7 +504,9 @@ void loop(void) {
               delete book_renderer;
               book_renderer = nullptr;
             }
-            book_renderer = new FileRenderer(my_optics, my_display, readables[area_in_browsing]);
+            // Only create the FileRenderer if we didn't select the SETTINGS MENU
+            if (area_in_browsing != readables.size())
+              book_renderer = new FileRenderer(my_optics, my_display, readables[area_in_browsing]);
             prefs.putInt("browse-area", area_in_browsing);
             update_box = 1;
           }
