@@ -12,5 +12,8 @@
 #ifdef EINK154in
 #include "DisplayEink154in.hpp"
 #endif
+#ifdef SHARPMEM
+#include "DisplaySharpMem.hpp"
+#endif
 
 #endif

@@ -67,6 +67,7 @@ class DisplayEink154in : public DisplaySystem {
         int get_partial_refresh();
 
         void display_splash_screen();
+        void put_up_hello_world(); 
 
         void draw_big_word_in_box(String new_text, int start_x, int start_y, int end_x, int end_y) { assert(0); }
         

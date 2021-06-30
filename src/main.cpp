@@ -38,6 +38,7 @@
 
 #define EINK154in
 //#define OLED96in
+//#define SHARPMEM
 
 //#define PlanoConvex20x40
 //#define PlanoConvex16x36
@@ -71,6 +72,10 @@ DisplayEink154in* my_display;
 DisplayOLED96in* my_display;
 #endif
 
+#ifdef SHARPMEM
+DisplaySharpMem* my_display;
+#endif
+
 #ifdef PlanoConvex20x40
 OpticsPlanoConvex20mmX40mm* my_optics;
 #endif
@@ -88,7 +93,7 @@ MenuSystem* main_menu;
 IRRemoteInput *ir_remote_input;
 BLERemoteInput *ble_remote_input;
 
-#define IR_REMOTE_INPUT_PIN 13
+#define IR_REMOTE_INPUT_PIN 12
 
 // Whether to redisplay the box or not
 int update_box = 1;
@@ -161,6 +166,10 @@ void setup(void)
   my_display = new DisplayOLED96in();
 #endif
 
+#ifdef SHARPMEM
+  my_display = new DisplaySharpMem();
+#endif
+
 #ifdef PlanoConvex20x40
   my_optics = new OpticsPlanoConvex20mmX40mm();
 #endif
@@ -174,6 +183,8 @@ void setup(void)
 #endif
 
   box_renderer = new Renderer(my_optics, my_display);
+
+  //my_display->put_up_hello_world();
 
   ir_remote_input = new IRRemoteInput();
   ir_remote_input->start_remote(IR_REMOTE_INPUT_PIN);
@@ -211,11 +222,14 @@ void setup(void)
   // END TEST code
 
   BLEManager::getInstance()->startServiceAndAdvertising();
+  
+
 
   // Load the preferences
   //
   //my_display->draw_text("testing testing hi there!\ntwo lines\nthreelines\n\n\n\nskipthreelines\n", 0, 0);
   my_display->display_splash_screen();
+
 
   delay(500);
   // ugly way to clear the screen

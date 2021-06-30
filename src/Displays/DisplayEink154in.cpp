@@ -1,16 +1,49 @@
 #include "DisplayEink154in.hpp"
 #include <Fonts/FreeMonoBold9pt7b.h>
 
+#define HUZZAH32_SINDARIN
+
+const char HelloWorld[] = "Hello Fy World!";
+
+void DisplayEink154in::put_up_hello_world() {
+    
+    display->setRotation(2);
+    display->setFont(&FreeMonoBold9pt7b);
+    display->setTextColor(GxEPD_BLACK);
+    int16_t tbx, tby; uint16_t tbw, tbh;
+    display->getTextBounds(HelloWorld, 0, 0, &tbx, &tby, &tbw, &tbh);
+    // center the bounding box by transposition of the origin:
+    uint16_t x = ((display->width() - tbw) / 2) - tbx;
+    uint16_t y = ((display->height() - tbh) / 2) - tby;
+    display->setFullWindow();
+    display->firstPage();
+    do
+    {
+         display->fillScreen(GxEPD_WHITE);
+         display->setCursor(x, y);
+         display->print(HelloWorld);
+    }
+    while (display->nextPage());
+
+}
+
 // Set up the U8g2lib display
 DisplayEink154in::DisplayEink154in() {
     font = u8g2_font_tom_thumb_4x6_tf;
+#ifdef TINYPICO_SINDARIN
+    display = new GxEPD2_DISPLAY_CLASS<GxEPD2_DRIVER_CLASS, MAX_HEIGHT(GxEPD2_DRIVER_CLASS)>(GxEPD2_DRIVER_CLASS(/*CS=5*/ 5, /*DC=*/ 4, /*RST=*/ 32, /*BUSY=*/ 33));
+#endif
+#ifdef HUZZAH32_SINDARIN
     display = new GxEPD2_DISPLAY_CLASS<GxEPD2_DRIVER_CLASS, MAX_HEIGHT(GxEPD2_DRIVER_CLASS)>(GxEPD2_DRIVER_CLASS(/*CS=5*/ 14, /*DC=*/ 15, /*RST=*/ 27, /*BUSY=*/ 13));
-
+#endif
     display->init();
     display->setRotation(2);
     u8g2Fonts.begin(*display);
     u8g2Fonts.setFont(font);
-    DEBUG_LN("Set up display");
+    DEBUG_LN("Set up display  ");
+    DEBUG_VAR((long)display);
+
+    //put_up_hello_world();
 
     set_x(Eink154in_X_PIXELS);
     set_y(Eink154in_Y_PIXELS);
@@ -79,11 +112,13 @@ void DisplayEink154in::draw_text_in_box(String new_text, int start_x, int start_
 
     setup_display_for_text();
 
-    //DEBUG_LN("Printing to screen!");
-    
+    DEBUG_LN("Printing some stuff to screen!  ");
+    DEBUG_VAR((long)display);
+
     line_height = get_text_height();
     
-    
+
+
     if (get_partial_refresh()) {
         display->setPartialWindow(start_x - 2, start_y - 2, (end_x-start_x) + 4, (end_y-start_y) + 4);
     }
@@ -93,6 +128,26 @@ void DisplayEink154in::draw_text_in_box(String new_text, int start_x, int start_
       draw_box_cmds_only(start_x, start_y, end_x, end_y);
       draw_text_cmds_only(new_text, start_x +3, start_y+line_height+1, line_height);
     } while (display->nextPage());
+
+    /*
+     display->setRotation(2);
+  display->setFont(&FreeMonoBold9pt7b);
+  display->setTextColor(GxEPD_BLACK);
+  int16_t tbx, tby; uint16_t tbw, tbh;
+  display->getTextBounds(HelloWorld, 0, 0, &tbx, &tby, &tbw, &tbh);
+  // center the bounding box by transposition of the origin:
+  uint16_t x = ((display->width() - tbw) / 2) - tbx;
+  uint16_t y = ((display->height() - tbh) / 2) - tby;
+  display->setFullWindow();
+  display->firstPage();
+  do
+  {
+    display->fillScreen(GxEPD_WHITE);
+    display->setCursor(x, y);
+    display->print(HelloWorld);
+  }
+  while (display->nextPage());*/
+
 
 }
 
@@ -109,7 +164,7 @@ void DisplayEink154in::draw_box(int start_x, int start_y, int end_x, int end_y) 
     if (get_partial_refresh()) {
        display->setPartialWindow(start_x - 2, start_y - 2, (end_x-start_x) + 4, (end_y-start_y) + 4);
     }
-    DEBUG_LN("drawing a box");
+    DEBUG_LN("Got here: drawing a box");
 
     display->firstPage();
     do {
