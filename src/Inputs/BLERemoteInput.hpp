@@ -20,9 +20,7 @@ class BLERemoteInput : public RemoteInput {
 
 
   protected:
-    
-    BLEServer *server = NULL;
-    bool wasDeviceConnected;
+        bool wasDeviceConnected;
     bool deviceConnected;
     int was_code_processed;
     int ble_code;

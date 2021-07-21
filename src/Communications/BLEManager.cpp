@@ -15,9 +15,11 @@ BLEManager *BLEManager::getInstance()
 
 BLEManager::BLEManager()
 {
-    BLEDevice::init("Sindarin (April)");
-    server = BLEDevice::createServer();
-    service = server->createService(BLEUUID(SERVICE_UUID));
+    BLEDevice::init("Sindarin (July)");
+    client = BLEDevice::createClient();
+    // Incompatible with Turntouch -cojo
+    //server = BLEDevice::createServer();
+    //service = server->createService(BLEUUID(SERVICE_UUID));
 }
 
 void BLEManager::startServiceAndAdvertising()

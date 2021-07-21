@@ -54,6 +54,7 @@
 #include "Inputs/RemoteInput.hpp"
 #include "Inputs/IRRemoteInput.hpp"
 #include "Inputs/BLERemoteInput.hpp"
+#include "Inputs/TTRemoteInput.hpp"
 
 #include "sindarin-debug.h"
 
@@ -91,7 +92,9 @@ OpticsHastings20mmX40_3mm* my_optics;
 Renderer* box_renderer;
 MenuSystem* main_menu;
 IRRemoteInput *ir_remote_input;
-BLERemoteInput *ble_remote_input;
+// Currently incompatible with TTRemoteInput -cojo
+// BLERemoteInput *ble_remote_input;
+TTRemoteInput *tt_remote_input;
 
 #define IR_REMOTE_INPUT_PIN 12
 
@@ -99,6 +102,7 @@ BLERemoteInput *ble_remote_input;
 int update_box = 1;
 
 FileRenderer *book_renderer = nullptr;
+// Raw renderer was put in place for BLE uploaded data test -cojo
 RawRenderer *raw_renderer = nullptr;
 unsigned long raw_place = 0, raw_place_prev = 0;
 
@@ -189,8 +193,10 @@ void setup(void)
   ir_remote_input = new IRRemoteInput();
   ir_remote_input->start_remote(IR_REMOTE_INPUT_PIN);
 
+  /* Currently incompatible with TTRemoteInput -cojo
   ble_remote_input = new BLERemoteInput();
   ble_remote_input->start_remote();
+
 
   // TEST: Setup receiver for new data via BLE
   BLECharacteristic *newDataCharacteristic = BLEManager::getInstance()->service->createCharacteristic(
@@ -223,7 +229,10 @@ void setup(void)
 
   BLEManager::getInstance()->startServiceAndAdvertising();
   
+  Currently incompatible with TTRemoteInput -cojo */
 
+  tt_remote_input = new TTRemoteInput();
+  tt_remote_input->start_remote();
 
   // Load the preferences
   //
@@ -364,7 +373,9 @@ void loop(void) {
 
   // Always have to do a check press and check release. In this case, we don't care about press.
   ir_remote_input->check_press();
-  ble_remote_input->check_press();
+  // Incompatible with Turntouch -cojo
+  // ble_remote_input->check_press();
+  tt_remote_input->check_press();
 
   // We could do this better by iterating, but fine for now with only 2 input devices.
   // Note that if an IR input comes in and then a BLE input comes at the same time,
@@ -377,12 +388,86 @@ void loop(void) {
     code_from_release = ir_remote_input->get_code();
   }
 
+  // Incompatible with turntouch -cojo
+  /*
   if (ble_remote_input->check_release()) {
     got_a_release = 1;
     code_from_release = ble_remote_input->get_code();
   }
+  */
 
-  if (got_a_release) {
+  if (tt_remote_input->check_release())
+  {
+    got_a_release = 1;
+    code_from_release = tt_remote_input->get_code();
+  }
+
+  auto select = []()
+  {
+    // Check against readables.size() because it is == SETTINGS_MENU
+    if (area_in_browsing == readables.size())
+    {
+      prefs.putInt("x-offset", local_x_offset);
+      prefs.putInt("y-offset", local_y_offset);
+      DEBUG_LN("Saving off x and y offset to preferences");
+      DEBUG_VAR(local_x_offset);
+      DEBUG_LN(" is the x offset");
+      DEBUG_VAR(local_y_offset);
+      DEBUG_LN(" is the y offset");
+      // Set to MAIN_MENU (readables.size() + 1)
+      area_in_browsing = readables.size() + 1;
+      prefs.putInt("browse-area", area_in_browsing);
+      update_box = 1;
+    }
+    else if (area_in_browsing == readables.size() + 1)
+    {
+      // CAN FIX THIS NOW TO JUST DO ONE ASSIGNMENT BASED ON THE
+      // RETURN RESULT OF THE MENU!
+      area_in_browsing = main_menu->get_curr_selection();
+      if (book_renderer != nullptr)
+      {
+        delete book_renderer;
+        book_renderer = nullptr;
+      }
+      // Only create the FileRenderer if we didn't select the SETTINGS MENU
+      if (area_in_browsing != readables.size())
+        book_renderer = new FileRenderer(my_optics, my_display, readables[area_in_browsing]);
+      prefs.putInt("browse-area", area_in_browsing);
+      update_box = 1;
+    }
+  };
+
+  auto back = []()
+  {
+    if (book_renderer != nullptr && book_renderer->get_read_mode() == SCREED_READ)
+    {
+      String prefs_prev_name = String(readables[area_in_browsing].id) + "-pr-p";
+      String prefs_name = String(readables[area_in_browsing].id) + "-p";
+      readables[area_in_browsing].place_prev = readables[area_in_browsing].place;
+      readables[area_in_browsing].place = readables[area_in_browsing].place_screed;
+      prefs.putULong(prefs_name.c_str(), readables[area_in_browsing].place);
+      prefs.putULong(prefs_prev_name.c_str(), readables[area_in_browsing].place_prev);
+    }
+
+    // Set to MAIN_MENU (readables.size() + 1)
+    area_in_browsing = readables.size() + 1;
+    prefs.putInt("browse-area", area_in_browsing);
+    update_box = 1;
+    if (book_renderer != nullptr)
+    {
+      delete book_renderer;
+      book_renderer = nullptr;
+    }
+    if (raw_renderer != nullptr)
+    {
+      delete raw_renderer;
+      raw_renderer = nullptr;
+      raw_place = 0;
+    }
+  };
+
+  if (got_a_release)
+  {
     switch(code_from_release) {
        case SETUP:
           prefs.clear();
@@ -435,6 +520,7 @@ void loop(void) {
           }
           update_box = 1;
           //}
+          select();
           break;
         case PREV:
           // TODO: Check bounds
@@ -463,6 +549,7 @@ void loop(void) {
           }
           update_box = 1;
           //}
+          back();
           break;
         case NEXT:
           // TODO: Check to be sure we don't go off the end of the screen
@@ -493,65 +580,11 @@ void loop(void) {
           //}
           break;
         case ENTER:
-          // Check against readables.size() because it is == SETTINGS_MENU
-          if (area_in_browsing == readables.size())
-          {
-            prefs.putInt("x-offset", local_x_offset);
-            prefs.putInt("y-offset", local_y_offset);
-            DEBUG_LN("Saving off x and y offset to preferences");
-            DEBUG_VAR(local_x_offset);
-            DEBUG_LN(" is the x offset");
-            DEBUG_VAR(local_y_offset);
-            DEBUG_LN(" is the y offset");
-            // Set to MAIN_MENU (readables.size() + 1)
-            area_in_browsing = readables.size() + 1;
-            prefs.putInt("browse-area", area_in_browsing);
-            update_box = 1;
-          }
-          else if (area_in_browsing == readables.size() + 1)
-          {
-            // CAN FIX THIS NOW TO JUST DO ONE ASSIGNMENT BASED ON THE 
-            // RETURN RESULT OF THE MENU!
-            area_in_browsing = main_menu->get_curr_selection();
-            if (book_renderer != nullptr)
-            {
-              delete book_renderer;
-              book_renderer = nullptr;
-            }
-            // Only create the FileRenderer if we didn't select the SETTINGS MENU
-            if (area_in_browsing != readables.size())
-              book_renderer = new FileRenderer(my_optics, my_display, readables[area_in_browsing]);
-            prefs.putInt("browse-area", area_in_browsing);
-            update_box = 1;
-          }
+          select();
           break;
         case BACK:
-          if (book_renderer != nullptr && book_renderer->get_read_mode() == SCREED_READ)
-          {
-            String prefs_prev_name = String(readables[area_in_browsing].id) + "-pr-p";
-            String prefs_name = String(readables[area_in_browsing].id) + "-p";
-            readables[area_in_browsing].place_prev = readables[area_in_browsing].place;
-            readables[area_in_browsing].place = readables[area_in_browsing].place_screed;
-            prefs.putULong(prefs_name.c_str(), readables[area_in_browsing].place);
-            prefs.putULong(prefs_prev_name.c_str(), readables[area_in_browsing].place_prev);
-          }
-
-          // Set to MAIN_MENU (readables.size() + 1)
-          area_in_browsing = readables.size() + 1;
-          prefs.putInt("browse-area", area_in_browsing);
-          update_box = 1;
-          if (book_renderer != nullptr)
-          {
-            delete book_renderer;
-            book_renderer = nullptr;
-          }
-          if (raw_renderer != nullptr)
-          {
-            delete raw_renderer;
-            raw_renderer = nullptr;
-            raw_place = 0;
-          }
-        break;
+          back();
+          break;
         case NOP_BUTTON:
           if (raw_renderer != nullptr)
           {
@@ -574,8 +607,6 @@ void loop(void) {
         break;
         default:
         break;
-      }
-
+        }
   }
-
 }

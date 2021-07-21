@@ -7,7 +7,7 @@
 
 
 void BLERemoteInput::start_remote(int receive_pin_input) {
-  DEBUG_LN("FAIL DUE BLE CONSTUCTOR NOT NEEDING THIS ONE");
+  DEBUG_LN("FAIL DUE TO BLE CONSTUCTOR NOT NEEDING THIS ONE");
   assert(0);
 }
 
@@ -39,7 +39,7 @@ int BLERemoteInput::check_press() {
   if (!deviceConnected && wasDeviceConnected)
   {
     delay(500);                 // give the bluetooth stack the chance to get things ready for restart
-    server->startAdvertising(); // restart advertising
+    BLEManager::getInstance()->server->startAdvertising(); // restart advertising
     DEBUG_LN("Restarting bluetooth advertising");
     wasDeviceConnected = deviceConnected;
   }
