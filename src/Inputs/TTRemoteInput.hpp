@@ -9,6 +9,7 @@
 #include <BLEClient.h>
 #include <BLEUtils.h>
 
+#define RESCAN_INTERVAL_MS 3000
 #define TURNTOUCH_BUTTON_SVC_ID "1523"
 #define TURNTOUCH_BUTTON_SVC_UUID "99c31523-dc4f-41b1-bb04-4e4deb81fadd"
 #define TURNTOUCH_BUTTON_CHR_UUID "99c31525-dc4f-41b1-bb04-4e4deb81fadd"
@@ -39,12 +40,13 @@ public:
 
 protected:
     BLEAdvertisedDevice *turntouchDevice = nullptr;
-    bool wasDeviceConnected;
-    bool deviceConnected;
+    bool deviceConnected, wasDeviceConnected;
     int was_code_processed;
     int ble_code;
+    long lastScanMs = 0;
 
     void connectToDevice(BLEAdvertisedDevice *device);
+    void scanForDevice();
 
     class AdvertisedDeviceCallbacks : public BLEAdvertisedDeviceCallbacks
     {

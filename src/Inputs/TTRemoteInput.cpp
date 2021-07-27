@@ -23,15 +23,7 @@ void TTRemoteInput::start_remote()
 
     // Ensure BLEManager is initialized by this point
     BLEManager *manager = BLEManager::getInstance();
-    // Run a scan for 5 seconds
-    DEBUG_LN("Starting BLE scan...");
-    BLEScan *scan = BLEDevice::getScan();
-    scan->setAdvertisedDeviceCallbacks(new AdvertisedDeviceCallbacks(this));
-    scan->setInterval(1349);
-    scan->setWindow(449);
-    scan->setActiveScan(true);
-    scan->start(3, false);
-    DEBUG_LN("BLE scan completed.");
+    scanForDevice();
 }
 
 void TTRemoteInput::connectToDevice(BLEAdvertisedDevice *device)
@@ -81,6 +73,20 @@ void TTRemoteInput::connectToDevice(BLEAdvertisedDevice *device)
     }
 
     deviceConnected = true;
+}
+
+void TTRemoteInput::scanForDevice()
+{
+    // Run a scan for 3 seconds
+    DEBUG_LN("Starting BLE scan...");
+    BLEScan *scan = BLEDevice::getScan();
+    scan->setAdvertisedDeviceCallbacks(new AdvertisedDeviceCallbacks(this));
+    scan->setInterval(1349);
+    scan->setWindow(449);
+    scan->setActiveScan(true);
+    scan->start(3, false);
+    DEBUG_LN("BLE scan completed.");
+    lastScanMs = millis();
 }
 
 void TTRemoteInput::buttonNotificationCallback(BLERemoteCharacteristic *remoteCharacteristic, uint8_t *data, size_t length, bool isNotify)
@@ -143,17 +149,10 @@ int TTRemoteInput::check_press()
         DEBUG_F("Attempting connection to %s!\n", turntouchDevice->toString().c_str());
         connectToDevice(turntouchDevice);
     }
-    if (!deviceConnected && wasDeviceConnected)
+    if (!deviceConnected && millis() > (lastScanMs + RESCAN_INTERVAL_MS))
     {
-        delay(500); // give the bluetooth stack the chance to get things ready for restart
-        DEBUG_LN("Turntouch disconnected; restarting bluetooth scanning");
-        // Run a scan for 5 seconds
-        BLEScan *scan = BLEDevice::getScan();
-        scan->setAdvertisedDeviceCallbacks(new AdvertisedDeviceCallbacks(this));
-        scan->setInterval(1349);
-        scan->setWindow(449);
-        scan->setActiveScan(true);
-        scan->start(3, false);
+        DEBUG_LN("No Turntouch connected; restarting bluetooth scanning");
+        scanForDevice();
         wasDeviceConnected = deviceConnected;
     }
     if (deviceConnected && !wasDeviceConnected)
