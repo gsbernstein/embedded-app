@@ -30,7 +30,7 @@ void TTRemoteInput::start_remote()
     scan->setInterval(1349);
     scan->setWindow(449);
     scan->setActiveScan(true);
-    scan->start(10, false);
+    scan->start(3, false);
     DEBUG_LN("BLE scan completed.");
 }
 
@@ -108,8 +108,10 @@ void TTRemoteInput::buttonNotificationCallback(BLERemoteCharacteristic *remoteCh
         break;
     case TT_S_PRESS:
     case TT_S_DOUBLE:
-    case TT_S_HOLD:
         ble_code = NEXT;
+        break;
+    case TT_S_HOLD:
+        ble_code = STOP;
         break;
     case TT_W_PRESS:
     case TT_W_DOUBLE:
@@ -120,6 +122,9 @@ void TTRemoteInput::buttonNotificationCallback(BLERemoteCharacteristic *remoteCh
     case TT_E_DOUBLE:
     case TT_E_HOLD:
         ble_code = CHANNEL_PLUS;
+        break;
+    case TT_MULTI_N_S:
+        ble_code = SETUP;
         break;
     default:
         DEBUG_F("Invalid code processed from Turntouch: %u", processed);
@@ -148,7 +153,7 @@ int TTRemoteInput::check_press()
         scan->setInterval(1349);
         scan->setWindow(449);
         scan->setActiveScan(true);
-        scan->start(10, false);
+        scan->start(3, false);
         wasDeviceConnected = deviceConnected;
     }
     if (deviceConnected && !wasDeviceConnected)

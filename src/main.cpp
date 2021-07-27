@@ -65,6 +65,11 @@
 #include <Wire.h>
 #endif
 
+#ifdef TINYPICO_SINDARIN
+#include <TinyPICO.h>
+TinyPICO *tp;
+#endif
+
 #ifdef EINK154in
 DisplayEink154in* my_display;
 #endif
@@ -114,6 +119,7 @@ Preferences prefs;
 int local_x_offset = 0;
 int local_y_offset = 0;
 int area_in_browsing = 0;
+bool hasPartialRefreshed = false;
 
 #define SETTINGS_MENU_TEXT "**SETTINGS**"
 
@@ -160,6 +166,10 @@ void setup(void)
   {
     readables.emplace_back(v["id"], v["name"], v["path"]);
   }
+
+#ifdef TINYPICO_SINDARIN
+  tp = new TinyPICO();
+#endif
 
 #ifdef EINK154in
   my_display = new DisplayEink154in();
@@ -231,9 +241,6 @@ void setup(void)
   
   Currently incompatible with TTRemoteInput -cojo */
 
-  tt_remote_input = new TTRemoteInput();
-  tt_remote_input->start_remote();
-
   // Load the preferences
   //
   //my_display->draw_text("testing testing hi there!\ntwo lines\nthreelines\n\n\n\nskipthreelines\n", 0, 0);
@@ -288,10 +295,13 @@ const int MAX_ANALOG_VAL = 4095;
 const float MAX_BATTERY_VOLTAGE = 4.2; // Max LiPoly voltage of a 3.7 battery is 4.2
 
 String get_battery_life() {
+#ifdef TINYPICO_SINDARIN
+  float voltageLevel = tp->GetBatteryVoltage();
+#else
   // A13 pin is not exposed on Huzzah32 board because it's tied to
   // measuring voltage level of battery. Note: you must
   // multiply the analogRead value by 2x to get the true battery
-  // level. See: 
+  // level. See:
   // https://learn.adafruit.com/adafruit-huzzah32-esp32-feather/esp32-faq
   int rawValue = analogRead(A13);
 
@@ -299,6 +309,7 @@ String get_battery_life() {
   // https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-reference/peripherals/adc.html#adc-calibration
   // See also: https://bit.ly/2zFzfMT
   float voltageLevel = (rawValue / 4095.0) * 2 * 1.1 * 3.3; // calculate voltage level
+#endif
   float batteryFraction = voltageLevel / MAX_BATTERY_VOLTAGE;
   String battery_output = "  Percent: " + String(batteryFraction * 100) + "%";
   DEBUG_LN(battery_output.c_str());
@@ -343,6 +354,12 @@ void loop(void) {
       bat_life = get_battery_life();
       total_to_display = menu_string + String("\n\n") + bat_life;
       box_renderer->render_max_box_with_text(local_x_offset, local_y_offset, total_to_display);
+      // Partial refresh doesn't seem to work on both eInk displays on very first render, only hits one? -cojo
+      if (!hasPartialRefreshed)
+      {
+        hasPartialRefreshed = true;
+        box_renderer->render_max_box_with_text(local_x_offset, local_y_offset, total_to_display);
+      }
     }
     else if (area_in_browsing == readables.size())
     {
@@ -375,6 +392,11 @@ void loop(void) {
   ir_remote_input->check_press();
   // Incompatible with Turntouch -cojo
   // ble_remote_input->check_press();
+  if (tt_remote_input == nullptr)
+  {
+    tt_remote_input = new TTRemoteInput();
+    tt_remote_input->start_remote();
+  }
   tt_remote_input->check_press();
 
   // We could do this better by iterating, but fine for now with only 2 input devices.
@@ -472,6 +494,8 @@ void loop(void) {
        case SETUP:
           prefs.clear();
           DEBUG_LN("CLEARED PREFERENCES!");
+          DEBUG_LN("RESETTING BOARD BY SEG FAULT!");
+          resetFunc();
           break;
         case STOP:
           DEBUG_LN("RESETTING BOARD BY SEG FAULT!");

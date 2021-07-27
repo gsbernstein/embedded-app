@@ -1,8 +1,6 @@
 #include "DisplayEink154in.hpp"
 #include <Fonts/FreeMonoBold9pt7b.h>
 
-#define HUZZAH32_SINDARIN
-
 const char HelloWorld[] = "Hello Fy World!";
 
 void DisplayEink154in::put_up_hello_world() {
@@ -32,12 +30,14 @@ DisplayEink154in::DisplayEink154in() {
     font = u8g2_font_tom_thumb_4x6_tf;
 #ifdef TINYPICO_SINDARIN
     display = new GxEPD2_DISPLAY_CLASS<GxEPD2_DRIVER_CLASS, MAX_HEIGHT(GxEPD2_DRIVER_CLASS)>(GxEPD2_DRIVER_CLASS(/*CS=5*/ 5, /*DC=*/ 4, /*RST=*/ 32, /*BUSY=*/ 33));
+    display->init();
+    display->setRotation(0);
 #endif
 #ifdef HUZZAH32_SINDARIN
-    display = new GxEPD2_DISPLAY_CLASS<GxEPD2_DRIVER_CLASS, MAX_HEIGHT(GxEPD2_DRIVER_CLASS)>(GxEPD2_DRIVER_CLASS(/*CS=5*/ 14, /*DC=*/ 15, /*RST=*/ 27, /*BUSY=*/ 13));
-#endif
+    display = new GxEPD2_DISPLAY_CLASS<GxEPD2_DRIVER_CLASS, MAX_HEIGHT(GxEPD2_DRIVER_CLASS)>(GxEPD2_DRIVER_CLASS(/*CS=5*/ 14, /*DC=*/15, /*RST=*/27, /*BUSY=*/13));
     display->init();
     display->setRotation(2);
+#endif
     u8g2Fonts.begin(*display);
     u8g2Fonts.setFont(font);
     DEBUG_LN("Set up display  ");

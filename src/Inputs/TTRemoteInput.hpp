@@ -25,6 +25,7 @@
 #define TT_W_PRESS 0xFB00
 #define TT_W_DOUBLE 0xBF00
 #define TT_W_HOLD 0xFBFF
+#define TT_MULTI_N_S 0xF600
 
 class TTRemoteInput : public RemoteInput
 {
