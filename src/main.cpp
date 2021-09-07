@@ -147,7 +147,7 @@ void setup(void)
  
   // Only uncomment this if you need to reset the prefs.
   // Then recomment after loading onto board and restart.
-   //prefs.clear();
+  // prefs.clear();
 
     // Launch SPIFFS file system
   if (!SPIFFS.begin(false, "/spiffs", 255, NULL))
@@ -533,7 +533,7 @@ void loop(void) {
           else if (area_in_browsing < readables.size())
           {
             String prefs_name = String(readables[area_in_browsing].id) + "-pr-p";
-            readables[area_in_browsing].place = readables[area_in_browsing].place_prev;
+            readables[area_in_browsing].place = book_renderer->get_previous_place();
             prefs.putULong(prefs_name.c_str(), readables[area_in_browsing].place);
           }
           update_box = 1;

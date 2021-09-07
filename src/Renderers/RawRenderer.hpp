@@ -9,7 +9,7 @@
 #include <sstream>
 #include <string>
 
-#define MAX_CHARS_PER_PAGE 1000
+#define MAX_CHARS_PER_PAGE 1500
 #define PAGE_READ 1
 #define SCREED_READ 2
 
@@ -34,6 +34,8 @@ public:
     // returns the next place for reading so the calling function can
     // track place.
     unsigned long render_page_with_box(unsigned long place_in_file, int x_offset, int y_offset);
+
+     unsigned long get_previous_place();
 
 protected:
     std::string &raw_data;
