@@ -20,6 +20,7 @@ void BLERemoteInput::start_remote() {
   deviceConnected = false;
   wasDeviceConnected = false;
 
+  SHOW_HEAP();
   BLEManager::getInstance()->server->setCallbacks(new ServerCallbacks(this));
 
   BLECharacteristic *characteristic = BLEManager::getInstance()->service->createCharacteristic(

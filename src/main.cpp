@@ -140,6 +140,8 @@ std::vector<Readable> readables;
 void setup(void)
 {
   if (Serial) Serial.begin(115200);
+  SHOW_HEAP();
+
   DEBUG_LN("About to try drawing something!");
 
   // Read / Write the preferences
@@ -149,13 +151,14 @@ void setup(void)
   // Then recomment after loading onto board and restart.
   // prefs.clear();
 
-    // Launch SPIFFS file system
+  // Launch SPIFFS file system
+  SHOW_HEAP();
   if (!SPIFFS.begin(false, "/spiffs", 255, NULL))
   {
     DEBUG_LN("An Error has occurred while mounting SPIFFS");
   }
 
-  DEBUG_F("Free heap: %d\n", ESP.getFreeHeap());
+  SHOW_HEAP();
   manifest = new SpiRamJsonDocument(2048);
   File manifestFile = SPIFFS.open("/manifest.json");
   if (!manifestFile)
@@ -170,6 +173,7 @@ void setup(void)
   {
     readables.emplace_back(v["id"], v["name"], v["path"]);
   }
+  SHOW_HEAP();
 
 #ifdef TINYPICO_SINDARIN
   tp = new TinyPICO();
@@ -199,6 +203,8 @@ void setup(void)
 #ifdef Hastings20x40_3
   my_optics = new OpticsHastings20mmX40_3mm();
 #endif
+
+  SHOW_HEAP();
 
   box_renderer = new Renderer(my_optics, my_display);
 
@@ -267,7 +273,7 @@ void setup(void)
 
   main_menu = new MenuSystem();
 
-  DEBUG_F("Free heap: %d\n", ESP.getFreeHeap());
+  SHOW_HEAP();
   for (Readable &r : readables)
   {
     String name = String(r.id) + "-p";
@@ -275,7 +281,7 @@ void setup(void)
     main_menu->add_menu_item(r.name);
     r.place = prefs.getULong(name.c_str());
     r.place_prev = prefs.getULong(name_prev.c_str());
-    DEBUG_F("Free heap: %d\n", ESP.getFreeHeap());
+    SHOW_HEAP();
   }
 
   if (area_in_browsing < readables.size())
@@ -293,7 +299,7 @@ void setup(void)
   //box_renderer->render_max_box(local_x_offset, local_y_offset);
   my_display->set_partial_refresh();
 
-  DEBUG_F("Free heap: %d\n", ESP.getFreeHeap());
+  SHOW_HEAP();
 
   //box_renderer->render_max_box_with_text(local_x_offset, local_y_offset, main_menu->get_whole_menu_as_string();
 }
@@ -320,7 +326,7 @@ String get_battery_life() {
   float batteryFraction = voltageLevel / MAX_BATTERY_VOLTAGE;
   String battery_output = "  Percent: " + String(batteryFraction * 100) + "%";
   DEBUG_LN(battery_output.c_str());
-  DEBUG_F("Free heap: %d\n", ESP.getFreeHeap());
+  SHOW_HEAP();
   return battery_output;
 }
 
