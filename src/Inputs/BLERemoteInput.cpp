@@ -24,7 +24,7 @@ void BLERemoteInput::start_remote() {
 
   BLECharacteristic *characteristic = BLEManager::getInstance()->service->createCharacteristic(
       BLEUUID(CHARACTERISTIC_UUID),
-      BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_WRITE);
+      NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::WRITE);
 
   characteristic->setCallbacks(new CharacteristicCallbacks(this));
 

@@ -5,9 +5,7 @@
 #include "Communications/BLEManager.hpp"
 #include "sindarin-debug.h"
 
-#include <BLEDevice.h>
-#include <BLEServer.h>
-#include <BLEUtils.h>
+#include <NimBLEDevice.h>
 
 
 class BLERemoteInput : public RemoteInput {

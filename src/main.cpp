@@ -215,7 +215,7 @@ void setup(void)
     // TEST: Setup receiver for new data via BLE
     BLECharacteristic *newDataCharacteristic = BLEManager::getInstance()->service->createCharacteristic(
         BLEUUID("6851fc86-9284-4ff9-9ea8-82e22bc2f1b1"),
-        BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_WRITE);
+        NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::WRITE);
 
     class DataCharacteristicCallbacks : public BLECharacteristicCallbacks
     {

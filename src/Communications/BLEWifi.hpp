@@ -4,9 +4,7 @@
 #include "Communications/BLEManager.hpp"
 #include "sindarin-debug.h"
 
-#include <BLEDevice.h>
-#include <BLEServer.h>
-#include <BLEUtils.h>
+#include <NimBLEDevice.h>
 #include <improv.h>
 #include "WiFi.h"
 
@@ -62,8 +60,7 @@ class BLEWifi {
           DEBUG_F("onWrite for Characteristic %s\n", characteristic->getUUID().toString().c_str());
           if (characteristic->getUUID().equals(BLEUUID(improv::RPC_COMMAND_UUID))) {
             std::string value = characteristic->getValue();
-            uint8_t *data = characteristic->getData();
-            improv::ImprovCommand command = improv::parse_improv_data(data, value.length());
+            improv::ImprovCommand command = improv::parse_improv_data((uint8_t *)value.c_str(), value.length());
             switch (command.command) {
               case improv::BAD_CHECKSUM: {
                 DEBUG_LN("Error: Bad Checksum from Improv message");

@@ -2,10 +2,7 @@
 #include "BLEWifi.hpp"
 #include "sindarin-debug.h"
 #include <Arduino.h>
-#include <BLEDevice.h>
-#include <BLEService.h>
-#include <BLE2902.h>
-#include <BLEDescriptor.h>
+#include <NimBLEDevice.h>
 #include "esp_wifi.h"
 
 void BLEWifi::startService() {
@@ -30,42 +27,32 @@ void BLEWifi::startService() {
 
   BLECharacteristic *capabilities_characteristic = service->createCharacteristic(
       BLEUUID(improv::CAPABILITIES_UUID),
-      BLECharacteristic::PROPERTY_READ);
-  BLEDescriptor *capabilities_descriptor = new BLE2902();
-  capabilities_characteristic->addDescriptor(capabilities_descriptor);
+      NIMBLE_PROPERTY::READ);
   int supports_identify = 0;
   capabilities_characteristic->setValue(supports_identify);
 
   BLECharacteristic *current_state_characteristic = service->createCharacteristic(
       BLEUUID(improv::STATUS_UUID),
-      BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_NOTIFY);
-  BLEDescriptor *current_state_descriptor = new BLE2902();
-  current_state_characteristic->addDescriptor(current_state_descriptor);
+      NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::NOTIFY);
   int state = improv::STATE_AUTHORIZED;
   current_state_characteristic->setValue(state);
   this->current_state_characteristic = current_state_characteristic;
 
   BLECharacteristic *error_state_characteristic = service->createCharacteristic(
       BLEUUID(improv::ERROR_UUID),
-      BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_NOTIFY);
-  BLEDescriptor *error_state_descriptor = new BLE2902();
-  error_state_characteristic->addDescriptor(error_state_descriptor);
+      NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::NOTIFY);
   int no_error = improv::ERROR_NONE;
   error_state_characteristic->setValue(no_error);
   this->error_state_characteristic = error_state_characteristic;
 
   BLECharacteristic *rpc_command_characteristic = service->createCharacteristic(
       BLEUUID(improv::RPC_COMMAND_UUID),
-      BLECharacteristic::PROPERTY_WRITE);
-  BLEDescriptor *rpc_command_descriptor = new BLE2902();
-  rpc_command_characteristic->addDescriptor(rpc_command_descriptor);
+      NIMBLE_PROPERTY::WRITE);
   rpc_command_characteristic->setCallbacks(characteristic_callbacks);
 
   BLECharacteristic *rpc_result_characteristic = service->createCharacteristic(
       BLEUUID(improv::RPC_RESULT_UUID),
-      BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_NOTIFY);
-  BLEDescriptor *rpc_result_descriptor = new BLE2902();
-  rpc_result_characteristic->addDescriptor(rpc_result_descriptor);
+      NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::NOTIFY);
   this->rpc_result_characteristic = rpc_result_characteristic;
 
   service->start();
