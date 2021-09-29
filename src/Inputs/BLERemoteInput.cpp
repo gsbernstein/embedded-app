@@ -20,11 +20,12 @@ void BLERemoteInput::start_remote() {
   deviceConnected = false;
   wasDeviceConnected = false;
 
+  SHOW_HEAP();
   BLEManager::getInstance()->server->setCallbacks(new ServerCallbacks(this));
 
   BLECharacteristic *characteristic = BLEManager::getInstance()->service->createCharacteristic(
       BLEUUID(CHARACTERISTIC_UUID),
-      BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_WRITE);
+      NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::WRITE);
 
   characteristic->setCallbacks(new CharacteristicCallbacks(this));
 

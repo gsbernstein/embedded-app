@@ -10,3 +10,5 @@
     Serial.printf(vargs)
 
 #endif
+
+#define SHOW_HEAP() DEBUG_F("%s:%d Free heap: %dk/%dk Free PSRAM: %dk/%dk\n", __FILE__, __LINE__, ESP.getFreeHeap() / 1000, ESP.getHeapSize() / 1000, ESP.getFreePsram() / 1000, ESP.getPsramSize() / 1000)

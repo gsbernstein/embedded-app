@@ -2,10 +2,7 @@
 #ifndef BLEManager_H
 #define BLEManager_H
 
-#include <BLEDevice.h>
-#include <BLEClient.h>
-#include <BLEServer.h>
-#include <BLEUtils.h>
+#include <NimBLEDevice.h>
 
 class BLEManager
 {
