@@ -4,7 +4,7 @@
 #include "sindarin-debug.h"
 #include <Arduino.h>
 
-#define MAX_NUM_MENU_ITEMS 100
+#define MAX_NUM_MENU_ITEMS 10
 
 class MenuSystem {
 
