@@ -46,10 +46,23 @@
 #define Eink154in_WIDTH_IN_MM 28.5
 #define Eink154in_HEIGHT_IN_MM 28.5
 
+#define Eink154in_USE_SPRAM 1
+
 class DisplayEink154in : public DisplaySystem {
     public:
         DisplayEink154in();
         ~DisplayEink154in();
+
+#ifdef Eink154in_USE_SPRAM
+        void *operator new(size_t size) {
+            void *p = heap_caps_malloc(size, MALLOC_CAP_SPIRAM);
+            return p;
+        }
+
+        void operator delete(void *p) {
+            heap_caps_free(p);
+        }
+#endif
 
         void draw_box(int x_start, int y_start, int x_end, int y_end);
 
@@ -82,7 +95,12 @@ class DisplayEink154in : public DisplaySystem {
         const uint8_t* font;
         //U8G2_SSD1306_128X64_NONAME_F_HW_I2C* u8g2;
         U8G2_FOR_ADAFRUIT_GFX u8g2Fonts;
-        GxEPD2_BW<GxEPD2_DRIVER_CLASS, MAX_HEIGHT(GxEPD2_DRIVER_CLASS)>* display = NULL;
+        #ifdef TINYPICO_SINDARIN
+            GxEPD2_BW<GxEPD2_DRIVER_CLASS, MAX_HEIGHT(GxEPD2_DRIVER_CLASS)> display = GxEPD2_DISPLAY_CLASS<GxEPD2_DRIVER_CLASS, MAX_HEIGHT(GxEPD2_DRIVER_CLASS)>(GxEPD2_DRIVER_CLASS(/*CS=5*/ 5, /*DC=*/ 4, /*RST=*/ 32, /*BUSY=*/ 33));
+        #endif
+        #ifdef HUZZAH32_SINDARIN
+            GxEPD2_BW<GxEPD2_DRIVER_CLASS, MAX_HEIGHT(GxEPD2_DRIVER_CLASS)> display = GxEPD2_DISPLAY_CLASS<GxEPD2_DRIVER_CLASS, MAX_HEIGHT(GxEPD2_DRIVER_CLASS)>(GxEPD2_DRIVER_CLASS(/*CS=5*/ 14, /*DC=*/15, /*RST=*/27, /*BUSY=*/13));
+        #endif
 
         uint16_t bg = GxEPD_WHITE;
         uint16_t fg = GxEPD_BLACK;

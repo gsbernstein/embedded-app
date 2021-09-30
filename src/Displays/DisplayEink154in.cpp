@@ -5,23 +5,23 @@ const char HelloWorld[] = "Hello Fy World!";
 
 void DisplayEink154in::put_up_hello_world() {
     
-    display->setRotation(2);
-    display->setFont(&FreeMonoBold9pt7b);
-    display->setTextColor(GxEPD_BLACK);
+    display.setRotation(2);
+    display.setFont(&FreeMonoBold9pt7b);
+    display.setTextColor(GxEPD_BLACK);
     int16_t tbx, tby; uint16_t tbw, tbh;
-    display->getTextBounds(HelloWorld, 0, 0, &tbx, &tby, &tbw, &tbh);
+    display.getTextBounds(HelloWorld, 0, 0, &tbx, &tby, &tbw, &tbh);
     // center the bounding box by transposition of the origin:
-    uint16_t x = ((display->width() - tbw) / 2) - tbx;
-    uint16_t y = ((display->height() - tbh) / 2) - tby;
-    display->setFullWindow();
-    display->firstPage();
+    uint16_t x = ((display.width() - tbw) / 2) - tbx;
+    uint16_t y = ((display.height() - tbh) / 2) - tby;
+    display.setFullWindow();
+    display.firstPage();
     do
     {
-         display->fillScreen(GxEPD_WHITE);
-         display->setCursor(x, y);
-         display->print(HelloWorld);
+         display.fillScreen(GxEPD_WHITE);
+         display.setCursor(x, y);
+         display.print(HelloWorld);
     }
-    while (display->nextPage());
+    while (display.nextPage());
 
 }
 
@@ -29,19 +29,16 @@ void DisplayEink154in::put_up_hello_world() {
 DisplayEink154in::DisplayEink154in() {
     font = u8g2_font_tom_thumb_4x6_tf;
 #ifdef TINYPICO_SINDARIN
-    display = new GxEPD2_DISPLAY_CLASS<GxEPD2_DRIVER_CLASS, MAX_HEIGHT(GxEPD2_DRIVER_CLASS)>(GxEPD2_DRIVER_CLASS(/*CS=5*/ 5, /*DC=*/ 4, /*RST=*/ 32, /*BUSY=*/ 33));
-    display->init();
-    display->setRotation(0);
+    display.init();
+    display.setRotation(0);
 #endif
 #ifdef HUZZAH32_SINDARIN
-    display = new GxEPD2_DISPLAY_CLASS<GxEPD2_DRIVER_CLASS, MAX_HEIGHT(GxEPD2_DRIVER_CLASS)>(GxEPD2_DRIVER_CLASS(/*CS=5*/ 14, /*DC=*/15, /*RST=*/27, /*BUSY=*/13));
-    display->init();
-    display->setRotation(2);
+    display.init();
+    display.setRotation(2);
 #endif
-    u8g2Fonts.begin(*display);
+    u8g2Fonts.begin(display);
     u8g2Fonts.setFont(font);
-    DEBUG_LN("Set up display  ");
-    DEBUG_VAR((long)display);
+    DEBUG_F("Set up display (%ld)\n", (long)&display);
 
     //put_up_hello_world();
 
@@ -59,8 +56,6 @@ void DisplayEink154in::display_splash_screen() {
 }
 
 DisplayEink154in::~DisplayEink154in() {
-    if (display)
-        delete display;
 }
 
 void DisplayEink154in::set_partial_refresh() {
@@ -112,41 +107,40 @@ void DisplayEink154in::draw_text_in_box(String new_text, int start_x, int start_
 
     setup_display_for_text();
 
-    DEBUG_LN("Printing some stuff to screen!  ");
-    DEBUG_VAR((long)display);
+    DEBUG_F("Printing some stuff to screen! (%ld)\n", (long)&display);
 
     line_height = get_text_height();
     
 
 
     if (get_partial_refresh()) {
-        display->setPartialWindow(start_x - 2, start_y - 2, (end_x-start_x) + 4, (end_y-start_y) + 4);
+        display.setPartialWindow(start_x - 2, start_y - 2, (end_x-start_x) + 4, (end_y-start_y) + 4);
     }
     
-    display->firstPage();
+    display.firstPage();
     do {
       draw_box_cmds_only(start_x, start_y, end_x, end_y);
       draw_text_cmds_only(new_text, start_x +3, start_y+line_height+1, line_height);
-    } while (display->nextPage());
+    } while (display.nextPage());
 
     /*
-     display->setRotation(2);
-  display->setFont(&FreeMonoBold9pt7b);
-  display->setTextColor(GxEPD_BLACK);
+     display.setRotation(2);
+  display.setFont(&FreeMonoBold9pt7b);
+  display.setTextColor(GxEPD_BLACK);
   int16_t tbx, tby; uint16_t tbw, tbh;
-  display->getTextBounds(HelloWorld, 0, 0, &tbx, &tby, &tbw, &tbh);
+  display.getTextBounds(HelloWorld, 0, 0, &tbx, &tby, &tbw, &tbh);
   // center the bounding box by transposition of the origin:
-  uint16_t x = ((display->width() - tbw) / 2) - tbx;
-  uint16_t y = ((display->height() - tbh) / 2) - tby;
-  display->setFullWindow();
-  display->firstPage();
+  uint16_t x = ((display.width() - tbw) / 2) - tbx;
+  uint16_t y = ((display.height() - tbh) / 2) - tby;
+  display.setFullWindow();
+  display.firstPage();
   do
   {
-    display->fillScreen(GxEPD_WHITE);
-    display->setCursor(x, y);
-    display->print(HelloWorld);
+    display.fillScreen(GxEPD_WHITE);
+    display.setCursor(x, y);
+    display.print(HelloWorld);
   }
-  while (display->nextPage());*/
+  while (display.nextPage());*/
 
 
 }
@@ -154,22 +148,22 @@ void DisplayEink154in::draw_text_in_box(String new_text, int start_x, int start_
 void DisplayEink154in::draw_box_cmds_only(int start_x, int start_y, int end_x, int end_y) {
 
   if (!get_partial_refresh()) {
-        display->fillScreen(bg);
+        display.fillScreen(bg);
   }
-  display->drawRect(start_x, start_y, end_x-start_x, end_y-start_y, fg);
+  display.drawRect(start_x, start_y, end_x-start_x, end_y-start_y, fg);
 }
 
 void DisplayEink154in::draw_box(int start_x, int start_y, int end_x, int end_y) {
     // clear out one pixel around all of it
     if (get_partial_refresh()) {
-       display->setPartialWindow(start_x - 2, start_y - 2, (end_x-start_x) + 4, (end_y-start_y) + 4);
+       display.setPartialWindow(start_x - 2, start_y - 2, (end_x-start_x) + 4, (end_y-start_y) + 4);
     }
     DEBUG_LN("Got here: drawing a box");
 
-    display->firstPage();
+    display.firstPage();
     do {
        draw_box_cmds_only(start_x, start_y, end_x, end_y);
-    } while (display->nextPage());
+    } while (display.nextPage());
 
 }
 
@@ -214,13 +208,13 @@ void DisplayEink154in::draw_text(String new_text, int x, int y) {
 
     
     if (get_partial_refresh()) {
-        display->setPartialWindow(x, y-10, Eink154in_X_PIXELS, (line_height+1)*num_lines+10);
+        display.setPartialWindow(x, y-10, Eink154in_X_PIXELS, (line_height+1)*num_lines+10);
     }
     
-    display->firstPage();
+    display.firstPage();
     do {
       draw_text_cmds_only(new_text, x, y, line_height);
-    } while (display->nextPage());
+    } while (display.nextPage());
 
 }
 
@@ -251,7 +245,7 @@ void DisplayEink154in::draw_text_cmds_only(String new_text, int x, int y, int li
     //descent = u8g2Fonts->getDescent();
  
     if (!get_partial_refresh()) {
-        display->fillScreen(bg);
+        display.fillScreen(bg);
     }
       
     for (int i = 0; i < num_lines; i++) {
