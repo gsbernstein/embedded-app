@@ -177,10 +177,12 @@ void setup(void)
 
 #ifdef TINYPICO_SINDARIN
   tp = new TinyPICO();
+  SIZE_OF(*tp);
 #endif
 
 #ifdef EINK154in
   my_display = new DisplayEink154in();
+  SIZE_OF(*my_display);
   //my_display->set_font(u8g2_font_6x10_tf);
 #endif
 
@@ -202,20 +204,24 @@ void setup(void)
 
 #ifdef Hastings20x40_3
   my_optics = new OpticsHastings20mmX40_3mm();
+  SIZE_OF(*my_optics);
 #endif
 
   SHOW_HEAP();
 
   box_renderer = new Renderer(my_optics, my_display);
+  SIZE_OF(*box_renderer);
 
   //my_display->put_up_hello_world();
   #ifdef USE_IR_REMOTE
     ir_remote_input = new IRRemoteInput();
+    SIZE_OF(*ir_remote_input);
     ir_remote_input->start_remote(IR_REMOTE_INPUT_PIN);
   #endif
 
   #ifdef USE_BLE_SERVER_REMOTE
     ble_remote_input = new BLERemoteInput();
+    SIZE_OF(*ble_remote_input);
     ble_remote_input->start_remote();
 
     // TEST: Setup receiver for new data via BLE
@@ -234,6 +240,7 @@ void setup(void)
       {
         std::string value = characteristic->getValue();
         *renderer = new RawRenderer(my_optics, my_display, value);
+        SIZE_OF(**renderer);
         *update_flag = 1;
         if (value.length() > 0)
         {
@@ -248,6 +255,7 @@ void setup(void)
     // END TEST code
 
     ble_wifi = new BLEWifi();
+    SIZE_OF(*ble_wifi);
     ble_wifi->startService();
 
     BLEManager::getInstance()->startServiceAndAdvertising();
@@ -272,6 +280,7 @@ void setup(void)
 
 
   main_menu = new MenuSystem();
+  SIZE_OF(*main_menu); // 1208
 
   SHOW_HEAP();
   for (Readable &r : readables)
@@ -287,6 +296,7 @@ void setup(void)
   if (area_in_browsing < readables.size())
   {
     book_renderer = new FileRenderer(my_optics, my_display, readables[area_in_browsing]);
+    SIZE_OF(*book_renderer);
   }
 
   main_menu->add_menu_item(SETTINGS_MENU_TEXT);
@@ -477,8 +487,10 @@ void loop(void) {
         book_renderer = nullptr;
       }
       // Only create the FileRenderer if we didn't select the SETTINGS MENU
-      if (area_in_browsing != readables.size())
+      if (area_in_browsing != readables.size()) {
         book_renderer = new FileRenderer(my_optics, my_display, readables[area_in_browsing]);
+        SIZE_OF(*book_renderer);
+      }
       prefs.putInt("browse-area", area_in_browsing);
       update_box = 1;
     }
