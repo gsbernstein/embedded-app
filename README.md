@@ -18,6 +18,14 @@ You'll also need to build and upload the filesystem. You can do this in VSCode f
 
 Note: If you don't see these options in your PlatformIO bar in VSCode, try restarting VSCode.
 
+## Git Setup
+
+You probably want to ignore formatting changes when using `git blame`. After cloning, you can tell Git to ignore certain commits with:
+
+```bash
+git config blame.ignoreRevsFile .git-blame-ignore-revs
+```
+
 ## Reformat Code
 
 Make sure you have `clang-format` installed (`brew install clang-format`). Then if you're using VSCode, and install the recommended workspace extensions, your code should be formatted automatically for you on save (or with shift-option-f). Alternately you can force formatting of all code with:
