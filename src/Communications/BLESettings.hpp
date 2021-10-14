@@ -20,7 +20,7 @@ protected:
 
         CharacteristicCallbacks(BLESettings *enclosure) { enclosed = enclosure; }
 
-        void onWrite(BLECharacteristic *characteristic) {
+        void onWrite(BLECharacteristic *characteristic) override {
             std::string value = characteristic->getValue();
             if (value.length() > 0) {
                 enclosed->prefs->putString(POCKET_API_TOKEN_PREFS_KEY, value.c_str());

@@ -12,35 +12,35 @@ class MenuSystem {
 public:
     MenuSystem();
 
-    void add_menu_item(String new_item);
+    void add_menu_item(const String &new_item);
 
     void reset_menu_items();
 
-    int get_num_items();
+    auto get_num_items() -> int;
 
     void set_curr_selection(int new_selection);
 
-    int get_curr_selection();
+    auto get_curr_selection() -> int;
 
     // Returns 1 if the selection was updated, 0 otherwise
     // Helps client to know if it needs to refresh (at beginning or end of menu)
-    int next_selection();
-    int prev_selection();
+    auto next_selection() -> int;
+    auto prev_selection() -> int;
 
     // Includes the name of the item and it's number preceding it for easy display
     // Offset by two spaces
-    String get_item_at(int index);
+    auto get_item_at(int index) -> String;
 
     // Easy \n separated list of the items in the menu that can simply be passed
     // to a display. May want to handle this in a Renderer? But for now, this
     // is simple enough.
-    String get_whole_menu_as_string();
+    auto get_whole_menu_as_string() -> String;
 
     // Allows the client to determine how many items from the menu it wants and
     // to generate a string accordingly.
     // Note it's up to the client to figure out what to do if the current
     // selection is outside of this range.
-    String get_menu_range_as_string(int start_item, int end_item);
+    auto get_menu_range_as_string(int start_item, int end_item) -> String;
 
 protected:
     // Doesn't check for max size yet -- assumes all fit on one page

@@ -6,7 +6,7 @@
 
 PocketAPI *PocketAPI::instance = nullptr;
 
-PocketAPI *PocketAPI::getInstance() {
+auto PocketAPI::getInstance() -> PocketAPI * {
     if (instance == nullptr) {
         instance = new PocketAPI();
     }
@@ -15,7 +15,7 @@ PocketAPI *PocketAPI::getInstance() {
 
 void PocketAPI::setAccessToken(const char *token) { access_token = token; }
 
-int PocketAPI::text(const char *url, SpiRamJsonDocument **response) {
+auto PocketAPI::text(const char *url, SpiRamJsonDocument **response) -> int {
     SHOW_HEAP();
     http.begin("https://text.getpocket.com/v3/text");
     http.addHeader("Content-Type", "application/x-www-form-urlencoded");
@@ -56,7 +56,7 @@ int PocketAPI::text(const char *url, SpiRamJsonDocument **response) {
     return http_code;
 }
 
-int PocketAPI::get(SpiRamJsonDocument **response) {
+auto PocketAPI::get(SpiRamJsonDocument **response) -> int {
     SHOW_HEAP();
     http.begin("https://getpocket.com/v3/get");
     http.addHeader("Content-Type", "application/x-www-form-urlencoded");
@@ -98,7 +98,7 @@ int PocketAPI::get(SpiRamJsonDocument **response) {
     return http_code;
 }
 
-int PocketAPI::getFirstArticleText(const char **text) {
+auto PocketAPI::getFirstArticleText(const char **text) -> int {
     SHOW_HEAP();
     SpiRamJsonDocument *response;
     int code = this->get(&response);

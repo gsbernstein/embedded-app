@@ -29,10 +29,10 @@
 class TTRemoteInput : public RemoteInput {
 
 public:
-    void start_remote(int receive_pin_input);
-    void start_remote();
-    int check_press();
-    int check_release();
+    void start_remote(int receive_pin_input) override;
+    void start_remote() override;
+    auto check_press() -> int override;
+    auto check_release() -> int override;
     void buttonNotificationCallback(BLERemoteCharacteristic *remoteCharacteristic, uint8_t *data,
                                     size_t length, bool isNotify);
 
@@ -51,7 +51,7 @@ protected:
         TTRemoteInput *enclosed;
 
         AdvertisedDeviceCallbacks(TTRemoteInput *enclosure) { enclosed = enclosure; }
-        void onResult(BLEAdvertisedDevice *advertisedDevice) {
+        void onResult(BLEAdvertisedDevice *advertisedDevice) override {
             // DEBUG_F("BLEAdvertisedDevice found: %s\n", advertisedDevice.getName().c_str());
             // DEBUG_LN(advertisedDevice.toString().c_str());
 
@@ -81,11 +81,11 @@ protected:
 
         ClientCallbacks(TTRemoteInput *enclosure) { enclosed = enclosure; }
 
-        void onConnect(BLEClient *client) {
+        void onConnect(BLEClient *client) override {
             DEBUG_LN("Our BLE client connected to matching server!");
         }
 
-        void onDisconnect(BLEClient *client) {
+        void onDisconnect(BLEClient *client) override {
             DEBUG_LN("Our BLE client disconnected from matching server!");
             enclosed->deviceConnected = false;
         }
@@ -97,7 +97,7 @@ protected:
 
         CharacteristicCallbacks(TTRemoteInput *enclosure) { enclosed = enclosure; }
 
-        void onWrite(BLECharacteristic *characteristic) {
+        void onWrite(BLECharacteristic *characteristic) override {
             std::string value = characteristic->getValue();
             if (value.length() > 0) {
                 DEBUG_LN("*********");

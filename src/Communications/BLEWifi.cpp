@@ -19,7 +19,7 @@ void BLEWifi::startService() {
     // also use the Sindarin mobile app as-is after provisioning is done.
     service = server->createService(BLEUUID(improv::SERVICE_UUID));
 
-    CharacteristicCallbacks *characteristic_callbacks = new CharacteristicCallbacks(this);
+    auto *characteristic_callbacks = new CharacteristicCallbacks(this);
 
     BLECharacteristic *capabilities_characteristic =
         service->createCharacteristic(BLEUUID(improv::CAPABILITIES_UUID), NIMBLE_PROPERTY::READ);
@@ -106,7 +106,7 @@ void BLEWifi::doneConnecting() {
     DEBUG_LN("Closing down Improv service: ");
     BLEServer *server = BLEManager::getInstance()->server;
     server->removeService(service, true);
-    service = NULL;
+    service = nullptr;
     // Not exactly sure why, but it seems necessary to restart other Bluetooth services
     // after stopping this one.
     BLEManager::getInstance()->startServiceAndAdvertising();

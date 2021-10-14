@@ -19,7 +19,7 @@ void IRRemoteInput::start_remote() {
     assert(0);
 }
 
-int IRRemoteInput::check_press() {
+auto IRRemoteInput::check_press() -> int {
     int new_press = 0;
     if (IrReceiver.decode()) {
         last_code = IrReceiver.decodedIRData.command;
@@ -35,7 +35,7 @@ int IRRemoteInput::check_press() {
     return new_press;
 }
 
-int IRRemoteInput::check_release() {
+auto IRRemoteInput::check_release() -> int {
     int found_release = 0;
     if ((state == HIGH) && ((millis() - lastPressTime) > MAX_TIME)) {
         state = LOW; // Haven't heard from the button for a while, so not pressed

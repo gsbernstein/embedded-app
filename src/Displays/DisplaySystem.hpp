@@ -23,10 +23,10 @@
 
 class DisplaySystem {
 public:
-    int get_x();
-    int get_y();
-    float get_width();
-    float get_height();
+    auto get_x() -> int;
+    auto get_y() -> int;
+    auto get_width() -> float;
+    auto get_height() -> float;
 
     void set_x(int new_x);
     void set_y(int new_y);
@@ -34,16 +34,16 @@ public:
     void set_width(float new_width);
     void set_height(float new_height);
 
-    void set_text(String new_text);
+    void set_text(const String &new_text);
 
     void set_coordinates(int x, int y);
 
     void set_partial_refresh();
     void unset_partial_refresh();
-    int get_partial_refresh();
+    auto get_partial_refresh() -> int;
 
-    virtual int get_text_height() = 0;
-    virtual int get_text_width(const char *buffer) = 0;
+    virtual auto get_text_height() -> int = 0;
+    virtual auto get_text_width(const char *buffer) -> int = 0;
 
     virtual void draw_box(int x_start, int y_start, int x_end, int y_end) = 0;
 

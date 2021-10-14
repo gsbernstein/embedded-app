@@ -6,7 +6,7 @@
 
 BLEManager *BLEManager::instance = nullptr;
 
-BLEManager *BLEManager::getInstance() {
+auto BLEManager::getInstance() -> BLEManager * {
     if (instance == nullptr) {
         instance = new BLEManager();
     }

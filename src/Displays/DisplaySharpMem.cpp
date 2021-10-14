@@ -1,6 +1,7 @@
 #include "DisplaySharpMem.hpp"
 
 #include <U8g2lib.h>
+#include <utility>
 
 #include "friend.h"
 #include "sindarin-debug.h"
@@ -51,7 +52,7 @@ void DisplaySharpMem::set_partial_refresh() { partial_refresh = 1; }
 
 void DisplaySharpMem::unset_partial_refresh() { partial_refresh = 0; }
 
-int DisplaySharpMem::get_partial_refresh() { return partial_refresh; }
+auto DisplaySharpMem::get_partial_refresh() -> int { return partial_refresh; }
 
 void DisplaySharpMem::set_font(const uint8_t *new_font) { font = new_font; }
 
@@ -116,7 +117,7 @@ void DisplaySharpMem::draw_text(String new_text, int x, int y) {
     } while (u8g2->nextPage());
 }
 
-int DisplaySharpMem::get_text_height() {
+auto DisplaySharpMem::get_text_height() -> int {
     int ascent = 0;
     int descent = 0;
     int line_height = 0;
@@ -138,13 +139,15 @@ int DisplaySharpMem::get_text_height() {
     return line_height;
 }
 
-int DisplaySharpMem::get_text_width(const char *buffer) { return u8g2->getStrWidth(buffer); }
+auto DisplaySharpMem::get_text_width(const char *buffer) -> int {
+    return u8g2->getStrWidth(buffer);
+}
 
-void DisplaySharpMem::draw_text_cmds_only(String new_text, int x, int y) {
+void DisplaySharpMem::draw_text_cmds_only(const String &new_text, int x, int y) {
 
     int line_height = 0;
 
-    string_to_draw = new_text;
+    string_to_draw = std::move(new_text);
 
     split_string_to_lines();
 

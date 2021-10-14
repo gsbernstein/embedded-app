@@ -1,6 +1,7 @@
 #include "DisplayOLED96in.hpp"
 
 #include <U8g2lib.h>
+#include <utility>
 
 #include "friend.h"
 #include "sindarin-debug.h"
@@ -39,7 +40,7 @@ void DisplayOLED96in::set_partial_refresh() { partial_refresh = 1; }
 
 void DisplayOLED96in::unset_partial_refresh() { partial_refresh = 0; }
 
-int DisplayOLED96in::get_partial_refresh() { return partial_refresh; }
+auto DisplayOLED96in::get_partial_refresh() -> int { return partial_refresh; }
 
 void DisplayOLED96in::set_font(const uint8_t *new_font) { font = new_font; }
 
@@ -104,7 +105,7 @@ void DisplayOLED96in::draw_text(String new_text, int x, int y) {
     } while (u8g2->nextPage());
 }
 
-int DisplayOLED96in::get_text_height() {
+auto DisplayOLED96in::get_text_height() -> int {
     int ascent = 0;
     int descent = 0;
     int line_height = 0;
@@ -126,13 +127,15 @@ int DisplayOLED96in::get_text_height() {
     return line_height;
 }
 
-int DisplayOLED96in::get_text_width(const char *buffer) { return u8g2->getStrWidth(buffer); }
+auto DisplayOLED96in::get_text_width(const char *buffer) -> int {
+    return u8g2->getStrWidth(buffer);
+}
 
-void DisplayOLED96in::draw_text_cmds_only(String new_text, int x, int y) {
+void DisplayOLED96in::draw_text_cmds_only(const String &new_text, int x, int y) {
 
     int line_height = 0;
 
-    string_to_draw = new_text;
+    string_to_draw = std::move(new_text);
 
     split_string_to_lines();
 

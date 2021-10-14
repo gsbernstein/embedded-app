@@ -43,7 +43,7 @@ protected:
 
         CharacteristicCallbacks(BLEWifi *enclosure) { enclosed = enclosure; }
 
-        void onWrite(BLECharacteristic *characteristic) {
+        void onWrite(BLECharacteristic *characteristic) override {
             DEBUG_F("onWrite for Characteristic %s\n",
                     characteristic->getUUID().toString().c_str());
             if (characteristic->getUUID().equals(BLEUUID(improv::RPC_COMMAND_UUID))) {

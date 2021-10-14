@@ -11,7 +11,8 @@ public:
     Readable(const char *id, const char *name, const char *path)
         : id(id), name(name), path(path), place(0), place_prev(0), place_screed(0){};
     Readable(const Readable &r)
-        : id(r.id), name(r.name), path(r.path), place(r.place), place_prev(r.place_prev),
-          place_screed(r.place_screed){};
+
+        = default;
+    ;
 };
 #endif

@@ -21,9 +21,9 @@ class RemoteInput {
 public:
     virtual void start_remote() = 0;
     virtual void start_remote(int data) = 0;
-    virtual int check_press() = 0;
-    virtual int check_release() = 0;
-    int get_code();
+    virtual auto check_press() -> int = 0;
+    virtual auto check_release() -> int = 0;
+    auto get_code() -> int;
 
 protected:
     int last_code;

@@ -32,7 +32,7 @@ void BLERemoteInput::start_remote() {
     characteristic->setValue("Hello World");
 }
 
-int BLERemoteInput::check_press() {
+auto BLERemoteInput::check_press() -> int {
     // This isn't the best place for this, but since we have a contract with clients
     // that they have to check_presses, this is a reasonable spot to do this work.
 
@@ -51,7 +51,7 @@ int BLERemoteInput::check_press() {
     return 0;
 }
 
-int BLERemoteInput::check_release() {
+auto BLERemoteInput::check_release() -> int {
     int found_release = 0;
     if (!was_code_processed) {
         was_code_processed = 1;

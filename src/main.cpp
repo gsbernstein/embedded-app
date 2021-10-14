@@ -129,7 +129,7 @@ bool hasPartialRefreshed = false;
 
 unsigned long new_place = 0;
 
-void (*resetFunc)(void) = 0; // declare reset function @ address 0
+void (*resetFunc)() = nullptr; // declare reset function @ address 0
 
 int cur_menu_page = 0;
 #define NUM_LINES_PER_MENU_PAGE 5
@@ -137,7 +137,7 @@ int cur_menu_page = 0;
 SpiRamJsonDocument *manifest = nullptr;
 std::vector<Readable> readables;
 
-void setup(void) {
+void setup() {
     if (Serial)
         Serial.begin(115200);
     SHOW_HEAP();
@@ -153,7 +153,7 @@ void setup(void) {
 
     // Launch SPIFFS file system
     SHOW_HEAP();
-    if (!SPIFFS.begin(false, "/spiffs", 255, NULL)) {
+    if (!SPIFFS.begin(false, "/spiffs", 255, nullptr)) {
         DEBUG_LN("An Error has occurred while mounting SPIFFS");
     }
 
@@ -236,7 +236,7 @@ void setup(void) {
         DataCharacteristicCallbacks(RawRenderer **render, int *update_box)
             : renderer(render), update_flag(update_box) {}
 
-        void onWrite(BLECharacteristic *characteristic) {
+        void onWrite(BLECharacteristic *characteristic) override {
             std::string value = characteristic->getValue();
             *renderer = new RawRenderer(my_optics, my_display, value);
             SIZE_OF(**renderer);
@@ -317,7 +317,7 @@ void setup(void) {
 const int MAX_ANALOG_VAL = 4095;
 const float MAX_BATTERY_VOLTAGE = 4.2; // Max LiPoly voltage of a 3.7 battery is 4.2
 
-String get_battery_life() {
+auto get_battery_life() -> String {
 #ifdef TINYPICO_SINDARIN
     float voltageLevel = tp->GetBatteryVoltage();
 #else
@@ -340,7 +340,7 @@ String get_battery_life() {
     return battery_output;
 }
 
-void loop(void) {
+void loop() {
     // int i;
     String menu_string;
     String bat_life;

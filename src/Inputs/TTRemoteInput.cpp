@@ -133,7 +133,7 @@ void TTRemoteInput::buttonNotificationCallback(BLERemoteCharacteristic *remoteCh
     was_code_processed = 0;
 }
 
-int TTRemoteInput::check_press() {
+auto TTRemoteInput::check_press() -> int {
     // This isn't the best place for all of this, but since we have a contract with clients
     // that they have to check_presses, this is a reasonable spot to do this work.
 
@@ -153,7 +153,7 @@ int TTRemoteInput::check_press() {
     return 0;
 }
 
-int TTRemoteInput::check_release() {
+auto TTRemoteInput::check_release() -> int {
     int found_release = 0;
     if (!was_code_processed) {
         was_code_processed = 1;

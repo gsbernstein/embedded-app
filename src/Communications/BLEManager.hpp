@@ -6,7 +6,7 @@
 
 class BLEManager {
 public:
-    static BLEManager *getInstance();
+    static auto getInstance() -> BLEManager *;
     void startServiceAndAdvertising();
     BLEClient *client = nullptr;
     BLEServer *server = nullptr;

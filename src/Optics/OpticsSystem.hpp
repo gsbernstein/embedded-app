@@ -19,11 +19,11 @@ class OpticsSystem {
 public:
     OpticsSystem();
 
-    float get_x_inches();
-    float get_y_inches();
+    auto get_x_inches() -> float;
+    auto get_y_inches() -> float;
 
-    float get_x_mm();
-    float get_y_mm();
+    auto get_x_mm() -> float;
+    auto get_y_mm() -> float;
 
     void set_eye_relief_mm(float new_eye_relief);
     void set_eye_relief_in(float new_eye_relief);

@@ -1,6 +1,7 @@
 #include "DisplayEink154in.hpp"
 
 #include <Fonts/FreeMonoBold9pt7b.h>
+#include <utility>
 
 const char HelloWorld[] = "Hello Fy World!";
 
@@ -50,17 +51,17 @@ DisplayEink154in::DisplayEink154in() {
 // Fill in with the right splash screen for Eink
 void DisplayEink154in::display_splash_screen() {}
 
-DisplayEink154in::~DisplayEink154in() {}
+DisplayEink154in::~DisplayEink154in() = default;
 
 void DisplayEink154in::set_partial_refresh() { partial_refresh = 1; }
 
 void DisplayEink154in::unset_partial_refresh() { partial_refresh = 0; }
 
-int DisplayEink154in::get_partial_refresh() { return partial_refresh; }
+auto DisplayEink154in::get_partial_refresh() -> int { return partial_refresh; }
 
 void DisplayEink154in::set_font(const uint8_t *new_font) { font = new_font; }
 
-int DisplayEink154in::get_text_height() {
+auto DisplayEink154in::get_text_height() -> int {
     int ascent = 0;
     int descent = 0;
     int line_height = 0;
@@ -82,7 +83,9 @@ int DisplayEink154in::get_text_height() {
     return line_height;
 }
 
-int DisplayEink154in::get_text_width(const char *buffer) { return u8g2Fonts.getUTF8Width(buffer); }
+auto DisplayEink154in::get_text_width(const char *buffer) -> int {
+    return u8g2Fonts.getUTF8Width(buffer);
+}
 
 void DisplayEink154in::draw_text_in_box(String new_text, int start_x, int start_y, int end_x,
                                         int end_y) {
@@ -200,9 +203,9 @@ void DisplayEink154in::setup_display_for_text() {
     u8g2Fonts.setFont(font);
 }
 
-void DisplayEink154in::draw_text_cmds_only(String new_text, int x, int y, int line_height) {
+void DisplayEink154in::draw_text_cmds_only(const String &new_text, int x, int y, int line_height) {
 
-    string_to_draw = new_text;
+    string_to_draw = std::move(new_text);
 
     // We want to draw the characters down from the x/y coordinates given
     // so the renderer doesn't need to concern itself with how tall the

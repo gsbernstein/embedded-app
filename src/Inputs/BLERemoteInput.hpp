@@ -10,10 +10,10 @@
 class BLERemoteInput : public RemoteInput {
 
 public:
-    void start_remote(int receive_pin_input);
-    void start_remote();
-    int check_press();
-    int check_release();
+    void start_remote(int receive_pin_input) override;
+    void start_remote() override;
+    auto check_press() -> int override;
+    auto check_release() -> int override;
 
 protected:
     bool wasDeviceConnected;
@@ -27,12 +27,12 @@ protected:
 
         BLERemoteInput *enclosed;
 
-        void onConnect(BLEServer *server) {
+        void onConnect(BLEServer *server) override {
             DEBUG_LN("BLE client connected to our server!");
             enclosed->deviceConnected = true;
         }
 
-        void onDisconnect(BLEServer *server) {
+        void onDisconnect(BLEServer *server) override {
             DEBUG_LN("BLE client disconnected from our server!");
             enclosed->deviceConnected = false;
         }
@@ -44,7 +44,7 @@ protected:
 
         CharacteristicCallbacks(BLERemoteInput *enclosure) { enclosed = enclosure; }
 
-        void onWrite(BLECharacteristic *characteristic) {
+        void onWrite(BLECharacteristic *characteristic) override {
             std::string value = characteristic->getValue();
             if (value.length() > 0) {
                 DEBUG_LN("*********");

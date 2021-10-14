@@ -1,5 +1,7 @@
 #include "DisplaySystem.hpp"
 
+#include <utility>
+
 #include "sindarin-debug.h"
 
 DisplaySystem::DisplaySystem() {
@@ -8,7 +10,7 @@ DisplaySystem::DisplaySystem() {
     string_to_draw = "";
 }
 
-DisplaySystem::~DisplaySystem() {}
+DisplaySystem::~DisplaySystem() = default;
 /*
 void DisplaySystem::draw_box(int start_x, int start_y, int end_x, int end_y) {
     DEBUG_LN("Drawing box in wrong class :(");
@@ -19,30 +21,30 @@ void DisplaySystem::set_x(int new_x) { x = new_x; }
 
 void DisplaySystem::set_y(int new_y) { y = new_y; }
 
-int DisplaySystem::get_x() { return x; }
+auto DisplaySystem::get_x() -> int { return x; }
 
-int DisplaySystem::get_y() { return y; }
+auto DisplaySystem::get_y() -> int { return y; }
 
 void DisplaySystem::set_width(float new_width) { width_in_mm = new_width; }
 
 void DisplaySystem::set_height(float new_height) { height_in_mm = new_height; }
 
-float DisplaySystem::get_width() { return width_in_mm; }
+auto DisplaySystem::get_width() -> float { return width_in_mm; }
 
-float DisplaySystem::get_height() { return height_in_mm; }
+auto DisplaySystem::get_height() -> float { return height_in_mm; }
 
 void DisplaySystem::set_partial_refresh() { partial_refresh = 1; }
 
 void DisplaySystem::unset_partial_refresh() { partial_refresh = 0; }
 
-int DisplaySystem::get_partial_refresh() { return partial_refresh; }
+auto DisplaySystem::get_partial_refresh() -> int { return partial_refresh; }
 
 void DisplaySystem::set_coordinates(int init_x, int init_y) {
     x_to_draw = init_x;
     y_to_draw = init_y;
 }
 
-void DisplaySystem::set_text(String new_text) { string_to_draw = new_text; }
+void DisplaySystem::set_text(const String &new_text) { string_to_draw = std::move(new_text); }
 
 // Takes the member variable string_to_draw and splits it
 // based on the \n characater and populates the String* lines;
