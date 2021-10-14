@@ -4,8 +4,7 @@
 
 #include <NimBLEDevice.h>
 
-class BLEManager
-{
+class BLEManager {
 public:
     static BLEManager *getInstance();
     void startServiceAndAdvertising();

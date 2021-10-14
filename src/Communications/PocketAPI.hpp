@@ -1,13 +1,13 @@
 #pragma once
 #ifndef PocketAPI_H
 #define PocketAPI_H
-#include <HTTPClient.h>
 #include <ArduinoJson.h>
+#include <HTTPClient.h>
+
 #include "Contents/Json.hpp"
 
 #define POCKET_API_TOKEN_PREFS_KEY "pocket-token"
-class PocketAPI
-{
+class PocketAPI {
 public:
     static PocketAPI *getInstance();
 
@@ -26,9 +26,9 @@ public:
     int getFirstArticleText(const char **text);
 
 protected:
-    static PocketAPI * instance;
-    const char * access_token;
-    const char * consumer_key = "98329-339ec9babc792e8024ca00e8";
+    static PocketAPI *instance;
+    const char *access_token;
+    const char *consumer_key = "98329-339ec9babc792e8024ca00e8";
 
 private:
     HTTPClient http;

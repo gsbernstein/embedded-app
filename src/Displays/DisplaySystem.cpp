@@ -1,4 +1,5 @@
 #include "DisplaySystem.hpp"
+
 #include "sindarin-debug.h"
 
 DisplaySystem::DisplaySystem() {
@@ -7,70 +8,43 @@ DisplaySystem::DisplaySystem() {
     string_to_draw = "";
 }
 
-DisplaySystem::~DisplaySystem(){
-
-}
+DisplaySystem::~DisplaySystem() {}
 /*
 void DisplaySystem::draw_box(int start_x, int start_y, int end_x, int end_y) {
     DEBUG_LN("Drawing box in wrong class :(");
 
 }*/
 
-void DisplaySystem::set_x(int new_x) {
-    x = new_x;
+void DisplaySystem::set_x(int new_x) { x = new_x; }
 
-}
+void DisplaySystem::set_y(int new_y) { y = new_y; }
 
-void DisplaySystem::set_y(int new_y) {
-    y = new_y;
-}
+int DisplaySystem::get_x() { return x; }
 
-int DisplaySystem::get_x() {
-    return x;
-}
+int DisplaySystem::get_y() { return y; }
 
-int DisplaySystem::get_y() {
-    return y;
-}
+void DisplaySystem::set_width(float new_width) { width_in_mm = new_width; }
 
-void DisplaySystem::set_width(float new_width) {
-    width_in_mm = new_width;
-}
+void DisplaySystem::set_height(float new_height) { height_in_mm = new_height; }
 
-void DisplaySystem::set_height(float new_height) {
-    height_in_mm = new_height;
-}
+float DisplaySystem::get_width() { return width_in_mm; }
 
-float DisplaySystem::get_width() {
-    return width_in_mm;
-}
+float DisplaySystem::get_height() { return height_in_mm; }
 
-float DisplaySystem::get_height() {
-    return height_in_mm;
-}
+void DisplaySystem::set_partial_refresh() { partial_refresh = 1; }
 
-void DisplaySystem::set_partial_refresh() {
-    partial_refresh = 1;
-}
+void DisplaySystem::unset_partial_refresh() { partial_refresh = 0; }
 
-void DisplaySystem::unset_partial_refresh() {
-    partial_refresh = 0;
-}
-
-int DisplaySystem::get_partial_refresh() {
-   return partial_refresh; 
-}
+int DisplaySystem::get_partial_refresh() { return partial_refresh; }
 
 void DisplaySystem::set_coordinates(int init_x, int init_y) {
-  x_to_draw = init_x;
-  y_to_draw = init_y;
+    x_to_draw = init_x;
+    y_to_draw = init_y;
 }
 
-void DisplaySystem::set_text(String new_text) {
-    string_to_draw = new_text;
-}
+void DisplaySystem::set_text(String new_text) { string_to_draw = new_text; }
 
-// Takes the member variable string_to_draw and splits it 
+// Takes the member variable string_to_draw and splits it
 // based on the \n characater and populates the String* lines;
 void DisplaySystem::split_string_to_lines() {
     int len, i, start_pos, end_pos;
@@ -81,16 +55,16 @@ void DisplaySystem::split_string_to_lines() {
     start_pos = 0;
     end_pos = 0;
     num_lines = 1;
-    //if (Serial) Serial.println("Got to split");
-    //if (Serial) Serial.println(string_to_draw);
+    // if (Serial) Serial.println("Got to split");
+    // if (Serial) Serial.println(string_to_draw);
 
     for (i = 0; i < len; i++) {
-        // We found a new line. Split off the previous line and 
+        // We found a new line. Split off the previous line and
         // start processing the new line
-        //if (Serial) Serial.print(string_to_draw.charAt(i));
+        // if (Serial) Serial.print(string_to_draw.charAt(i));
         if (string_to_draw.charAt(i) == '\n') {
-            //if (Serial) Serial.println("saw a new line");
-            lines[num_lines - 1] = string_to_draw.substring(start_pos, end_pos+1);
+            // if (Serial) Serial.println("saw a new line");
+            lines[num_lines - 1] = string_to_draw.substring(start_pos, end_pos + 1);
             num_lines++;
             assert(num_lines < MAX_LINES_IN_SPLIT);
             start_pos = i + 1;
@@ -108,10 +82,9 @@ void DisplaySystem::split_string_to_lines() {
     // The second part of this || is to handle when there's just a single line with
     // a single character on it with no \n.
     if ((start_pos != end_pos) || string_to_draw.charAt(end_pos) != '\n')
-        lines[num_lines-1] = string_to_draw.substring(start_pos, end_pos+1);
+        lines[num_lines - 1] = string_to_draw.substring(start_pos, end_pos + 1);
     else
         num_lines--;
 
-    //if (Serial) Serial.println("Finishing split");
-
+    // if (Serial) Serial.println("Finishing split");
 }
