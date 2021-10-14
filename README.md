@@ -17,3 +17,11 @@ You can use the "Upload and Monitor" project tasks under PlatformIO Icon (left b
 You'll also need to build and upload the filesystem. You can do this in VSCode from PlatformIO Icon (left bar) -> Project Tasks -> tinypico -> Platform -> Build Filesystem Image and then Upload Filesystem Image. Or you can do this at the command line with `pio run --target uploadfs`.
 
 Note: If you don't see these options in your PlatformIO bar in VSCode, try restarting VSCode.
+
+## Reformat Code
+
+Make sure you have `clang-format` installed (`brew install clang-format`). Then if you're using VSCode, and install the recommended workspace extensions, your code should be formatted automatically for you on save (or with shift-option-f). Alternately you can force formatting of all code with:
+
+```bash
+find src -iname "*.hpp" -o -iname "*.h" -o -iname "*.cpp" -o -iname "*.c" | xargs clang-format -i
+```

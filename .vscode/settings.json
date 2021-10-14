@@ -41,5 +41,7 @@
         "cinttypes": "cpp",
         "utility": "cpp",
         "typeinfo": "cpp"
-    }
+    },
+    "editor.formatOnSave": true,
+    "editor.defaultFormatter": "xaver.clang-format"
 }
