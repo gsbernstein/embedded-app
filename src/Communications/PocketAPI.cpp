@@ -1,24 +1,21 @@
 #include "PocketAPI.hpp"
-#include "sindarin-debug.h"
+
 #include "Contents/Json.hpp"
 #include "UrlEncode.hpp"
+#include "sindarin-debug.h"
 
 PocketAPI *PocketAPI::instance = nullptr;
 
-PocketAPI *PocketAPI::getInstance()
-{
-    if (instance == nullptr)
-    {
+auto PocketAPI::getInstance() -> PocketAPI * {
+    if (instance == nullptr) {
         instance = new PocketAPI();
     }
     return instance;
 }
 
-void PocketAPI::setAccessToken(const char *token) {
-    access_token = token;
-}
+void PocketAPI::setAccessToken(const char *token) { access_token = token; }
 
-int PocketAPI::text(const char *url, SpiRamJsonDocument **response) {
+auto PocketAPI::text(const char *url, SpiRamJsonDocument **response) -> int {
     SHOW_HEAP();
     http.begin("https://text.getpocket.com/v3/text");
     http.addHeader("Content-Type", "application/x-www-form-urlencoded");
@@ -30,7 +27,8 @@ int PocketAPI::text(const char *url, SpiRamJsonDocument **response) {
         https://text.getpocket.com/v3/text | jq
     */
     char request[200];
-    int request_len = sprintf(request, "consumer_key=%s&url=%s", consumer_key, urlencode(url).c_str());
+    int request_len =
+        sprintf(request, "consumer_key=%s&url=%s", consumer_key, urlencode(url).c_str());
     if (request_len < -1) {
         log_e("Failed to construct Pocket request body");
         http.end();
@@ -45,7 +43,8 @@ int PocketAPI::text(const char *url, SpiRamJsonDocument **response) {
     int http_code = http.POST((uint8_t *)request, request_len);
     if (http_code == 200) {
         SpiRamJsonDocument *resp = new SpiRamJsonDocument(16384);
-        ArduinoJson::deserializeJson(*resp, http.getStream(), DeserializationOption::Filter(filter));
+        ArduinoJson::deserializeJson(*resp, http.getStream(),
+                                     DeserializationOption::Filter(filter));
         log_i("Pocket request succeeded");
         *response = resp;
     } else {
@@ -57,7 +56,7 @@ int PocketAPI::text(const char *url, SpiRamJsonDocument **response) {
     return http_code;
 }
 
-int PocketAPI::get(SpiRamJsonDocument **response) {
+auto PocketAPI::get(SpiRamJsonDocument **response) -> int {
     SHOW_HEAP();
     http.begin("https://getpocket.com/v3/get");
     http.addHeader("Content-Type", "application/x-www-form-urlencoded");
@@ -69,7 +68,8 @@ int PocketAPI::get(SpiRamJsonDocument **response) {
         https://getpocket.com/v3/get | jq
     */
     char request[100];
-    int request_len = sprintf(request, "state=all&access_token=%s&consumer_key=%s", access_token, consumer_key);
+    int request_len =
+        sprintf(request, "state=all&access_token=%s&consumer_key=%s", access_token, consumer_key);
     if (request_len < -1) {
         log_e("Failed to construct Pocket request body");
         http.end();
@@ -85,7 +85,8 @@ int PocketAPI::get(SpiRamJsonDocument **response) {
     int http_code = http.POST((uint8_t *)request, request_len);
     if (http_code == 200) {
         SpiRamJsonDocument *resp = new SpiRamJsonDocument(2048);
-        ArduinoJson::deserializeJson(*resp, http.getStream(), DeserializationOption::Filter(filter));
+        ArduinoJson::deserializeJson(*resp, http.getStream(),
+                                     DeserializationOption::Filter(filter));
         log_i("Pocket request succeeded");
         *response = resp;
     } else {
@@ -97,7 +98,7 @@ int PocketAPI::get(SpiRamJsonDocument **response) {
     return http_code;
 }
 
-int PocketAPI::getFirstArticleText(const char **text) {
+auto PocketAPI::getFirstArticleText(const char **text) -> int {
     SHOW_HEAP();
     SpiRamJsonDocument *response;
     int code = this->get(&response);
@@ -116,8 +117,8 @@ int PocketAPI::getFirstArticleText(const char **text) {
     }
     for (JsonPair keyValue : list) {
         JsonObject article = keyValue.value().as<JsonObject>();
-        title = article["resolved_title"].as<const char*>();
-        url = article["resolved_url"].as<const char*>();
+        title = article["resolved_title"].as<const char *>();
+        url = article["resolved_url"].as<const char *>();
         break;
     }
     delete response;

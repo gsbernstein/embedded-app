@@ -14,19 +14,18 @@
 #define NEXT 0xD
 #define BACK 0xE
 
-void print_out_code(const char* prec_msg, int code);
+void print_out_code(const char *prec_msg, int code);
 
 class RemoteInput {
 
-  public:
+public:
     virtual void start_remote() = 0;
     virtual void start_remote(int data) = 0;
-    virtual int check_press() = 0;
-    virtual int check_release() = 0;
-    int get_code();
+    virtual auto check_press() -> int = 0;
+    virtual auto check_release() -> int = 0;
+    auto get_code() -> int;
 
-
-  protected:
+protected:
     int last_code;
 };
 

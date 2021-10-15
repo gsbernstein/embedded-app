@@ -16,17 +16,16 @@
 
 class IRRemoteInput : public RemoteInput {
 
-  public:
-    void start_remote(int receive_pin_input);
-    void start_remote();
-    int check_press();
-    int check_release();
+public:
+    void start_remote(int receive_pin_input) override;
+    void start_remote() override;
+    auto check_press() -> int override;
+    auto check_release() -> int override;
 
-  protected:
+protected:
     long lastPressTime;
     int state;
     int receive_pin;
-
 };
 
 #endif
