@@ -52,15 +52,15 @@ protected:
 
         AdvertisedDeviceCallbacks(TTRemoteInput *enclosure) { enclosed = enclosure; }
         void onResult(BLEAdvertisedDevice *advertisedDevice) override {
-            // DEBUG_F("BLEAdvertisedDevice found: %s\n", advertisedDevice.getName().c_str());
+            // log_d("BLEAdvertisedDevice found: %s", advertisedDevice.getName().c_str());
             // DEBUG_LN(advertisedDevice.toString().c_str());
 
             if (advertisedDevice->haveServiceUUID()) {
-                DEBUG_F("BLEAdvertisedDevice w/ services found: %s\n",
-                        advertisedDevice->getName().c_str());
+                log_d("BLEAdvertisedDevice w/ services found: %s",
+                      advertisedDevice->getName().c_str());
                 for (int i = 0; i < advertisedDevice->getServiceUUIDCount(); ++i) {
-                    DEBUG_F("Service %u - %s\n", i,
-                            advertisedDevice->getServiceUUID(i).toString().c_str());
+                    log_d("Service %u - %s", i,
+                          advertisedDevice->getServiceUUID(i).toString().c_str());
                 }
                 // DEBUG_LN(advertisedDevice.toString().c_str());
                 if (advertisedDevice->isAdvertisingService(BLEUUID(TURNTOUCH_BUTTON_SVC_ID))) {
@@ -100,9 +100,7 @@ protected:
         void onWrite(BLECharacteristic *characteristic) override {
             std::string value = characteristic->getValue();
             if (value.length() > 0) {
-                DEBUG_LN("*********");
-                DEBUG_F("New value: %.2x \n", value[0]);
-                DEBUG_LN("*********");
+                log_d("New value: %.2x", value[0]);
                 enclosed->ble_code = (RemoteCommand)(uint8_t)value.data()[0];
                 enclosed->was_code_processed = 0;
             }

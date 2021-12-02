@@ -88,15 +88,15 @@ void TTRemoteInput::scanForDevice() {
 void TTRemoteInput::buttonNotificationCallback(BLERemoteCharacteristic *remoteCharacteristic,
                                                uint8_t *data, size_t length, bool isNotify) {
     if (length != 2) {
-        DEBUG_F("WARNING: Expected 2 byte notification from Turntouch; got %u; bailing early\n",
-                length);
+        log_w("WARNING: Expected 2 byte notification from Turntouch; got %u; bailing early",
+              length);
         return;
     }
-    DEBUG_F("0 - %02x; 1 - %02x\n", data[0], data[1]);
+    log_d("0 - %02x; 1 - %02x\n", data[0], data[1]);
     uint16_t processed = (data[0] << 8) | (data[1]);
-    DEBUG_F("processed: %u\n", processed);
-    DEBUG_F("Notify callback for characteristic %s of data length %u content: %u\n",
-            remoteCharacteristic->getUUID().toString().c_str(), length, processed);
+    log_d("processed: %u", processed);
+    log_d("Notify callback for characteristic %s of data length %u content: %u",
+          remoteCharacteristic->getUUID().toString().c_str(), length, processed);
     if (processed == TT_NONE) {
         DEBUG_LN("Turntouch sent code NONE, bailing early");
         return;
@@ -128,7 +128,7 @@ void TTRemoteInput::buttonNotificationCallback(BLERemoteCharacteristic *remoteCh
         ble_code = SETUP;
         break;
     default:
-        DEBUG_F("Invalid code processed from Turntouch: %u", processed);
+        log_w("Invalid code processed from Turntouch: %u", processed);
         break;
     }
     was_code_processed = 0;
@@ -139,11 +139,11 @@ auto TTRemoteInput::check_press() -> int {
     // that they have to check_presses, this is a reasonable spot to do this work.
 
     if (!deviceConnected && turntouchDevice != nullptr) {
-        DEBUG_F("Attempting connection to %s!\n", turntouchDevice->toString().c_str());
+        log_d("Attempting connection to %s!", turntouchDevice->toString().c_str());
         connectToDevice(turntouchDevice);
     }
     if (!deviceConnected && millis() > (lastScanMs + RESCAN_INTERVAL_MS)) {
-        DEBUG_LN("No Turntouch connected; restarting bluetooth scanning");
+        log_d("No Turntouch connected; restarting bluetooth scanning");
         scanForDevice();
         wasDeviceConnected = deviceConnected;
     }

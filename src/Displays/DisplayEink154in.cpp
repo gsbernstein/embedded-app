@@ -37,7 +37,7 @@ DisplayEink154in::DisplayEink154in() {
 #endif
     u8g2Fonts.begin(display);
     u8g2Fonts.setFont(font);
-    DEBUG_F("Set up display (%ld)\n", (long)&display);
+    log_d("Set up display (%ld)", (long)&display);
 
     // put_up_hello_world();
 
@@ -93,7 +93,7 @@ void DisplayEink154in::draw_text_in_box(String new_text, int start_x, int start_
 
     setup_display_for_text();
 
-    DEBUG_F("Printing some stuff to screen! (%ld)\n", (long)&display);
+    log_d("Printing some stuff to screen! (%ld)", (long)&display);
 
     line_height = get_text_height();
 

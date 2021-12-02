@@ -52,8 +52,8 @@ void RootUI::setup(DisplaySystem *display, OpticsSystem *optics, std::vector<Rea
         }));
         r.place = prefs.prefs.getULong(name.c_str());
         r.place_prev = prefs.prefs.getULong(name_prev.c_str());
-        SHOW_HEAP();
     }
+    SHOW_HEAP();
 
     // Set up pocket article menu
 #if !defined(DISABLE_WIFI)

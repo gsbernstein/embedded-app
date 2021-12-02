@@ -44,15 +44,14 @@ protected:
         CharacteristicCallbacks(BLEWifi *enclosure) { enclosed = enclosure; }
 
         void onWrite(BLECharacteristic *characteristic) override {
-            DEBUG_F("onWrite for Characteristic %s\n",
-                    characteristic->getUUID().toString().c_str());
+            log_d("onWrite for Characteristic %s", characteristic->getUUID().toString().c_str());
             if (characteristic->getUUID().equals(BLEUUID(improv::RPC_COMMAND_UUID))) {
                 std::string value = characteristic->getValue();
                 improv::ImprovCommand command =
                     improv::parse_improv_data((uint8_t *)value.c_str(), value.length());
                 switch (command.command) {
                 case improv::BAD_CHECKSUM: {
-                    DEBUG_LN("Error: Bad Checksum from Improv message");
+                    log_e("Error: Bad Checksum from Improv message");
                     break;
                 }
                 case improv::WIFI_SETTINGS: {
@@ -61,11 +60,11 @@ protected:
                     break;
                 }
                 default: {
-                    DEBUG_LN("Error: Unhandled Improv message");
+                    log_e("Error: Unhandled Improv message");
                 }
                 }
             } else {
-                DEBUG_LN("Error: Unhandled characteristic in BLEWifi");
+                log_e("Error: Unhandled characteristic in BLEWifi");
             }
         }
     };

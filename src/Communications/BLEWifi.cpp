@@ -8,7 +8,7 @@
 #include "sindarin-debug.h"
 
 void BLEWifi::startService() {
-    DEBUG_LN("BLEWifi::startService");
+    log_d("BLEWifi::startService");
     SHOW_HEAP();
 
     BLEServer *server = BLEManager::getInstance()->server;
@@ -53,14 +53,14 @@ void BLEWifi::startService() {
 
     // If credentials are available, go ahead and attempt WiFi connection
     if (!WiFi.enableSTA(true)) {
-        DEBUG_F("STA enable failed!");
+        log_e("STA enable failed!");
     }
     wifi_config_t conf;
     esp_wifi_get_config(WIFI_IF_STA, &conf);
     const char *ssid = (const char *)conf.sta.ssid;
     const char *password = (const char *)conf.sta.password;
     if (strlen(ssid) > 0 && strlen(password) > 0) {
-        DEBUG_F("Found WiFi credentials for %s:%s. Attempting connection...\n", ssid, password);
+        log_i("Found WiFi credentials for %s. Attempting connection", ssid);
         WiFi.begin();
     }
 }
@@ -84,6 +84,7 @@ void BLEWifi::setState(BLEWifiState state) {
         this->setError(improv::ERROR_NONE, false);
         improv_state = improv::STATE_PROVISIONED;
     }
+    log_d("Switched improv state to %d (internal state = %d)", improv_state, state);
     this->current_state_characteristic->setValue(improv_state);
     this->current_state_characteristic->notify();
     this->last_state_change_millis = millis();
@@ -99,11 +100,10 @@ void BLEWifi::setError(improv::Error error, bool notify) {
 
 void BLEWifi::doneConnecting() {
     this->setState(STATE_CONNECTED);
-    DEBUG_LN("Connected, IP address: ");
-    DEBUG_LN(WiFi.localIP());
+    log_i("Connected, IP address: %s", WiFi.localIP().toString().c_str());
     SHOW_HEAP();
     // Now that we're connected, we may want to close the Improv service
-    DEBUG_LN("Closing down Improv service: ");
+    log_d("Closing down Improv service: ");
     BLEServer *server = BLEManager::getInstance()->server;
     server->removeService(service, true);
     service = nullptr;
@@ -120,8 +120,8 @@ void BLEWifi::loop() {
         }
     } else if (this->state == STATE_READY_TO_CONNECT) {
         improv::ImprovCommand command = this->lastCommand;
-        DEBUG_F("Attempting connection to: %s Password: %s (WiFi status = %d)\n",
-                command.ssid.c_str(), command.password.c_str(), WiFi.status());
+        log_d("Attempting connection to: %s Password: %s (WiFi status = %d)", command.ssid.c_str(),
+              command.password.c_str(), WiFi.status());
         WiFi.begin(command.ssid.c_str(), command.password.c_str());
         this->setState(STATE_CONNECTING);
         return;
@@ -135,7 +135,7 @@ void BLEWifi::loop() {
             this->rpc_result_characteristic->notify();
             this->doneConnecting();
         } else if (now - this->last_state_change_millis > 30000) {
-            DEBUG_F("Timed out connecting to WiFi %d\n", WiFi.status());
+            log_w("Timed out connecting to WiFi %d", WiFi.status());
             this->setState(STATE_WAITING);
             this->setError(improv::ERROR_UNABLE_TO_CONNECT);
             WiFi.disconnect();
