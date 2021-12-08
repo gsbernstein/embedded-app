@@ -93,7 +93,7 @@ void setupDisplayAndOptics() {
 #endif
 
 #ifdef EINKET013TT1
-    my_display = new DisplayEinkET013TT1(/*CS=*/5, /*OEI=*/4, /*RST=*/32, /*BUSY=*/33);
+    my_display = new DisplayEinkET013TT1(/*CS=*/5, /*OEI=*/21, /*RST=*/32, /*BUSY=*/33);
     SIZE_OF(*my_display);
 #endif
 
