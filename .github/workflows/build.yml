@@ -25,3 +25,6 @@ jobs:
 
     - name: PlatformIO run
       run: pio run -e tinypico -e featheresp32 -e d1mini32
+
+    - name: Build external flash image
+      run: pio run -e tinypico -t buildfs-ext

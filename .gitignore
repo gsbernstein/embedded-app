@@ -4,3 +4,5 @@
 .vscode/launch.json
 .vscode/ipch
 .DS_Store
+# Automatically generated from scripts/extra_build_script.py
+data/manifest.json

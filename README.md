@@ -14,7 +14,7 @@ VSCode provides a nice platformio IDE. Download VSCode and get the PlatformIO ID
 
 You can use the "Upload and Monitor" project tasks under PlatformIO Icon (left bar) -> Project Tasks -> tinypico -> General -> Upload and Monitor
 
-You'll also need to build and upload the filesystem. You can do this in VSCode from PlatformIO Icon (left bar) -> Project Tasks -> tinypico -> Platform -> Build Filesystem Image and then Upload Filesystem Image. Or you can do this at the command line with `pio run --target uploadfs`.
+You'll also need to build and upload the filesystem. You can do this in VSCode from PlatformIO Icon (left bar) -> Project Tasks -> tinypico -> Custom -> Build Filesystem Image (ext) and then Upload Filesystem Image (ext). Or you can do this at the command line with `pio run -t buildfs-ext -t uploadfs-ext`.
 
 Note: If you don't see these options in your PlatformIO bar in VSCode, try restarting VSCode.
 
