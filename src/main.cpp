@@ -9,16 +9,15 @@
 //
 
 #include <Arduino.h>
-#include <SPIFFS.h>
 #include <mbedtls/md.h>
 
 #include "config.h"
 
-#include "Contents/Json.hpp"
 #include "Contents/Readable.hpp"
 #include "Displays/AllDisplays.hpp"
 #include "Inputs/RemoteInput.hpp"
 #include "Optics/AllOptics.hpp"
+#include "Storage/FileSystem.hpp"
 #include "Storage/PreferencesStore.hpp"
 #include "UI/RootUI.hpp"
 #include "sindarin-debug.h"
@@ -112,34 +111,7 @@ void setupDisplayAndOptics() {
 }
 
 void setup() {
-    if (Serial) Serial.begin(115200);
-    SHOW_HEAP();
-
-    // Launch SPIFFS file system
-    if (!SPIFFS.begin(false, "/spiffs", 255, nullptr)) {
-        DEBUG_LN("An Error has occurred while mounting SPIFFS");
-    }
-
-    SHOW_HEAP();
-
-#if !defined(DISABLE_SPIRAM)
-    SpiRamJsonDocument *manifest = new SpiRamJsonDocument(2048);
-#else
-    DynamicJsonDocument *manifest = new DynamicJsonDocument(2048);
-#endif
-    File manifestFile = SPIFFS.open("/manifest.json");
-    if (!manifestFile) {
-        DEBUG_LN("Failed to open manifest file.");
-    }
-    deserializeJson(*manifest, manifestFile);
-    manifestFile.close();
-
-    JsonArray array = manifest->as<JsonArray>();
-    auto readables = new std::vector<Readable>();
-    readables->reserve(array.size());
-    for (JsonVariant v : array) {
-        readables->emplace_back(v["id"], v["name"], v["path"]);
-    }
+    Serial.begin(115200);
 
     SHOW_HEAP();
 
@@ -173,6 +145,12 @@ void setup() {
     my_display->display_splash_screen();
 
     delay(500);
+
+    FileSystem::getInstance()->begin();
+    auto readables = new std::vector<Readable>();
+    FileSystem::getInstance()->getReadables(readables);
+
+    SHOW_HEAP();
 
     root_ui.setup(my_display, my_optics, *readables);
 

@@ -28,12 +28,12 @@ protected:
         BLERemoteInput *enclosed;
 
         void onConnect(BLEServer *server) override {
-            DEBUG_LN("BLE client connected to our server!");
+            log_i("BLE client connected to our server!");
             enclosed->deviceConnected = true;
         }
 
         void onDisconnect(BLEServer *server) override {
-            DEBUG_LN("BLE client disconnected from our server!");
+            log_i("BLE client disconnected from our server!");
             enclosed->deviceConnected = false;
         }
     };
@@ -47,9 +47,7 @@ protected:
         void onWrite(BLECharacteristic *characteristic) override {
             std::string value = characteristic->getValue();
             if (value.length() > 0) {
-                DEBUG_LN("*********");
-                DEBUG_F("New value: %.2x \n", value[0]);
-                DEBUG_LN("*********");
+                log_d("New value: %.2x", value[0]);
                 enclosed->ble_code = (RemoteCommand)value.data()[0];
                 enclosed->was_code_processed = 0;
             }

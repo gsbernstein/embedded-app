@@ -3,12 +3,8 @@
 
 #include <Arduino.h>
 
-#define DEBUG_VAR(x)                                                                               \
-    if (Serial) Serial.print(x)
-#define DEBUG_LN(y)                                                                                \
-    if (Serial) Serial.println(y)
-#define DEBUG_F(format, ...)                                                                       \
-    if (Serial) Serial.printf(format, ##__VA_ARGS__)
+#define DEBUG_VAR(x) log_d("%s", String(x).c_str())
+#define DEBUG_LN(y) log_d("%s", String(y).c_str())
 
 #endif
 

@@ -4,3 +4,5 @@
 .vscode/launch.json
 .vscode/ipch
 .DS_Store
+# Automatically generated from scripts/pio_external_flash.py
+data/manifest.json
