@@ -28,7 +28,6 @@ public:
     MenuScreen(Renderer &renderer) : renderer(renderer) { num_menu_items = 0; };
 
     void add_menu_item(const MenuItem &new_item);
-    void add_menu_item(const String &new_item_title);
 
     void reset_menu_items();
 

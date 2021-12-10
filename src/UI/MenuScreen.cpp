@@ -11,10 +11,6 @@ void MenuScreen::add_menu_item(const MenuItem &new_item) {
     num_menu_items++;
 }
 
-void MenuScreen::add_menu_item(const String &new_item_title) {
-    this->add_menu_item(MenuItem(new_item_title));
-}
-
 void MenuScreen::reset_menu_items() { num_menu_items = 0; }
 
 auto MenuScreen::get_num_items() -> int { return num_menu_items; }
