@@ -92,7 +92,7 @@ void TTRemoteInput::buttonNotificationCallback(BLERemoteCharacteristic *remoteCh
               length);
         return;
     }
-    log_d("0 - %02x; 1 - %02x\n", data[0], data[1]);
+    log_d("0 - %02x; 1 - %02x", data[0], data[1]);
     uint16_t processed = (data[0] << 8) | (data[1]);
     log_d("processed: %u", processed);
     log_d("Notify callback for characteristic %s of data length %u content: %u",

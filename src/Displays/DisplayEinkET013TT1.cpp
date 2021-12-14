@@ -8,15 +8,13 @@ extern const unsigned char g_WaveformData[];
 
 // Set up the U8g2lib display
 DisplayEinkET013TT1::DisplayEinkET013TT1(uint8_t CS, uint8_t OEI, uint8_t RST, uint8_t BUSY)
-    : Adafruit_GFX(EinkET013TT1_X_PIXELS, EinkET013TT1_Y_PIXELS)
-{
+    : Adafruit_GFX(EinkET013TT1_X_PIXELS, EinkET013TT1_Y_PIXELS) {
     EPD_HAL_Init(CS, OEI, RST, BUSY);
 
     int32_t ret = EPD_TCON_Init(&g_TCON_HAL);
 
-    if (ret < 0)
-    {
-        DEBUG_F("Bad return code from TCON Init: %d\n", ret);
+    if (ret < 0) {
+        log_d("Bad return code from TCON Init: %d", ret);
         while (1)
             ;
     }
@@ -26,15 +24,15 @@ DisplayEinkET013TT1::DisplayEinkET013TT1(uint8_t CS, uint8_t OEI, uint8_t RST, u
     ret = EPD_TCON_LoadWaveform(g_WaveformData);
     Serial.println("Waveform loaded?");
 
-    if (!ret)
-    {
-        DEBUG_F("Bad return code from waveform load: %d\n", ret);
+    if (!ret) {
+        log_d("Bad return code from waveform load: %d", ret);
         while (1)
-        ;
+            ;
     }
 
     Serial.println("SetVcom");
-    // Written on back of each individual display - value is in mV so -2.81 on back should be -2810 here. -cojo
+    // Written on back of each individual display - value is in mV so -2.81 on back should be -2810
+    // here. -cojo
     EPD_TCON_SetVcom(-2810);
 
     EPD_TCON_SetFrameRate(EPD_TCON_FRAME_RATE_HZ);
@@ -51,7 +49,7 @@ DisplayEinkET013TT1::DisplayEinkET013TT1(uint8_t CS, uint8_t OEI, uint8_t RST, u
     setRotation(0);
     u8g2Fonts.begin(*this);
     u8g2Fonts.setFont(font);
-    DEBUG_F("Set up display (%ld)\n", (long)this);
+    log_d("Set up display (%ld)", (long)this);
 
     set_x(EinkET013TT1_X_PIXELS);
     set_y(EinkET013TT1_Y_PIXELS);
@@ -99,19 +97,18 @@ auto DisplayEinkET013TT1::get_text_width(const char *buffer) -> int {
 }
 
 void DisplayEinkET013TT1::draw_text_in_box(String new_text, int start_x, int start_y, int end_x,
-                                        int end_y) {
+                                           int end_y) {
 
     int line_height = 0;
 
     setup_display_for_text();
 
-    DEBUG_F("Printing some stuff to screen! (%ld)\n", (long)this);
+    log_d("Printing some stuff to screen! (%ld)", (long)this);
 
     line_height = get_text_height();
 
     if (get_partial_refresh()) {
-        setPartialWindow(start_x - 2, start_y - 2, (end_x - start_x) + 4,
-                                 (end_y - start_y) + 4);
+        setPartialWindow(start_x - 2, start_y - 2, (end_x - start_x) + 4, (end_y - start_y) + 4);
     }
 
     draw_box_cmds_only(start_x, start_y, end_x, end_y);
@@ -150,10 +147,10 @@ void DisplayEinkET013TT1::draw_box_cmds_only(int start_x, int start_y, int end_x
 void DisplayEinkET013TT1::draw_box(int start_x, int start_y, int end_x, int end_y) {
     // clear out one pixel around all of it
     if (get_partial_refresh()) {
-        DEBUG_F("Draw box: %d %d | %d %d\n", start_x, start_y, end_x, end_y);
+        log_d("Draw box: %d %d | %d %d", start_x, start_y, end_x, end_y);
         setPartialWindow(start_x - 2, start_y - 2, (end_x - start_x) + 4, (end_y - start_y) + 4);
     }
-    DEBUG_F("Got here - drawing a box: %d %d | %d %d\n", start_x, start_y, end_x, end_y);
+    log_d("Got here - drawing a box: %d %d | %d %d", start_x, start_y, end_x, end_y);
 
     draw_box_cmds_only(start_x, start_y, end_x, end_y);
     // DO WRITE AND REFRESH
@@ -211,7 +208,8 @@ void DisplayEinkET013TT1::setup_display_for_text() {
     u8g2Fonts.setFont(font);
 }
 
-void DisplayEinkET013TT1::draw_text_cmds_only(const String &new_text, int x, int y, int line_height) {
+void DisplayEinkET013TT1::draw_text_cmds_only(const String &new_text, int x, int y,
+                                              int line_height) {
 
     string_to_draw = std::move(new_text);
 
@@ -243,8 +241,7 @@ void DisplayEinkET013TT1::draw_text_cmds_only(const String &new_text, int x, int
     }
 }
 
-void DisplayEinkET013TT1::setPartialWindow(uint16_t x, uint16_t y, uint16_t w, uint16_t h)
-{
+void DisplayEinkET013TT1::setPartialWindow(uint16_t x, uint16_t y, uint16_t w, uint16_t h) {
     set_partial_refresh();
     partialX = min(x, width());
     partialY = min(y, height());
@@ -257,15 +254,13 @@ void DisplayEinkET013TT1::setPartialWindow(uint16_t x, uint16_t y, uint16_t w, u
     partialX -= partialX % 8;
 }
 
-void DisplayEinkET013TT1::drawPixel(int16_t x, int16_t y, uint16_t color)
-{
+void DisplayEinkET013TT1::drawPixel(int16_t x, int16_t y, uint16_t color) {
     if ((x < 0) || (x >= width()) || (y < 0) || (y >= height())) {
         DEBUG_LN("drawPixel received invalid parameters; short-circuiting call");
         return;
     }
     // Move according to rotation as needed
-    switch (getRotation())
-    {
+    switch (getRotation()) {
     case 1:
         swap(x, y);
         x = WIDTH - x - 1;
@@ -284,9 +279,9 @@ void DisplayEinkET013TT1::drawPixel(int16_t x, int16_t y, uint16_t color)
         x -= partialX;
         y -= partialY;
         // Enforce partial window size
-        if ((x < 0) || (x >= partialW) || (y < 0) || (y >= partialH))
-        {
-            DEBUG_F("drawPixel out of partial window bounds; short-circuiting call: %d %d | %d %d\n", x, y, partialW, partialH);
+        if ((x < 0) || (x >= partialW) || (y < 0) || (y >= partialH)) {
+            log_d("drawPixel out of partial window bounds; short-circuiting call: %d %d | %d %d", x,
+                  y, partialW, partialH);
             return;
         }
     }
@@ -294,8 +289,7 @@ void DisplayEinkET013TT1::drawPixel(int16_t x, int16_t y, uint16_t color)
     buffer[i] = (buffer[i] & (0xFF ^ (1 << (7 - x % 8))));
 }
 
-void DisplayEinkET013TT1::updateDisplay()
-{
+void DisplayEinkET013TT1::updateDisplay() {
     if (get_partial_refresh()) {
         writePartialImage(partialX, partialY, buffer, partialW, partialH);
         EPD_TCON_PowerOn();
@@ -312,34 +306,31 @@ void DisplayEinkET013TT1::updateDisplay()
     fillScreen(bg);
 }
 
-void DisplayEinkET013TT1::writeImage(uint8_t *fb, const unsigned char *img, uint16_t size)
-{
-  int i;
-  for (i = 0; i < size; i++)
-  {
-    fb[i * 2] &= 0xf0;
-    fb[i * 2] |= img[i] >> 4;
-    fb[(i * 2) + 1] &= 0xf0;
-    fb[(i * 2) + 1] |= img[i] & 0x0f;
-  }
+void DisplayEinkET013TT1::writeImage(uint8_t *fb, const unsigned char *img, uint16_t size) {
+    int i;
+    for (i = 0; i < size; i++) {
+        fb[i * 2] &= 0xf0;
+        fb[i * 2] |= img[i] >> 4;
+        fb[(i * 2) + 1] &= 0xf0;
+        fb[(i * 2) + 1] |= img[i] & 0x0f;
+    }
 }
 
-uint8_t DisplayEinkET013TT1::writePartialImage(uint16_t x, uint16_t y, const unsigned char *img, uint16_t img_w, uint16_t img_h)
-{
-  uint8_t *fb;
-  uint32_t i;
+uint8_t DisplayEinkET013TT1::writePartialImage(uint16_t x, uint16_t y, const unsigned char *img,
+                                               uint16_t img_w, uint16_t img_h) {
+    uint8_t *fb;
+    uint32_t i;
 
-  if (((x + img_w) > EinkET013TT1_X_PIXELS) || ((y + img_h) > EinkET013TT1_Y_PIXELS))
-    return 0; //over range
+    if (((x + img_w) > EinkET013TT1_X_PIXELS) || ((y + img_h) > EinkET013TT1_Y_PIXELS))
+        return 0; // over range
 
-  for (i = 0; i < img_h; ++i)
-  {
-    fb = EPD_TCON_GetUpdateBuffer();
+    for (i = 0; i < img_h; ++i) {
+        fb = EPD_TCON_GetUpdateBuffer();
 
-    fb += (y + i) * (EinkET013TT1_X_PIXELS / 4);
-    fb += (x >> 2);
+        fb += (y + i) * (EinkET013TT1_X_PIXELS / 4);
+        fb += (x >> 2);
 
-    writeImage(fb, img + (i * (img_w / 8)), (img_w / 8));
-  }
-  return 1;
+        writeImage(fb, img + (i * (img_w / 8)), (img_w / 8));
+    }
+    return 1;
 }
