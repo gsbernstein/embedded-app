@@ -21,5 +21,11 @@
 // #define DISABLE_WIFI
 // #define DISABLE_SPIRAM
 
+#define ENABLE_OTA
+#define HOSTNAME "sindarin"
+
+// Disable Improve BLE WiFi provisioning service
+// #define DISABLE_IMPROV
+
 #define RED_LED 22
 #define GREEN_LED 25
