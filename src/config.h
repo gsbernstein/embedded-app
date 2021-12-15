@@ -20,3 +20,6 @@
 
 // #define DISABLE_WIFI
 // #define DISABLE_SPIRAM
+
+#define RED_LED 22
+#define GREEN_LED 25
