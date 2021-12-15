@@ -18,6 +18,20 @@ You'll also need to build and upload the filesystem. You can do this in VSCode f
 
 Note: If you don't see these options in your PlatformIO bar in VSCode, try restarting VSCode.
 
+## Upload Over-the-Air (OTA)
+
+You can upload the firmware and filesystem over-the-air. You'll need to make sure to connect to WiFi. Then you can use this to upload the firwmare OTA:
+
+```bash
+pio run -e tinypico -t upload --upload-port sindarin.local
+```
+
+An this to upload the SPIFFS image:
+
+```
+pio run -e tinypico -t uploadfs-ota --upload-port sindarin.local
+```
+
 ## Git Setup
 
 You probably want to ignore formatting changes when using `git blame`. After cloning, you can tell Git to ignore certain commits with:
