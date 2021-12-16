@@ -36,6 +36,7 @@ protected:
     void setState(BLEWifiState state);
     void setError(improv::Error error, bool notify = true);
     void doneConnecting();
+    void startOTA();
 
     class CharacteristicCallbacks : public BLECharacteristicCallbacks {
     public:

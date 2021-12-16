@@ -116,3 +116,32 @@ env.AddCustomTarget(
     "Upload Filesystem Image (ext)",
     "Upload FS to external SPI flash",
 )
+
+platform = env.PioPlatform()
+env["ESPOTA"] = join(
+    platform.get_package_dir("framework-arduinoespressif32") or "", "tools", "espota.py"
+)
+
+upload_ota_action = env.VerboseAction(
+    " ".join(
+        [
+            '"$PYTHONEXE" "$ESPOTA"',
+            "--debug",
+            "--progress",
+            "--spiffs",
+            "-i",
+            env.get("UPLOAD_PORT", "sindarin.local"),
+            "-f",
+            f'"{spiffs_file}"',
+        ]
+    ),
+    f"Uploading external SPI flash from {spiffs_file} via OTA",
+)
+
+env.AddCustomTarget(
+    "uploadfs-ota",
+    None,
+    upload_ota_action,
+    "Upload Filesystem Image OTA",
+    "Upload FS to external SPI flash via OTA",
+)

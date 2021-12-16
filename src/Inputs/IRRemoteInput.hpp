@@ -1,4 +1,4 @@
-#ifndef IRRemoteInput_H
+#if !defined(IRRemoteInput_H) && defined(USE_IR_REMOTE)
 #define IRRemoteInput_H
 
 #include "RemoteInput.hpp"

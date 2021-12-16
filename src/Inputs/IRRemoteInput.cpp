@@ -1,8 +1,12 @@
 #include "IRRemoteInput.hpp"
 
-#include <IRremote.h>
+#include "config.h"
 
 #include "sindarin-debug.h"
+
+#if defined(USE_IR_REMOTE)
+
+#include <IRremote.h>
 
 void IRRemoteInput::start_remote(int receive_pin_input) {
     receive_pin = receive_pin_input;
@@ -45,3 +49,5 @@ auto IRRemoteInput::check_release() -> int {
     }
     return found_release;
 }
+
+#endif

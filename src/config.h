@@ -12,11 +12,20 @@
 // Currently using the App (BLE Server in firmware) is incompatible with
 // Turn Touch (BLE client in firmware). Enable one of these options or the
 // other.
-#define USE_TURN_TOUCH_REMOTE
-//#define USE_BLE_SERVER_REMOTE
-#define USE_IR_REMOTE
+// #define USE_TURN_TOUCH_REMOTE
+#define USE_BLE_SERVER_REMOTE
+// #define USE_IR_REMOTE
 
 #define IR_REMOTE_INPUT_PIN 12
 
 // #define DISABLE_WIFI
 // #define DISABLE_SPIRAM
+
+#define ENABLE_OTA
+#define HOSTNAME "sindarin"
+
+// Disable Improve BLE WiFi provisioning service
+// #define DISABLE_IMPROV
+
+#define RED_LED 22
+#define GREEN_LED 25

@@ -170,6 +170,9 @@ void setup() {
     root_ui.setup(my_display, my_optics, *readables);
 
     SHOW_HEAP();
+
+    pinMode(RED_LED, OUTPUT);
+    pinMode(GREEN_LED, OUTPUT);
 }
 
 void loop() {
@@ -217,5 +220,11 @@ void loop() {
     }
 #endif
 
+    if (code_from_release != RemoteCommand::NONE) {
+        digitalWrite(RED_LED, HIGH);
+    }
+
     root_ui.loop(code_from_release);
+
+    digitalWrite(RED_LED, LOW);
 }
