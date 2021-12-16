@@ -93,9 +93,13 @@ void setupDisplayAndOptics() {
 #endif
 
 #ifdef EINKET013TT1
+#ifdef GILPICO_SINDARIN
     pinMode(26, OUTPUT);
     digitalWrite(26, HIGH);
     my_display = new DisplayEinkET013TT1(/*CS=*/5, /*OEI=*/21, /*RST=*/32, /*BUSY=*/33);
+#elif TINYPICO_SINDARIN
+    my_display = new DisplayEinkET013TT1(/*CS=*/5, /*OEI=*/4, /*RST=*/32, /*BUSY=*/33);
+#endif
     SIZE_OF(*my_display);
 #endif
 

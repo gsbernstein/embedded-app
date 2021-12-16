@@ -46,7 +46,7 @@ DisplayEinkET013TT1::DisplayEinkET013TT1(uint8_t CS, uint8_t OEI, uint8_t RST, u
     setFullWindow();
 
     font = u8g2_font_tom_thumb_4x6_tf;
-    setRotation(0);
+    setRotation(2);
     u8g2Fonts.begin(*this);
     u8g2Fonts.setFont(font);
     log_d("Set up display (%ld)", (long)this);
@@ -286,7 +286,8 @@ void DisplayEinkET013TT1::drawPixel(int16_t x, int16_t y, uint16_t color) {
         }
     }
     uint16_t i = x / 8 + y * (partialW / 8);
-    buffer[i] = (color == 0x0000) ? (buffer[i] & ~(1 << (7 - x % 8))) : (buffer[i] | (1 << (7 - x % 8)));
+    buffer[i] =
+        (color == 0x0000) ? (buffer[i] & ~(1 << (7 - x % 8))) : (buffer[i] | (1 << (7 - x % 8)));
 }
 
 void DisplayEinkET013TT1::updateDisplay() {
