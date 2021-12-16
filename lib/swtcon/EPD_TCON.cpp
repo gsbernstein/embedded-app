@@ -220,9 +220,9 @@ void EPD_TCON_Update(uint8_t mode)
     }
 
     status = EPD_DRV_ReadPumpStatus();
-    Serial.printf("Status: %d\n", status);
+    //Serial.printf("Status: %d\n", status);
     temperature = EPD_DRV_ReadTemperature();
-    Serial.printf("Temperature: %d\n", temperature);
+    //Serial.printf("Temperature: %d\n", temperature);
 
     GetWaveformLUT(temperature, mode);
 

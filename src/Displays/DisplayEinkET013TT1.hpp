@@ -61,8 +61,8 @@ protected:
     const uint8_t *font;
     U8G2_FOR_ADAFRUIT_GFX u8g2Fonts;
 
-    uint16_t bg = 0xFFFF;
-    uint16_t fg = 0x0000;
+    uint16_t bg = 0x0000; // 0xFFFF;
+    uint16_t fg = 0xFFFF; // 0x0000;
 
     static inline uint16_t min(uint16_t a, uint16_t b)
     {
@@ -102,7 +102,8 @@ protected:
     void updateDisplay();
     void fillScreen(uint16_t color) // 0x0 black, >0x0 white, to buffer
     {
-      uint8_t data = (color == fg) ? 0x00 : 0xFF;
+      // Clamp to black or white
+      uint8_t data = (color == 0) ? color : 0xFF;
       for (uint16_t x = 0; x < sizeof(buffer); x++)
       {
         buffer[x] = data;

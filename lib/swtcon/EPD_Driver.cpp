@@ -252,7 +252,7 @@ static void ReadRegData(int16_t idx, uint8_t *value)
     g_drvHal->Spi_CS_Enable();
     g_drvHal->Spi_Write(buf, 1);
     uint8_t prefix = g_drvHal->Spi_ReadByte();
-    Serial.printf("Header: %u\n", prefix);
+    //Serial.printf("Header: %u\n", prefix);
     result = g_drvHal->Spi_ReadByte();
     g_drvHal->Spi_CS_Disable();
 

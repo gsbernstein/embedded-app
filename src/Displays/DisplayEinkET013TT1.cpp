@@ -286,7 +286,7 @@ void DisplayEinkET013TT1::drawPixel(int16_t x, int16_t y, uint16_t color) {
         }
     }
     uint16_t i = x / 8 + y * (partialW / 8);
-    buffer[i] = (buffer[i] & (0xFF ^ (1 << (7 - x % 8))));
+    buffer[i] = (color == 0x0000) ? (buffer[i] & ~(1 << (7 - x % 8))) : (buffer[i] | (1 << (7 - x % 8)));
 }
 
 void DisplayEinkET013TT1::updateDisplay() {
@@ -298,6 +298,7 @@ void DisplayEinkET013TT1::updateDisplay() {
     } else {
         writeImage(EPD_TCON_GetUpdateBuffer(), buffer,
                    (EinkET013TT1_X_PIXELS * EinkET013TT1_Y_PIXELS / 8));
+        EPD_TCON_Set_Border(bg == 0x00 ? EPD_BORDER_BLACK : EPD_BORDER_WHITE);
         EPD_TCON_PowerOn();
         EPD_TCON_Update(WF_MODE_GC4);
         EPD_TCON_PowerOff();
