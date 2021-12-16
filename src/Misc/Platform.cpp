@@ -5,13 +5,13 @@
 const int MAX_ANALOG_VAL = 4095.0;
 const float MAX_BATTERY_VOLTAGE = 4.2; // Max LiPoly voltage of a 3.7 battery is 4.2
 
-#ifdef TINYPICO_SINDARIN
+#if defined TINYPICO_SINDARIN || defined GILPICO_SINDARIN
 #include <TinyPICO.h>
 TinyPICO tp;
 #endif
 
 auto get_battery_life() -> String {
-#ifdef TINYPICO_SINDARIN
+#if defined TINYPICO_SINDARIN || defined GILPICO_SINDARIN
     float voltageLevel = tp.GetBatteryVoltage();
 #else
     // A13 pin is not exposed on Huzzah32 board because it's tied to

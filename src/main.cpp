@@ -34,6 +34,10 @@
 DisplayEink154in *my_display;
 #endif
 
+#ifdef EINKET013TT1
+DisplayEinkET013TT1 *my_display;
+#endif
+
 #ifdef OLED96in
 DisplayOLED96in *my_display;
 #endif
@@ -86,6 +90,17 @@ void setupDisplayAndOptics() {
     my_display = new DisplayEink154in();
     SIZE_OF(*my_display);
     // my_display->set_font(u8g2_font_6x10_tf);
+#endif
+
+#ifdef EINKET013TT1
+#ifdef GILPICO_SINDARIN
+    pinMode(26, OUTPUT);
+    digitalWrite(26, HIGH);
+    my_display = new DisplayEinkET013TT1(/*CS=*/5, /*OEI=*/21, /*RST=*/32, /*BUSY=*/33);
+#elif TINYPICO_SINDARIN
+    my_display = new DisplayEinkET013TT1(/*CS=*/5, /*OEI=*/4, /*RST=*/32, /*BUSY=*/33);
+#endif
+    SIZE_OF(*my_display);
 #endif
 
 #ifdef OLED96in

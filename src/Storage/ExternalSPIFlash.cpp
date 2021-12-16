@@ -49,7 +49,7 @@ esp_flash_t *SPIFlashInit(void) {
     uint32_t id;
     ESP_ERROR_CHECK(esp_flash_read_id(ext_flash, &id));
     // For some reason, we can't auto-detect the size of 512mbit flash chips
-    if (ext_flash->size == 0 && id == 0xef4020) {
+    if (id == 0xef4020) {
         // While we have a 512mbit flash chip on our board, we don't need all of it rn, and it's
         // really slow to upload images that big. Let's just pretend we have a 32mbit / 4MB chip.
         // See also: pio_external_flash.py where this is also hardcoded.

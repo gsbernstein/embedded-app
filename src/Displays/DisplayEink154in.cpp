@@ -5,26 +5,6 @@
 
 const char HelloWorld[] = "Hello Fy World!";
 
-void DisplayEink154in::put_up_hello_world() {
-
-    display.setRotation(2);
-    display.setFont(&FreeMonoBold9pt7b);
-    display.setTextColor(GxEPD_BLACK);
-    int16_t tbx, tby;
-    uint16_t tbw, tbh;
-    display.getTextBounds(HelloWorld, 0, 0, &tbx, &tby, &tbw, &tbh);
-    // center the bounding box by transposition of the origin:
-    uint16_t x = ((display.width() - tbw) / 2) - tbx;
-    uint16_t y = ((display.height() - tbh) / 2) - tby;
-    display.setFullWindow();
-    display.firstPage();
-    do {
-        display.fillScreen(GxEPD_WHITE);
-        display.setCursor(x, y);
-        display.print(HelloWorld);
-    } while (display.nextPage());
-}
-
 // Set up the U8g2lib display
 DisplayEink154in::DisplayEink154in() {
     font = u8g2_font_tom_thumb_4x6_tf;
@@ -38,8 +18,6 @@ DisplayEink154in::DisplayEink154in() {
     u8g2Fonts.begin(display);
     u8g2Fonts.setFont(font);
     log_d("Set up display (%ld)", (long)&display);
-
-    // put_up_hello_world();
 
     set_x(Eink154in_X_PIXELS);
     set_y(Eink154in_Y_PIXELS);
