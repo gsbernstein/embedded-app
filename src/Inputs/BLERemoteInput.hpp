@@ -3,40 +3,24 @@
 
 #include <NimBLEDevice.h>
 
+#include "Communications/BLEAbstractions.hpp"
 #include "Communications/BLEManager.hpp"
 #include "RemoteInput.hpp"
 #include "sindarin-debug.h"
 
-class BLERemoteInput : public RemoteInput {
+class BLERemoteInput : public RemoteInput, public BLECharacteristicProvider {
 
 public:
+    void configureCharacteristics(BLEService *service) override;
+
     void start_remote(int receive_pin_input) override;
     void start_remote() override;
     auto check_press() -> int override;
     auto check_release() -> int override;
 
 protected:
-    bool wasDeviceConnected;
-    bool deviceConnected;
-    int was_code_processed;
-    RemoteCommand ble_code;
-
-    class ServerCallbacks : public BLEServerCallbacks {
-    public:
-        ServerCallbacks(BLERemoteInput *enclosure) { enclosed = enclosure; }
-
-        BLERemoteInput *enclosed;
-
-        void onConnect(BLEServer *server) override {
-            log_i("BLE client connected to our server!");
-            enclosed->deviceConnected = true;
-        }
-
-        void onDisconnect(BLEServer *server) override {
-            log_i("BLE client disconnected from our server!");
-            enclosed->deviceConnected = false;
-        }
-    };
+    int was_code_processed = 1;
+    RemoteCommand ble_code = RemoteCommand::NONE;
 
     class CharacteristicCallbacks : public BLECharacteristicCallbacks {
     public:

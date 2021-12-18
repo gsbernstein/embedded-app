@@ -9,9 +9,9 @@
 
 BLESettings::BLESettings(PreferencesStore *prefs) { this->prefs = prefs; }
 
-void BLESettings::listen_for_settings() {
-    BLECharacteristic *characteristic = BLEManager::getInstance()->service->createCharacteristic(
+void BLESettings::configureCharacteristics(BLEService *service) {
+    BLECharacteristic *characteristic = service->createCharacteristic(
         BLEUUID(SETTINGS_CHARACTERISTIC_UUID), NIMBLE_PROPERTY::WRITE);
 
     characteristic->setCallbacks(new CharacteristicCallbacks(this));
-}
+};

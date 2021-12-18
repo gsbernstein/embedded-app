@@ -13,6 +13,8 @@
 
 #include "config.h"
 
+#include "Communications/OTA.hpp"
+#include "Communications/WiFi.hpp"
 #include "Contents/Readable.hpp"
 #include "Displays/AllDisplays.hpp"
 #include "Inputs/RemoteInput.hpp"
@@ -63,23 +65,33 @@ OpticsHastings20mmX40_3mm *my_optics;
 IRRemoteInput *ir_remote_input;
 #endif
 
+#if defined(USE_BLE_SERVER_REMOTE) || defined(USE_BLE_SERVER_SETTINGS)
+#include "Communications/BLESindarinService.hpp"
+BLESindarinService bleSindarinService;
+#endif
+
 #ifdef USE_BLE_SERVER_REMOTE
-#include "Communications/BLESettings.hpp"
 #include "Inputs/BLERemoteInput.hpp"
 BLERemoteInput *ble_remote_input;
+#endif
+
+#ifdef USE_BLE_SERVER_SETTINGS
+#include "Communications/BLESettings.hpp"
 BLESettings *ble_settings;
-// TODO(john): For now, grouping BLEWifi with BLERemoteInput since they're both
-// BLE server services. These are separate things and it will be better to make
-// them independent.
-#if !defined(DISABLE_WIFI)
-#include "Communications/BLEWifi.hpp"
-BLEWifi *ble_wifi;
-#endif // DISABLE_WIFI
+#endif
+
+#ifdef USE_BLE_SERVER_IMPROV
+#include "Communications/BLEImprov.hpp"
+BLEImprov *ble_wifi;
 #endif
 
 #ifdef USE_TURN_TOUCH_REMOTE
 #include "Inputs/TTRemoteInput.hpp"
 TTRemoteInput *tt_remote_input;
+#endif
+
+#ifdef ENABLE_OTA
+OTA ota;
 #endif
 
 PreferencesStore prefs;
@@ -138,26 +150,54 @@ void setup() {
     ir_remote_input->start_remote(IR_REMOTE_INPUT_PIN);
 #endif
 
+    BLEManager *bleManager = BLEManager::getInstance();
+
+#if defined(USE_BLE_SERVER_REMOTE) || defined(USE_BLE_SERVER_SETTINGS)
+    auto sindarinService = bleSindarinService.configureService(bleManager->server());
+
 #ifdef USE_BLE_SERVER_REMOTE
     ble_remote_input = new BLERemoteInput();
-    SIZE_OF(*ble_remote_input);
-    ble_remote_input->start_remote();
+    ble_remote_input->configureCharacteristics(sindarinService);
+#endif
 
+#ifdef USE_BLE_SERVER_SETTINGS
     ble_settings = new BLESettings(&prefs);
-    ble_settings->listen_for_settings();
+    ble_settings->configureCharacteristics(sindarinService);
+#endif
 
-#if !defined(DISABLE_WIFI)
-    ble_wifi = new BLEWifi();
-    SIZE_OF(*ble_wifi);
-    ble_wifi->startService();
-#endif // DISABLE_WIFI
+    bleSindarinService.start();
+#endif
 
-    BLEManager::getInstance()->startServiceAndAdvertising();
+#ifdef USE_BLE_SERVER_IMPROV
+    // NOTE(john): It might make sense at some point to consolidate everything
+    // as one service. However keeping these services separate for now allows us
+    // to use the Improv WebBluetooth implementation for Wifi provisioning and
+    // also use the Sindarin mobile app as-is after provisioning is done. If we
+    // want to merge these in the future, it will be as simple as using
+    // ble_wifi->configureCharacteristics(sindarinService)
+    ble_wifi = new BLEImprov();
+    ble_wifi->configureService(bleManager->server());
+    ble_wifi->start();
+#endif
+
+    bleManager->startAdvertisingIfNecessary();
+
+#ifdef USE_TURN_TOUCH_REMOTE
+    tt_remote_input = new TTRemoteInput();
+    tt_remote_input->start_remote();
 #endif
 
     prefs.begin();
 
     my_display->display_splash_screen();
+
+#ifndef DISABLE_WIFI
+    connectWiFiIfCredentialsExist();
+
+#ifdef ENABLE_OTA
+    ota.setup();
+#endif
+#endif
 
     delay(500);
 
@@ -190,14 +230,10 @@ void loop() {
 #endif
 
 #ifdef USE_TURN_TOUCH_REMOTE
-    if (tt_remote_input == nullptr) {
-        tt_remote_input = new TTRemoteInput();
-        tt_remote_input->start_remote();
-    }
     tt_remote_input->check_press();
 #endif
 
-    // We could do this better by iterating, but fine for now with only 2 input devices.
+    // We could do this better by iterating, but fine for now with only a few input devices.
     // Note that if an IR input comes in and then a BLE input comes at the same time,
     // it may only get one of them. This seems unlikely.
     RemoteCommand code_from_release = RemoteCommand::NONE;
@@ -227,4 +263,8 @@ void loop() {
     root_ui.loop(code_from_release);
 
     digitalWrite(RED_LED, LOW);
+
+#ifdef ENABLE_OTA
+    ota.loop();
+#endif
 }

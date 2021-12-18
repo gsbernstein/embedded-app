@@ -4,17 +4,27 @@
 
 #include <NimBLEDevice.h>
 
+#include "sindarin-debug.h"
+
 class BLEManager {
 public:
     static auto getInstance() -> BLEManager *;
-    void startServiceAndAdvertising();
-    BLEClient *client = nullptr;
-    BLEServer *server = nullptr;
-    BLEService *service = nullptr;
+    void startAdvertisingIfNecessary();
+    BLEServer *server();
 
 protected:
     static BLEManager *instance;
+    BLEServer *_server = nullptr;
     BLEManager();
+
+    class ServerCallbacks : public BLEServerCallbacks {
+    public:
+        ServerCallbacks() {}
+        void onConnect(BLEServer *server) override { log_i("BLE client connected to our server!"); }
+        void onDisconnect(BLEServer *server) override {
+            log_i("BLE client disconnected from our server!");
+        }
+    };
 };
 
 #endif

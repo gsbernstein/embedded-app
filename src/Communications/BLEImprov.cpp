@@ -1,32 +1,12 @@
-
-#include "BLEWifi.hpp"
+#include "BLEImprov.hpp"
 
 #include <Arduino.h>
-#include <ESPmDNS.h>
-#include <NimBLEDevice.h>
 
 #include "config.h"
 
-#include "esp_wifi.h"
 #include "sindarin-debug.h"
 
-#if defined(ENABLE_OTA)
-#include <ArduinoOTA.h>
-#endif
-
-void BLEWifi::startService() {
-    log_d("BLEWifi::startService");
-    SHOW_HEAP();
-
-#if !defined(DISABLE_IMPROV)
-    BLEServer *server = BLEManager::getInstance()->server;
-
-    // NOTE(john): It might make sense at some point to consolidate everything
-    // as one service. However keeping these services separate for now allows us
-    // to use the Improv WebBluetooth implementation for Wifi provisioning and
-    // also use the Sindarin mobile app as-is after provisioning is done.
-    service = server->createService(BLEUUID(improv::SERVICE_UUID));
-
+void BLEImprov::configureCharacteristics(BLEService *service) {
     auto *characteristic_callbacks = new CharacteristicCallbacks(this);
 
     BLECharacteristic *capabilities_characteristic =
@@ -53,58 +33,26 @@ void BLEWifi::startService() {
     BLECharacteristic *rpc_result_characteristic = service->createCharacteristic(
         BLEUUID(improv::RPC_RESULT_UUID), NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::NOTIFY);
     this->rpc_result_characteristic = rpc_result_characteristic;
+}
 
+BLEService *BLEImprov::configureService(BLEServer *server) {
+    service = server->createService(BLEUUID(improv::SERVICE_UUID));
+    server->getAdvertising()->addServiceUUID(service->getUUID());
+    configureCharacteristics(service);
+    return service;
+}
+
+void BLEImprov::start() {
     service->start();
-    BLEAdvertising *advertising = server->getAdvertising();
-    advertising->addServiceUUID(service->getUUID());
     SHOW_HEAP();
-
-#endif
-
-    // If credentials are available, go ahead and attempt WiFi connection
-    if (!WiFi.enableSTA(true)) {
-        log_e("STA enable failed!");
-    }
-    wifi_config_t conf;
-    esp_wifi_get_config(WIFI_IF_STA, &conf);
-    const char *ssid = (const char *)conf.sta.ssid;
-    const char *password = (const char *)conf.sta.password;
-    if (strlen(ssid) > 0 && strlen(password) > 0) {
-        log_i("Found WiFi credentials for %s. Attempting connection", ssid);
-        WiFi.setHostname(HOSTNAME);
-        WiFi.begin();
-        WiFi.setAutoReconnect(true);
-        this->startOTA();
-    }
 }
 
-void BLEWifi::startOTA() {
-#if defined(ENABLE_OTA)
-    ArduinoOTA.setHostname(HOSTNAME);
-    ArduinoOTA
-        .onStart([]() {
-            auto command = ArduinoOTA.getCommand();
-            if (command == U_FLASH) {
-                log_i("OTA Start updating firmware");
-            } else if (command == U_SPIFFS) {
-                log_i("OTA Start updating SPIFFS");
-            }
-        })
-        .onEnd([]() { log_i("\nEnd"); })
-        .onProgress([](unsigned int progress, unsigned int total) {
-            log_i("OTA Progress: %u%%\r", (progress / (total / 100)));
-        })
-        .onError([](ota_error_t error) { log_e("OTA Error: %u", error); });
-    ArduinoOTA.begin();
-#endif
-}
-
-void BLEWifi::setState(BLEWifiState state) {
+void BLEImprov::setState(BLEImprovState state) {
     if (this->state == state) {
         return;
     }
     this->state = state;
-    // Translate BLEWifi state to the most relevant Improv state
+    // Translate BLEImprov state to the most relevant Improv state
     int improv_state;
     if (state == STATE_WAITING) {
         improv_state = improv::STATE_AUTHORIZED;
@@ -126,7 +74,7 @@ void BLEWifi::setState(BLEWifiState state) {
     this->last_state_change_millis = millis();
 }
 
-void BLEWifi::setError(improv::Error error, bool notify) {
+void BLEImprov::setError(improv::Error error, bool notify) {
 #if !defined(DISABLE_IMPROV)
     int error_int = error;
     this->error_state_characteristic->setValue(error_int);
@@ -136,24 +84,13 @@ void BLEWifi::setError(improv::Error error, bool notify) {
 #endif
 }
 
-void BLEWifi::doneConnecting() {
+void BLEImprov::doneConnecting() {
     this->setState(STATE_CONNECTED);
     log_i("Connected, IP address: %s", WiFi.localIP().toString().c_str());
     SHOW_HEAP();
-#if !defined(DISABLE_IMPROV)
-    // Now that we're connected, we may want to close the Improv service
-    log_d("Closing down Improv service: ");
-    BLEServer *server = BLEManager::getInstance()->server;
-    server->removeService(service, true);
-    service = nullptr;
-    // Not exactly sure why, but it seems necessary to restart other Bluetooth services
-    // after stopping this one.
-    BLEManager::getInstance()->startServiceAndAdvertising();
-    SHOW_HEAP();
-#endif
 }
 
-void BLEWifi::loop() {
+void BLEImprov::loop() {
     if (this->state == STATE_WAITING) {
         if (WiFi.isConnected()) {
             this->doneConnecting();
@@ -163,7 +100,6 @@ void BLEWifi::loop() {
         log_d("Attempting connection to: %s Password: %s (WiFi status = %d)", command.ssid.c_str(),
               command.password.c_str(), WiFi.status());
         WiFi.begin(command.ssid.c_str(), command.password.c_str());
-        this->startOTA();
         this->setState(STATE_CONNECTING);
         return;
     } else if (this->state == STATE_CONNECTING) {
@@ -184,10 +120,6 @@ void BLEWifi::loop() {
     } else if (this->state == STATE_CONNECTED) {
         if (!WiFi.isConnected()) {
             this->setState(STATE_WAITING);
-            this->startService();
         }
     }
-#if defined(ENABLE_OTA)
-    ArduinoOTA.handle();
-#endif
 }

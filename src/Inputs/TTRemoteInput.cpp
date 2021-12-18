@@ -12,69 +12,60 @@ void TTRemoteInput::start_remote(int receive_pin_input) {
     assert(0);
 }
 
-void TTRemoteInput::start_remote() {
-    last_code = RemoteCommand::NONE;
-    // TODO: Is ble_code necessary? Why not use last_code?
-    ble_code = RemoteCommand::NONE;
-    // No code to process, so we set this to true
-    was_code_processed = 1;
+void TTRemoteInput::start_remote() {}
 
-    deviceConnected = false;
-    wasDeviceConnected = false;
+bool TTRemoteInput::connectToDevice(BLEAdvertisedDevice *device) {
+    if (client == nullptr) {
+        log_d("Creating Turn Touch client");
+        client = BLEDevice::createClient();
+        client->setClientCallbacks(new ClientCallbacks(this));
+    }
 
-    // Ensure BLEManager is initialized by this point
-    BLEManager::getInstance();
-    scanForDevice();
-}
+    log_d("Attempting to connect to TurnTouch at address: %s",
+          device->getAddress().toString().c_str());
 
-void TTRemoteInput::connectToDevice(BLEAdvertisedDevice *device) {
-    DEBUG_LN("Attempting to connect to BLE address:");
-    DEBUG_LN(device->getAddress().toString().c_str());
-
-    BLEClient *client = BLEManager::getInstance()->client;
-    DEBUG_LN("Setting client callbacks");
-    client->setClientCallbacks(new ClientCallbacks(this));
-    DEBUG_LN("Connecting...");
-    client->connect(device);
-    DEBUG_LN("Connected to BLE server for TurnTouch");
+    if (!client->connect(device)) {
+        log_e("Failed to connect to TurnTouch");
+        return false;
+    }
 
     // Obtain a reference to the service we are after in the remote BLE server.
     BLERemoteService *remoteService = client->getService(TURNTOUCH_BUTTON_SVC_UUID);
     if (remoteService == nullptr) {
-        DEBUG_LN("Failed to find TurnTouch button service UUID.");
+        log_e("Failed to find TurnTouch button service UUID.");
         client->disconnect();
-        return;
+        return false;
     }
-    DEBUG_LN("BLE service found.");
+    log_d("TurnTouch service found.");
 
     // Obtain a reference to the characteristic in the service of the remote BLE server.
     BLERemoteCharacteristic *remoteCharacteristic =
         remoteService->getCharacteristic(TURNTOUCH_BUTTON_CHR_UUID);
     if (remoteCharacteristic == nullptr) {
-        DEBUG_LN("Failed to find TurnTouch button characteristic UUID.");
+        log_e("Failed to find TurnTouch button characteristic UUID.");
         client->disconnect();
-        return;
+        return false;
     }
-    DEBUG_LN("BLE characteristic found");
+    log_d("BLE characteristic found");
 
     // Read the value of the characteristic.
     if (remoteCharacteristic->canRead()) {
-        uint16_t value = remoteCharacteristic->readUInt16();
-        DEBUG_LN("The characteristic value was: ");
-        DEBUG_LN(value);
+        uint16_t value = remoteCharacteristic->readValue<uint16_t>();
+        log_d("The characteristic value was: %X", value);
     }
 
     if (remoteCharacteristic->canNotify()) {
         auto callback = std::bind(&TTRemoteInput::buttonNotificationCallback, this, _1, _2, _3, _4);
-        remoteCharacteristic->registerForNotify(callback);
+        remoteCharacteristic->subscribe(true, callback);
     }
 
-    deviceConnected = true;
+    log_d("Connected to TurnTouch");
+    return true;
 }
 
 void TTRemoteInput::scanForDevice() {
     // Run a scan for 3 seconds
-    DEBUG_LN("Starting BLE scan...");
+    DEBUG_LN("Scanning for TurnTouch...");
     BLEScan *scan = BLEDevice::getScan();
     scan->setAdvertisedDeviceCallbacks(new AdvertisedDeviceCallbacks(this));
     scan->setInterval(1349);
@@ -92,13 +83,13 @@ void TTRemoteInput::buttonNotificationCallback(BLERemoteCharacteristic *remoteCh
               length);
         return;
     }
-    log_d("0 - %02x; 1 - %02x", data[0], data[1]);
+    log_v("0 - %02x; 1 - %02x", data[0], data[1]);
     uint16_t processed = (data[0] << 8) | (data[1]);
-    log_d("processed: %u", processed);
-    log_d("Notify callback for characteristic %s of data length %u content: %u",
+    log_v("processed: %u", processed);
+    log_v("Notify callback for characteristic %s of data length %u content: %u",
           remoteCharacteristic->getUUID().toString().c_str(), length, processed);
     if (processed == TT_NONE) {
-        DEBUG_LN("Turntouch sent code NONE, bailing early");
+        log_v("Turntouch sent code NONE, bailing early");
         return;
     }
     switch (processed) {
@@ -116,8 +107,10 @@ void TTRemoteInput::buttonNotificationCallback(BLERemoteCharacteristic *remoteCh
         break;
     case TT_W_PRESS:
     case TT_W_DOUBLE:
-    case TT_W_HOLD:
         ble_code = CHANNEL_MINUS;
+        break;
+    case TT_W_HOLD:
+        ble_code = BACK;
         break;
     case TT_E_PRESS:
     case TT_E_DOUBLE:
@@ -126,6 +119,9 @@ void TTRemoteInput::buttonNotificationCallback(BLERemoteCharacteristic *remoteCh
         break;
     case TT_MULTI_N_S:
         ble_code = SETUP;
+        break;
+    case TT_MULTI_E_W:
+        ble_code = ENTER;
         break;
     default:
         log_w("Invalid code processed from Turntouch: %u", processed);
@@ -137,19 +133,11 @@ void TTRemoteInput::buttonNotificationCallback(BLERemoteCharacteristic *remoteCh
 auto TTRemoteInput::check_press() -> int {
     // This isn't the best place for all of this, but since we have a contract with clients
     // that they have to check_presses, this is a reasonable spot to do this work.
-
     if (!deviceConnected && turntouchDevice != nullptr) {
-        log_d("Attempting connection to %s!", turntouchDevice->toString().c_str());
-        connectToDevice(turntouchDevice);
-    }
-    if (!deviceConnected && millis() > (lastScanMs + RESCAN_INTERVAL_MS)) {
-        log_d("No Turntouch connected; restarting bluetooth scanning");
+        // TurnTouch has been found during scanning, attempt connection
+        deviceConnected = connectToDevice(turntouchDevice);
+    } else if (!deviceConnected && millis() > (lastScanMs + RESCAN_INTERVAL_MS)) {
         scanForDevice();
-        wasDeviceConnected = deviceConnected;
-    }
-    if (deviceConnected && !wasDeviceConnected) {
-        // do any additional desired stuff here on connecting
-        wasDeviceConnected = deviceConnected;
     }
     return 0;
 }
@@ -160,7 +148,7 @@ auto TTRemoteInput::check_release() -> int {
         was_code_processed = 1;
         last_code = (RemoteCommand)ble_code;
         found_release = 1;
-        print_out_code("Got a BLE code", last_code);
+        log_d("Got a TurnTouch code: %s", codeToString(last_code));
     }
     return found_release;
 }

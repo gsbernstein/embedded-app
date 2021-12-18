@@ -1,14 +1,15 @@
-#ifndef BLEWifi_H
-#define BLEWifi_H
+#ifndef BLEImprov_H
+#define BLEImprov_H
 
 #include <NimBLEDevice.h>
 #include <WiFi.h>
 #include <improv.h>
 
+#include "Communications/BLEAbstractions.hpp"
 #include "Communications/BLEManager.hpp"
 #include "sindarin-debug.h"
 
-enum BLEWifiState : uint8_t {
+enum BLEImprovState : uint8_t {
     // Waiting for credentials
     STATE_WAITING = 0x00,
     // Received WiFi credentials and ready to start connecting
@@ -19,30 +20,32 @@ enum BLEWifiState : uint8_t {
     STATE_CONNECTED = 0x03,
 };
 
-class BLEWifi {
+class BLEImprov : public BLECharacteristicProvider, public BLEServiceProvider {
 public:
-    void startService();
     void loop();
+
+    void configureCharacteristics(BLEService *service) override;
+    BLEService *configureService(BLEServer *server) override;
+    void start() override;
 
 protected:
     uint32_t last_state_change_millis;
     BLECharacteristic *current_state_characteristic;
     BLECharacteristic *error_state_characteristic;
     BLECharacteristic *rpc_result_characteristic;
-    BLEService *service;
-    BLEWifiState state;
+    BLEImprovState state;
     improv::ImprovCommand lastCommand;
 
-    void setState(BLEWifiState state);
+    void setState(BLEImprovState state);
     void setError(improv::Error error, bool notify = true);
     void doneConnecting();
     void startOTA();
 
     class CharacteristicCallbacks : public BLECharacteristicCallbacks {
     public:
-        BLEWifi *enclosed;
+        BLEImprov *enclosed;
 
-        CharacteristicCallbacks(BLEWifi *enclosure) { enclosed = enclosure; }
+        CharacteristicCallbacks(BLEImprov *enclosure) { enclosed = enclosure; }
 
         void onWrite(BLECharacteristic *characteristic) override {
             log_d("onWrite for Characteristic %s", characteristic->getUUID().toString().c_str());
@@ -65,7 +68,7 @@ protected:
                 }
                 }
             } else {
-                log_e("Error: Unhandled characteristic in BLEWifi");
+                log_e("Error: Unhandled characteristic in BLEImprov");
             }
         }
     };
