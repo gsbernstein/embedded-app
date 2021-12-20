@@ -8,7 +8,7 @@
 
 #include <soc/cpu.h>
 extern "C" {
-    #include <esp_clk.h>
+    #include <esp32/clk.h>
 }
 
 static uint8_t csPin;

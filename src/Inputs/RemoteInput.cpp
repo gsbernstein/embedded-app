@@ -4,46 +4,34 @@
 
 #include "sindarin-debug.h"
 
-void print_out_code(const char *prec_msg, int code) {
-    DEBUG_LN(prec_msg);
+const char *codeToString(RemoteCommand code) {
     switch (code) {
     case VOL_DOWN:
-        DEBUG_LN("Volume Down");
-        break;
+        return "Volume Down";
     case PLAY:
-        DEBUG_LN("Play");
-        break;
+        return "Play";
     case VOL_UP:
-        DEBUG_LN("Volume Up");
-        break;
+        return "Volume Up";
     case SETUP:
-        DEBUG_LN("Setup");
-        break;
+        return "Setup";
     case PREV:
-        DEBUG_LN("Previous");
-        break;
+        return "Previous";
     case STOP:
-        DEBUG_LN("Stop");
-        break;
+        return "Stop";
     case CHANNEL_MINUS:
-        DEBUG_LN("Channel -");
-        break;
+        return "Channel -";
     case ENTER:
-        DEBUG_LN("Enter");
-        break;
+        return "Enter";
     case CHANNEL_PLUS:
-        DEBUG_LN("Channel +");
-        break;
+        return "Channel +";
     case NOP_BUTTON:
-        DEBUG_LN("NOP");
-        break;
+        return "NOP";
     case NEXT:
-        DEBUG_LN("Next");
-        break;
+        return "Next";
     case BACK:
-        DEBUG_LN("Back");
-        break;
+        return "Back";
     }
+    return "Unknown";
 }
 
 // Returns the IR code of the last button pressed or released

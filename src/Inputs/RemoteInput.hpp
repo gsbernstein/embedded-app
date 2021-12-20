@@ -18,7 +18,7 @@ enum RemoteCommand : int {
     NONE = -1,
 };
 
-void print_out_code(const char *prec_msg, int code);
+const char *codeToString(RemoteCommand code);
 
 class RemoteInput {
 
@@ -30,7 +30,7 @@ public:
     auto get_code() -> RemoteCommand;
 
 protected:
-    RemoteCommand last_code;
+    RemoteCommand last_code = RemoteCommand::NONE;
 };
 
 #endif

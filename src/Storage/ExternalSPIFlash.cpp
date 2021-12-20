@@ -27,8 +27,8 @@ esp_flash_t *SPIFlashInit(void) {
                                                          //  .io_mode = SPI_FLASH_QOUT,
                                                          //  .io_mode = SPI_FLASH_QIO,
                                                          .speed = ESP_FLASH_40MHZ};
-    log_i("Initializing external SPI Flash");
-    log_i("Pin assignments:\nSCLK: %2d MISO: %2d MOSI: %2d CS: %2d", bus_config.mosi_io_num,
+    log_d("Initializing external SPI Flash");
+    log_d("Pin assignments:\nSCLK: %2d MISO: %2d MOSI: %2d CS: %2d", bus_config.mosi_io_num,
           bus_config.miso_io_num, bus_config.sclk_io_num, device_config.cs_io_num);
 
     // Initialize the SPI bus
@@ -65,7 +65,7 @@ esp_flash_t *SPIFlashInit(void) {
 const esp_partition_t *SPIFlashAddPartition(esp_flash_t *ext_flash, const char *partition_label,
                                             esp_partition_subtype_t subtype) {
     size_t size = ext_flash->size;
-    log_i("Adding external Flash as a partition, label=\"%s\", size=%d KB", partition_label,
+    log_d("Adding external Flash as a partition, label=\"%s\", size=%d KB", partition_label,
           size / 1024);
     const esp_partition_t *partition;
     const int offset = 0x0;

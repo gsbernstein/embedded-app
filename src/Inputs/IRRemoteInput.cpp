@@ -29,7 +29,7 @@ auto IRRemoteInput::check_press() -> int {
         last_code = (RemoteCommand)IrReceiver.decodedIRData.command;
         if (state == LOW) {
             state = HIGH; // Button pressed, so set state to HIGH
-            print_out_code("Pressed down on", last_code);
+            log_d("IR Pressed down on: %s", codeToString(last_code));
             new_press = 1;
             // digitalWrite(LED_PIN, HIGH);
         }
@@ -43,7 +43,7 @@ auto IRRemoteInput::check_release() -> int {
     int found_release = 0;
     if ((state == HIGH) && ((millis() - lastPressTime) > MAX_TIME)) {
         state = LOW; // Haven't heard from the button for a while, so not pressed
-        print_out_code("Pressed up on", last_code);
+        log_d("IR Pressed up on: %s", codeToString(last_code));
         found_release = 1;
         // digitalWrite(LED_PIN, LOW);
     }

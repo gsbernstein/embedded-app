@@ -25,6 +25,7 @@
 #define TT_W_DOUBLE 0xBF00
 #define TT_W_HOLD 0xFBFF
 #define TT_MULTI_N_S 0xF600
+#define TT_MULTI_E_W 0xF900
 
 class TTRemoteInput : public RemoteInput {
 
@@ -38,12 +39,13 @@ public:
 
 protected:
     BLEAdvertisedDevice *turntouchDevice = nullptr;
-    bool deviceConnected, wasDeviceConnected;
-    int was_code_processed;
-    RemoteCommand ble_code;
+    bool deviceConnected = false;
+    int was_code_processed = 1;
+    RemoteCommand ble_code = RemoteCommand::NONE;
     long lastScanMs = 0;
+    BLEClient *client = nullptr;
 
-    void connectToDevice(BLEAdvertisedDevice *device);
+    bool connectToDevice(BLEAdvertisedDevice *device);
     void scanForDevice();
 
     class AdvertisedDeviceCallbacks : public BLEAdvertisedDeviceCallbacks {
@@ -51,10 +53,8 @@ protected:
         TTRemoteInput *enclosed;
 
         AdvertisedDeviceCallbacks(TTRemoteInput *enclosure) { enclosed = enclosure; }
-        void onResult(BLEAdvertisedDevice *advertisedDevice) override {
-            // log_d("BLEAdvertisedDevice found: %s", advertisedDevice.getName().c_str());
-            // DEBUG_LN(advertisedDevice.toString().c_str());
 
+        void onResult(BLEAdvertisedDevice *advertisedDevice) override {
             if (advertisedDevice->haveServiceUUID()) {
                 log_d("BLEAdvertisedDevice w/ services found: %s",
                       advertisedDevice->getName().c_str());
@@ -62,10 +62,9 @@ protected:
                     log_d("Service %u - %s", i,
                           advertisedDevice->getServiceUUID(i).toString().c_str());
                 }
-                // DEBUG_LN(advertisedDevice.toString().c_str());
                 if (advertisedDevice->isAdvertisingService(BLEUUID(TURNTOUCH_BUTTON_SVC_ID))) {
                     BLEDevice::getScan()->stop();
-                    DEBUG_LN("Matching TurnTouch device found; queueing for connect...");
+                    log_i("Matching TurnTouch device found; queueing for connect...");
                     if (enclosed->turntouchDevice != nullptr) {
                         delete enclosed->turntouchDevice;
                     }
@@ -81,28 +80,14 @@ protected:
 
         ClientCallbacks(TTRemoteInput *enclosure) { enclosed = enclosure; }
 
-        void onConnect(BLEClient *client) override {
-            DEBUG_LN("Our BLE client connected to matching server!");
-        }
+        void onConnect(BLEClient *client) override { log_i("BLE TurnTouch client connected!"); }
 
         void onDisconnect(BLEClient *client) override {
-            DEBUG_LN("Our BLE client disconnected from matching server!");
+            log_i("BLE TurnTouch client disconnected!");
             enclosed->deviceConnected = false;
-        }
-    };
-
-    class CharacteristicCallbacks : public BLECharacteristicCallbacks {
-    public:
-        TTRemoteInput *enclosed;
-
-        CharacteristicCallbacks(TTRemoteInput *enclosure) { enclosed = enclosure; }
-
-        void onWrite(BLECharacteristic *characteristic) override {
-            std::string value = characteristic->getValue();
-            if (value.length() > 0) {
-                log_d("New value: %.2x", value[0]);
-                enclosed->ble_code = (RemoteCommand)(uint8_t)value.data()[0];
-                enclosed->was_code_processed = 0;
+            if (enclosed->turntouchDevice != nullptr) {
+                delete enclosed->turntouchDevice;
+                enclosed->turntouchDevice = nullptr;
             }
         }
     };

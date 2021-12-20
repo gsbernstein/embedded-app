@@ -2,16 +2,17 @@
 #include <NimBLEDevice.h>
 #include <Preferences.h>
 
+#include "BLEAbstractions.hpp"
 #include "Communications/BLEManager.hpp"
 #include "Communications/PocketAPI.hpp"
 #include "Storage/PreferencesStore.hpp"
 #include "sindarin-debug.h"
 
-class BLESettings {
+class BLESettings : BLECharacteristicProvider {
 
 public:
     BLESettings(PreferencesStore *prefs);
-    void listen_for_settings();
+    void configureCharacteristics(BLEService *service) override;
 
 protected:
     PreferencesStore *prefs;
