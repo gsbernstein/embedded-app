@@ -246,7 +246,7 @@ void DisplayEinkET013TT1::draw_text_cmds_only(const String &new_text, int x, int
 }
 
 void DisplayEinkET013TT1::setPartialWindow(uint16_t x, uint16_t y, uint16_t w, uint16_t h) {
-    set_partial_refresh();
+    //set_partial_refresh();
     partialX = min(x, width());
     partialY = min(y, height());
     partialW = min(w, width() - partialX);
@@ -298,7 +298,7 @@ void DisplayEinkET013TT1::updateDisplay() {
     if (get_partial_refresh()) {
         writePartialImage(partialX, partialY, buffer, partialW, partialH);
         EPD_TCON_PowerOn();
-        EPD_TCON_Update(WF_MODE_GC4);
+        EPD_TCON_Update(WF_MODE_GU4);
         EPD_TCON_PowerOff();
     } else {
         writeImage(EPD_TCON_GetUpdateBuffer(), buffer,
