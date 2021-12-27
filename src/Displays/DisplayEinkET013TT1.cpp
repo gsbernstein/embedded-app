@@ -298,7 +298,7 @@ void DisplayEinkET013TT1::updateDisplay() {
     if (get_partial_refresh()) {
         writePartialImage(partialX, partialY, buffer, partialW, partialH);
         EPD_TCON_PowerOn();
-        EPD_TCON_Update(WF_MODE_GU4);
+        EPD_TCON_Update(WF_MODE_GC4);
         EPD_TCON_PowerOff();
     } else {
         writeImage(EPD_TCON_GetUpdateBuffer(), buffer,
