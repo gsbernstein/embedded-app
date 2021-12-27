@@ -66,7 +66,9 @@ void DisplayEinkET013TT1::display_splash_screen() {}
 
 DisplayEinkET013TT1::~DisplayEinkET013TT1() = default;
 
-void DisplayEinkET013TT1::set_partial_refresh() { partial_refresh = 1; }
+// BC: Changed to never do partial_referesh for now.
+// Change to = 1 when we want to try partial refresh again.
+void DisplayEinkET013TT1::set_partial_refresh() { partial_refresh = 0; }
 
 void DisplayEinkET013TT1::unset_partial_refresh() { partial_refresh = 0; }
 
