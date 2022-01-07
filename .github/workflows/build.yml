@@ -13,7 +13,6 @@ jobs:
     strategy:
       matrix:
         pioenv:
-          - tinypico
           - featheresp32
           - d1mini32
           - gilpico

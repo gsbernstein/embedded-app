@@ -100,7 +100,7 @@ void MenuScreen::render() {
     }
     log_i("Menuscreen render (selected = %s)", get_curr_item().title.c_str());
     String menu_string = get_paginated_menu_string();
-    String bat_life = get_battery_life();
+    String bat_life = BatteryLifeString();
     String total_to_display = menu_string + String("\n\n") + bat_life;
     renderer.render_max_box_with_text(total_to_display);
     needs_rerender = false;

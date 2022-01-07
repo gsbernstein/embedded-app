@@ -12,9 +12,9 @@ VSCode provides a nice platformio IDE. Download VSCode and get the PlatformIO ID
 
 ## Upload and Monitor
 
-You can use the "Upload and Monitor" project tasks under PlatformIO Icon (left bar) -> Project Tasks -> tinypico -> General -> Upload and Monitor
+You can use the "Upload and Monitor" project tasks under PlatformIO Icon (left bar) -> Project Tasks -> gilpico -> General -> Upload and Monitor
 
-You'll also need to build and upload the filesystem. You can do this in VSCode from PlatformIO Icon (left bar) -> Project Tasks -> tinypico -> Custom -> Build Filesystem Image (ext) and then Upload Filesystem Image (ext). Or you can do this at the command line with `pio run -t buildfs-ext -t uploadfs-ext`.
+You'll also need to build and upload the filesystem. You can do this in VSCode from PlatformIO Icon (left bar) -> Project Tasks -> gilpico -> Custom -> Build Filesystem Image (ext) and then Upload Filesystem Image (ext). Or you can do this at the command line with `pio run -t buildfs-ext -t uploadfs-ext`.
 
 Note: If you don't see these options in your PlatformIO bar in VSCode, try restarting VSCode.
 
@@ -23,13 +23,13 @@ Note: If you don't see these options in your PlatformIO bar in VSCode, try resta
 You can upload the firmware and filesystem over-the-air. You'll need to make sure to connect to WiFi. Then you can use this to upload the firwmare OTA:
 
 ```bash
-pio run -e tinypico -t upload --upload-port sindarin.local
+pio run -e gilpico -t upload --upload-port sindarin.local
 ```
 
 An this to upload the SPIFFS image:
 
 ```
-pio run -e tinypico -t uploadfs-ota --upload-port sindarin.local
+pio run -e gilpico -t uploadfs-ota --upload-port sindarin.local
 ```
 
 ## Git Setup
