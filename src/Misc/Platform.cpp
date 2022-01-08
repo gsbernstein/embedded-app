@@ -17,7 +17,10 @@ const float MIN_BATTERY_VOLTAGE = 3.0;
 
 void InitializePlatform() {
     pinMode(BAT_VOLTAGE_LEFT, ANALOG);
+    analogSetPinAttenuation(BAT_VOLTAGE_LEFT, ADC_6db);
+
     pinMode(BAT_VOLTAGE_RIGHT, ANALOG);
+    analogSetPinAttenuation(BAT_VOLTAGE_RIGHT, ADC_6db);
 
     pinMode(RED_LED, OUTPUT);
     pinMode(GREEN_LED, OUTPUT);
@@ -38,7 +41,7 @@ float GetBatteryVoltageLeft() {
     raw = adc1_get_raw(BATT_CHANNEL_LEFT); // Read of raw ADC value
 
     // Get ADC calibration values
-    esp_adc_cal_characterize(ADC_UNIT_1, ADC_ATTEN_11db, ADC_WIDTH_BIT_12, DEFAULT_VREF, &chars);
+    esp_adc_cal_characterize(ADC_UNIT_1, ADC_ATTEN_6db, ADC_WIDTH_BIT_12, DEFAULT_VREF, &chars);
 
     // Convert to calibrated mv then volts
     mv = esp_adc_cal_raw_to_voltage(raw, &chars) * (LOWER_DIVIDER + UPPER_DIVIDER) / LOWER_DIVIDER;
@@ -54,7 +57,7 @@ float GetBatteryVoltageRight() {
     raw = adc1_get_raw(BATT_CHANNEL_RIGHT); // Read of raw ADC value
 
     // Get ADC calibration values
-    esp_adc_cal_characterize(ADC_UNIT_1, ADC_ATTEN_11db, ADC_WIDTH_BIT_12, DEFAULT_VREF, &chars);
+    esp_adc_cal_characterize(ADC_UNIT_1, ADC_ATTEN_6db, ADC_WIDTH_BIT_12, DEFAULT_VREF, &chars);
 
     // Convert to calibrated mv then volts
     mv = esp_adc_cal_raw_to_voltage(raw, &chars) * (LOWER_DIVIDER + UPPER_DIVIDER) / LOWER_DIVIDER;
