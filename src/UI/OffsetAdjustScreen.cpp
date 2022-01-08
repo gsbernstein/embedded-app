@@ -14,7 +14,7 @@ void OffsetAdjustScreen::render() {
     String total_to_display;
     menu_string = "Press arrows to move\nbox around to your\nliking. Then press\nenter "
                   "when done!\nHave a nice day.\n";
-    bat_life = get_battery_life();
+    bat_life = BatteryLifeString();
     total_to_display = menu_string + String("\n\n") + bat_life;
     renderer.render_max_box_with_text(total_to_display);
     needs_rerender = false;

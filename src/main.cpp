@@ -18,6 +18,7 @@
 #include "Contents/Readable.hpp"
 #include "Displays/AllDisplays.hpp"
 #include "Inputs/RemoteInput.hpp"
+#include "Misc/Platform.hpp"
 #include "Optics/AllOptics.hpp"
 #include "Storage/FileSystem.hpp"
 #include "Storage/PreferencesStore.hpp"
@@ -106,11 +107,9 @@ void setupDisplayAndOptics() {
 
 #ifdef EINKET013TT1
 #ifdef GILPICO_SINDARIN
-    pinMode(26, OUTPUT);
-    digitalWrite(26, HIGH);
-    my_display = new DisplayEinkET013TT1(/*CS=*/5, /*OEI=*/21, /*RST=*/32, /*BUSY=*/33);
-#elif TINYPICO_SINDARIN
-    my_display = new DisplayEinkET013TT1(/*CS=*/5, /*OEI=*/4, /*RST=*/32, /*BUSY=*/33);
+    // Turn on power to the screen
+    digitalWrite(DISPLAY_POWER, HIGH);
+    my_display = new DisplayEinkET013TT1(DISPLAY_CS, DISPLAY_OEI, DISPLAY_RST, DISPLAY_BUSY);
 #endif
     SIZE_OF(*my_display);
 #endif
@@ -138,6 +137,8 @@ void setupDisplayAndOptics() {
 }
 
 void setup() {
+    InitializePlatform();
+
     Serial.begin(115200);
 
     SHOW_HEAP();
@@ -210,9 +211,6 @@ void setup() {
     root_ui.setup(my_display, my_optics, *readables);
 
     SHOW_HEAP();
-
-    pinMode(RED_LED, OUTPUT);
-    pinMode(GREEN_LED, OUTPUT);
 }
 
 void loop() {
