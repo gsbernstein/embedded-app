@@ -21,6 +21,24 @@ env["ESP32_SPIFFS_IMAGE_NAME"] = "spiffs-external"
 spiffs_file = join("$BUILD_DIR", "${ESP32_SPIFFS_IMAGE_NAME}.bin")
 board = env.BoardConfig()
 mcu = board.get("build.mcu", "esp32")
+max_id_length = 10
+
+
+# Max ID length is 15 chars but we append the '-pr-p' for previous pages so we only have
+# 10 chars for an id. This method shortens the IDs while attempting to keep them human
+# readable.
+def to_id(original_id):
+    out_id = original_id
+    if len(out_id) <= max_id_length:
+        return out_id
+
+    chars_to_strip = ("a", "e", "i", "o", "u", "-", "_")
+    out_id = "".join([l for l in original_id if l not in chars_to_strip])
+
+    if len(out_id) <= max_id_length:
+        return out_id
+
+    return out_id[:10]
 
 
 def generate_manifest(path):
@@ -41,7 +59,7 @@ def generate_manifest(path):
         manifest.append(
             {
                 "name": name,
-                "id": id,
+                "id": to_id(id),
                 "path": path,
             }
         )
