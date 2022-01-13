@@ -1,6 +1,7 @@
 #include "Power.hpp"
 
 #include <Arduino.h>
+#include <algorithm>
 
 #include "Misc/Platform.hpp"
 #include "sindarin-debug.h"
@@ -72,9 +73,6 @@ auto Power::getRightBatteryVoltage() -> float {
     return avg;
 }
 
-// std::clamp is not working even though it's supposed to be available since C++17
-#define clamp(v, lo, hi) (((v) < (lo)) ? (lo) : ((v) > (hi)) ? (hi) : (v))
-
 auto Power::getBatteryLifeString() -> String {
     float voltageLevelLeft = this->getLeftBatteryVoltage();
     float batteryFractionLeft =
@@ -82,8 +80,8 @@ auto Power::getBatteryLifeString() -> String {
     float voltageLevelRight = this->getRightBatteryVoltage();
     float batteryFractionRight =
         (voltageLevelRight - BATTERY_MIN_VOLTAGE) / (BATTERY_MAX_VOLTAGE - BATTERY_MIN_VOLTAGE);
-    batteryFractionLeft = clamp(batteryFractionLeft, 0, 1.0);
-    batteryFractionRight = clamp(batteryFractionRight, 0, 1.0);
+    batteryFractionLeft = std::clamp(batteryFractionLeft, 0.0f, 1.0f);
+    batteryFractionRight = std::clamp(batteryFractionRight, 0.0f, 1.0f);
     String battery_output = " Raw L:" + String(voltageLevelLeft, 2) +
                             " R:" + String(voltageLevelRight, 2) +
                             "  L:" + String(batteryFractionLeft * 100) +
