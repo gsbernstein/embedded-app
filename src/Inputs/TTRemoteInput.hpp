@@ -5,6 +5,7 @@
 
 #include "Communications/BLEManager.hpp"
 #include "RemoteInput.hpp"
+#include "Storage/PreferencesStore.hpp"
 #include "sindarin-debug.h"
 
 #define RESCAN_INTERVAL_MS 3000
@@ -32,9 +33,11 @@
 #define TT_MULTI_W_S_E 0xF100
 #define TT_MULTI_E_N_W_S 0xF000
 
+#define PAIRED_TURNTOUCH_KEY "paired-tt"
 class TTRemoteInput : public RemoteInput {
 
 public:
+    TTRemoteInput(PreferencesStore &prefs) : RemoteInput(), prefs(prefs){};
     void start_remote(int receive_pin_input) override;
     void start_remote() override;
     auto check_press() -> int override;
@@ -42,7 +45,15 @@ public:
     void buttonNotificationCallback(BLERemoteCharacteristic *remoteCharacteristic, uint8_t *data,
                                     size_t length, bool isNotify);
 
+    auto getPairedTurnTouchAddress() -> BLEAddress *;
+    void setPairedTurnTouchAddress(const BLEAddress &address);
+
 protected:
+    void doneScanning(NimBLEScanResults results);
+
+    PreferencesStore &prefs;
+    // TODO(john): std::optional would be nicer here but I can't get c++17 things working.
+    BLEAddress *pairedTurnTouchAddress = nullptr;
     BLEAdvertisedDevice *turntouchDevice = nullptr;
     bool deviceConnected = false;
     int was_code_processed = 1;
@@ -61,15 +72,24 @@ protected:
 
         void onResult(BLEAdvertisedDevice *advertisedDevice) override {
             if (advertisedDevice->haveServiceUUID()) {
-                log_d("BLEAdvertisedDevice w/ services found: %s",
+                log_v("BLEAdvertisedDevice w/ services found: %s",
                       advertisedDevice->getName().c_str());
                 for (int i = 0; i < advertisedDevice->getServiceUUIDCount(); ++i) {
-                    log_d("Service %u - %s", i,
+                    log_v("Service %u - %s", i,
                           advertisedDevice->getServiceUUID(i).toString().c_str());
                 }
-                if (advertisedDevice->isAdvertisingService(BLEUUID(TURNTOUCH_BUTTON_SVC_ID))) {
+                // Connect to device if:
+                //  - This is the paired device
+                //  - We don't have any paired devices and this device is advertizing the
+                //  TurnTouch
+                //    button service
+                auto address = enclosed->getPairedTurnTouchAddress();
+                if ((address != nullptr && *address == advertisedDevice->getAddress()) ||
+                    (address == nullptr &&
+                     advertisedDevice->isAdvertisingService(BLEUUID(TURNTOUCH_BUTTON_SVC_ID)))) {
                     BLEDevice::getScan()->stop();
-                    log_i("Matching TurnTouch device found; queueing for connect...");
+                    log_i("%s TurnTouch device found; queueing for connect...",
+                          address == nullptr ? "New" : "Paired");
                     if (enclosed->turntouchDevice != nullptr) {
                         delete enclosed->turntouchDevice;
                     }
@@ -85,7 +105,7 @@ protected:
 
         ClientCallbacks(TTRemoteInput *enclosure) { enclosed = enclosure; }
 
-        void onConnect(BLEClient *client) override { log_i("BLE TurnTouch client connected!"); }
+        void onConnect(BLEClient *client) override { log_d("BLE TurnTouch client connected!"); }
 
         void onDisconnect(BLEClient *client) override {
             log_i("BLE TurnTouch client disconnected!");

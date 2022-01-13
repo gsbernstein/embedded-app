@@ -59,20 +59,54 @@ bool TTRemoteInput::connectToDevice(BLEAdvertisedDevice *device) {
         remoteCharacteristic->subscribe(true, callback);
     }
 
-    log_d("Connected to TurnTouch");
+    // Save the id of this turn touch for future connection attempts
+    this->setPairedTurnTouchAddress(device->getAddress());
+
+    log_i("Connected to TurnTouch");
     return true;
+}
+
+auto TTRemoteInput::getPairedTurnTouchAddress() -> BLEAddress * {
+    if (this->pairedTurnTouchAddress == nullptr) {
+        String address = this->prefs.prefs.getString(PAIRED_TURNTOUCH_KEY);
+        if (!address.isEmpty()) {
+            this->pairedTurnTouchAddress = new BLEAddress(std::string(address.c_str()));
+        }
+    }
+
+    return this->pairedTurnTouchAddress;
+}
+
+void TTRemoteInput::setPairedTurnTouchAddress(const BLEAddress &address) {
+    if (this->pairedTurnTouchAddress != nullptr) {
+        delete this->pairedTurnTouchAddress;
+    }
+    this->pairedTurnTouchAddress = new BLEAddress(address);
+    this->prefs.prefs.putString(PAIRED_TURNTOUCH_KEY, address.toString().c_str());
+}
+
+void TTRemoteInput::doneScanning(NimBLEScanResults results) {
+    log_d("TurnTouch scan completed.");
+    this->lastScanMs = millis();
 }
 
 void TTRemoteInput::scanForDevice() {
     // Run a scan for 3 seconds
-    DEBUG_LN("Scanning for TurnTouch...");
+    auto address = this->getPairedTurnTouchAddress();
+    if (address == nullptr) {
+        log_d("Scanning for any available TurnTouch...");
+    } else {
+        log_d("Scanning for paired TurnTouch %s", std::string(*address).c_str());
+    }
     BLEScan *scan = BLEDevice::getScan();
     scan->setAdvertisedDeviceCallbacks(new AdvertisedDeviceCallbacks(this));
     scan->setInterval(1349);
     scan->setWindow(449);
     scan->setActiveScan(true);
+    // TODO: It'd be nice to use the non-blocking call here, but that doesn't take a std::function
+    // so passing in a callback with access to `this` is a little clunky
     scan->start(3, false);
-    DEBUG_LN("BLE scan completed.");
+    log_d("BLE scan completed.");
     lastScanMs = millis();
 }
 
