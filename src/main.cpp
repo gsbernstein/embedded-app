@@ -62,6 +62,8 @@ OpticsPlanoConvex16mmX36mm *my_optics;
 OpticsHastings20mmX40_3mm *my_optics;
 #endif
 
+PreferencesStore prefs;
+
 #ifdef USE_IR_REMOTE
 #include "Inputs/IRRemoteInput.hpp"
 IRRemoteInput *ir_remote_input;
@@ -89,7 +91,7 @@ BLEImprov *ble_wifi;
 
 #ifdef USE_TURN_TOUCH_REMOTE
 #include "Inputs/TTRemoteInput.hpp"
-TTRemoteInput *tt_remote_input;
+TTRemoteInput tt_remote_input(prefs);
 #endif
 
 #ifdef ENABLE_OTA
@@ -98,7 +100,6 @@ OTA ota;
 
 Power power;
 
-PreferencesStore prefs;
 RootUI root_ui(prefs, power);
 
 void setupDisplayAndOptics() {
@@ -187,8 +188,7 @@ void setup() {
     bleManager->startAdvertisingIfNecessary();
 
 #ifdef USE_TURN_TOUCH_REMOTE
-    tt_remote_input = new TTRemoteInput();
-    tt_remote_input->start_remote();
+    tt_remote_input.start_remote();
 #endif
 
     prefs.begin();
@@ -231,7 +231,7 @@ void loop() {
 #endif
 
 #ifdef USE_TURN_TOUCH_REMOTE
-    tt_remote_input->check_press();
+    tt_remote_input.check_press();
 #endif
 
     // We could do this better by iterating, but fine for now with only a few input devices.
@@ -252,8 +252,8 @@ void loop() {
 #endif
 
 #ifdef USE_TURN_TOUCH_REMOTE
-    if (tt_remote_input->check_release()) {
-        code_from_release = tt_remote_input->get_code();
+    if (tt_remote_input.check_release()) {
+        code_from_release = tt_remote_input.get_code();
     }
 #endif
 

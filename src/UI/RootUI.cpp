@@ -7,6 +7,7 @@
 #include "Communications/PocketAPI.hpp"
 #include "Contents/Readable.hpp"
 #include "Inputs/RemoteInput.hpp"
+#include "Inputs/TTRemoteInput.hpp"
 #include "Misc/Platform.hpp"
 #include "Renderers/FileRenderer.hpp"
 #include "Renderers/RawRenderer.hpp"
@@ -205,6 +206,13 @@ void RootUI::setup(DisplaySystem *display, OpticsSystem *optics, std::vector<Rea
             set_current_screen(*settings_menu);
             delete bitmap_screen;
         };
+    }));
+    settings_menu->add_menu_item(MenuItem("Unpair TurnTouch", [this, settings_menu]() {
+        prefs.removePairedTurnTouchAddress();
+        log_w("Unpaired TurnTouch. Rebooting...");
+        renderer->render_max_box_with_text("Unpaired TurnTouch! Resetting...");
+        delay(2000);
+        esp_restart();
     }));
     settings_menu->back_callback = [this, main_menu]() { set_current_screen(*main_menu); };
 

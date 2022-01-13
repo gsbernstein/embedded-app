@@ -59,20 +59,35 @@ bool TTRemoteInput::connectToDevice(BLEAdvertisedDevice *device) {
         remoteCharacteristic->subscribe(true, callback);
     }
 
-    log_d("Connected to TurnTouch");
+    // Save the id of this turn touch for future connection attempts
+    this->prefs.setPairedTurnTouchAddress(device->getAddress());
+
+    log_i("Connected to TurnTouch");
     return true;
+}
+
+void TTRemoteInput::doneScanning(NimBLEScanResults results) {
+    log_d("TurnTouch scan completed.");
+    this->lastScanMs = millis();
 }
 
 void TTRemoteInput::scanForDevice() {
     // Run a scan for 3 seconds
-    DEBUG_LN("Scanning for TurnTouch...");
+    auto address = this->prefs.pairedTurnTouchAddress;
+    if (address.has_value()) {
+        log_d("Scanning for paired TurnTouch %s", std::string(address.value()).c_str());
+    } else {
+        log_d("Scanning for any available TurnTouch...");
+    }
     BLEScan *scan = BLEDevice::getScan();
     scan->setAdvertisedDeviceCallbacks(new AdvertisedDeviceCallbacks(this));
     scan->setInterval(1349);
     scan->setWindow(449);
     scan->setActiveScan(true);
+    // TODO: It'd be nice to use the non-blocking call here, but that doesn't take a std::function
+    // so passing in a callback with access to `this` is a little clunky
     scan->start(3, false);
-    DEBUG_LN("BLE scan completed.");
+    log_d("BLE scan completed.");
     lastScanMs = millis();
 }
 

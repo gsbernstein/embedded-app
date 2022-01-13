@@ -13,9 +13,8 @@ jobs:
     strategy:
       matrix:
         pioenv:
-          - featheresp32
-          - d1mini32
           - gilpico
+          - optopax-poc4
 
     steps:
     - name: Check out code

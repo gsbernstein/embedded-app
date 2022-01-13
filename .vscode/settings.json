@@ -43,7 +43,13 @@
         "typeinfo": "cpp",
         "list": "cpp",
         "string_view": "cpp",
-        "random": "cpp"
+        "random": "cpp",
+        "optional": "cpp",
+        "atomic": "cpp",
+        "iterator": "cpp",
+        "map": "cpp",
+        "memory_resource": "cpp",
+        "string": "cpp"
     },
     "editor.formatOnSave": true,
     "editor.defaultFormatter": "xaver.clang-format",

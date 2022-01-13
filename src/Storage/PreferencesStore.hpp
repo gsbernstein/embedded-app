@@ -1,5 +1,9 @@
 #pragma once
+#include <NimBLEDevice.h>
 #include <Preferences.h>
+#include <optional>
+
+#define PAIRED_TURNTOUCH_KEY "paired-tt"
 
 class PreferencesStore {
 public:
@@ -30,6 +34,13 @@ public:
         strcpy(pocket_api_token, pocketApiToken);
         prefs.putString("pocket-token", pocket_api_token);
     }
+
+    std::optional<BLEAddress> pairedTurnTouchAddress;
+    void setPairedTurnTouchAddress(const BLEAddress &address) {
+        this->prefs.putULong64(PAIRED_TURNTOUCH_KEY, uint64_t(address));
+        this->pairedTurnTouchAddress = address;
+    }
+    void removePairedTurnTouchAddress() { this->prefs.remove(PAIRED_TURNTOUCH_KEY); }
 
     void begin();
 
