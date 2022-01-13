@@ -9,7 +9,7 @@ void Power::setup() { this->lastMeasurementTime = millis(); }
 
 void Power::loop() {
     auto now = millis();
-    if (now - BATTERY_MEASUREMENT_PERIOD_SECONDS * 1000 > this->lastMeasurementTime) {
+    if (now > this->lastMeasurementTime + BATTERY_MEASUREMENT_PERIOD_SECONDS * 1000) {
         auto left = GetBatteryVoltageLeft();
         auto right = GetBatteryVoltageRight();
         this->leftConnected = left > BATTERY_DISCONNECT_THRESHOLD;

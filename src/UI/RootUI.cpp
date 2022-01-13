@@ -19,6 +19,8 @@
 #include "UI/ReadableScreen.hpp"
 #include "sindarin-debug.h"
 
+#define LAST_READABLE_ID "rui-readable"
+
 void RootUI::setup(DisplaySystem *display, OpticsSystem *optics, std::vector<Readable> &readables) {
     SHOW_HEAP();
 
@@ -33,25 +35,33 @@ void RootUI::setup(DisplaySystem *display, OpticsSystem *optics, std::vector<Rea
     auto main_menu = new MenuScreen(*renderer, this->power);
     SIZE_OF(*main_menu);
 
+    auto createReadableScreen = [this, optics, display,
+                                 main_menu](Readable *readable) -> ReadableScreen * {
+        // TODO: Would be better to not allocate / delete these all the time
+        FileRenderer *bookRenderer = new FileRenderer(optics, display, *readable);
+        bookRenderer->local_x_offset = this->prefs.local_x_offset;
+        bookRenderer->local_y_offset = this->prefs.local_y_offset;
+        this->prefs.prefs.putString(LAST_READABLE_ID, readable->id);
+        ReadableScreen *readableScreen = new ReadableScreen(bookRenderer, *readable, this->prefs);
+        readableScreen->back_callback = [this, bookRenderer, readableScreen, main_menu]() {
+            delete bookRenderer;
+            delete readableScreen;
+            prefs.prefs.remove(LAST_READABLE_ID);
+            set_current_screen(*main_menu);
+        };
+        return readableScreen;
+    };
+
     for (Readable &r : readables) {
         String name = String(r.id) + "-p";
         String name_prev = String(r.id) + "-pr-p";
         Readable *readable = &r;
-        main_menu->add_menu_item(MenuItem(r.name, [this, readable, optics, display, main_menu]() {
-            // TODO: Would be better to not allocate / delete these all the time
-            FileRenderer *book_renderer = new FileRenderer(optics, display, *readable);
-            book_renderer->local_x_offset = prefs.local_x_offset;
-            book_renderer->local_y_offset = prefs.local_y_offset;
-            ReadableScreen *readable_screen = new ReadableScreen(book_renderer, *readable, prefs);
-            set_current_screen(*readable_screen);
-            readable_screen->back_callback = [this, book_renderer, readable_screen, main_menu]() {
-                delete book_renderer;
-                delete readable_screen;
-                set_current_screen(*main_menu);
-            };
-        }));
         r.place = prefs.prefs.getULong(name.c_str());
         r.place_prev = prefs.prefs.getULong(name_prev.c_str());
+        main_menu->add_menu_item(MenuItem(r.name, [this, readable, createReadableScreen]() {
+            auto readableScreen = createReadableScreen(readable);
+            this->set_current_screen(*readableScreen);
+        }));
     }
     SHOW_HEAP();
 
@@ -201,18 +211,40 @@ void RootUI::setup(DisplaySystem *display, OpticsSystem *optics, std::vector<Rea
     main_menu->add_menu_item(
         MenuItem("**SETTINGS**", [this, settings_menu]() { set_current_screen(*settings_menu); }));
 
-    auto calibration_screen = new CalibrationScreen(*renderer);
-    calibration_screen->back_callback = [this, calibration_screen, display, main_menu]() {
-        renderer->render_max_box();
-        delay(100);
+    // Check if we left-off on a readable and if so, reload that readable by default
+    auto currentReadable = prefs.prefs.getString(LAST_READABLE_ID);
+    if (!currentReadable.isEmpty()) {
+        log_d("Attempting to find readable: %s", currentReadable.c_str());
+        // If we previously had a readable loaded, show that same readable by default
+        std::vector<Readable>::iterator it =
+            std::find_if(readables.begin(), readables.end(),
+                         [&currentReadable](const Readable &x) { return currentReadable == x.id; });
+        if (it != readables.end()) {
+            auto readableScreen = createReadableScreen(&(*it));
+            this->set_current_screen(*readableScreen);
+            log_i("Resuming readable from last session: %s", (*it).name);
+        } else {
+            // Assume this readable has gone away
+            prefs.prefs.remove(LAST_READABLE_ID);
+        }
+    }
 
-        display->set_partial_refresh();
+    // By default, if we don't already have a different first screen ready, show the calibration
+    // screen
+    if (this->current_screen == nullptr) {
+        auto calibration_screen = new CalibrationScreen(*renderer);
+        calibration_screen->back_callback = [this, calibration_screen, display, main_menu]() {
+            renderer->render_max_box();
+            delay(100);
 
-        set_current_screen(*main_menu);
-        delete calibration_screen;
-    };
+            display->set_partial_refresh();
 
-    set_current_screen(*calibration_screen);
+            set_current_screen(*main_menu);
+            delete calibration_screen;
+        };
+
+        set_current_screen(*calibration_screen);
+    }
 
     SHOW_HEAP();
 }

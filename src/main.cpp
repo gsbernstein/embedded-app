@@ -193,8 +193,6 @@ void setup() {
 
     prefs.begin();
 
-    my_display->display_splash_screen();
-
 #ifndef DISABLE_WIFI
     connectWiFiIfCredentialsExist();
 
@@ -202,8 +200,6 @@ void setup() {
     ota.setup();
 #endif
 #endif
-
-    delay(500);
 
     FileSystem::getInstance()->begin();
     auto readables = new std::vector<Readable>();
@@ -216,6 +212,8 @@ void setup() {
     root_ui.setup(my_display, my_optics, *readables);
 
     SHOW_HEAP();
+
+    log_i("Setup done");
 }
 
 void loop() {
