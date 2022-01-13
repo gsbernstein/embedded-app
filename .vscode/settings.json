@@ -43,7 +43,8 @@
         "typeinfo": "cpp",
         "list": "cpp",
         "string_view": "cpp",
-        "random": "cpp"
+        "random": "cpp",
+        "optional": "cpp"
     },
     "editor.formatOnSave": true,
     "editor.defaultFormatter": "xaver.clang-format",

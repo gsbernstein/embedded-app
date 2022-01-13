@@ -60,29 +60,10 @@ bool TTRemoteInput::connectToDevice(BLEAdvertisedDevice *device) {
     }
 
     // Save the id of this turn touch for future connection attempts
-    this->setPairedTurnTouchAddress(device->getAddress());
+    this->prefs.setPairedTurnTouchAddress(device->getAddress());
 
     log_i("Connected to TurnTouch");
     return true;
-}
-
-auto TTRemoteInput::getPairedTurnTouchAddress() -> BLEAddress * {
-    if (this->pairedTurnTouchAddress == nullptr) {
-        String address = this->prefs.prefs.getString(PAIRED_TURNTOUCH_KEY);
-        if (!address.isEmpty()) {
-            this->pairedTurnTouchAddress = new BLEAddress(std::string(address.c_str()));
-        }
-    }
-
-    return this->pairedTurnTouchAddress;
-}
-
-void TTRemoteInput::setPairedTurnTouchAddress(const BLEAddress &address) {
-    if (this->pairedTurnTouchAddress != nullptr) {
-        delete this->pairedTurnTouchAddress;
-    }
-    this->pairedTurnTouchAddress = new BLEAddress(address);
-    this->prefs.prefs.putString(PAIRED_TURNTOUCH_KEY, address.toString().c_str());
 }
 
 void TTRemoteInput::doneScanning(NimBLEScanResults results) {
@@ -92,11 +73,11 @@ void TTRemoteInput::doneScanning(NimBLEScanResults results) {
 
 void TTRemoteInput::scanForDevice() {
     // Run a scan for 3 seconds
-    auto address = this->getPairedTurnTouchAddress();
-    if (address == nullptr) {
-        log_d("Scanning for any available TurnTouch...");
+    auto address = this->prefs.pairedTurnTouchAddress;
+    if (address.has_value()) {
+        log_d("Scanning for paired TurnTouch %s", std::string(address.value()).c_str());
     } else {
-        log_d("Scanning for paired TurnTouch %s", std::string(*address).c_str());
+        log_d("Scanning for any available TurnTouch...");
     }
     BLEScan *scan = BLEDevice::getScan();
     scan->setAdvertisedDeviceCallbacks(new AdvertisedDeviceCallbacks(this));

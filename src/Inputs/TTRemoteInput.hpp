@@ -32,8 +32,6 @@
 #define TT_MULTI_S_E_N 0xF200
 #define TT_MULTI_W_S_E 0xF100
 #define TT_MULTI_E_N_W_S 0xF000
-
-#define PAIRED_TURNTOUCH_KEY "paired-tt"
 class TTRemoteInput : public RemoteInput {
 
 public:
@@ -45,15 +43,10 @@ public:
     void buttonNotificationCallback(BLERemoteCharacteristic *remoteCharacteristic, uint8_t *data,
                                     size_t length, bool isNotify);
 
-    auto getPairedTurnTouchAddress() -> BLEAddress *;
-    void setPairedTurnTouchAddress(const BLEAddress &address);
-
 protected:
     void doneScanning(NimBLEScanResults results);
 
     PreferencesStore &prefs;
-    // TODO(john): std::optional would be nicer here but I can't get c++17 things working.
-    BLEAddress *pairedTurnTouchAddress = nullptr;
     BLEAdvertisedDevice *turntouchDevice = nullptr;
     bool deviceConnected = false;
     int was_code_processed = 1;
@@ -80,16 +73,15 @@ protected:
                 }
                 // Connect to device if:
                 //  - This is the paired device
-                //  - We don't have any paired devices and this device is advertizing the
-                //  TurnTouch
+                //  - We don't have any paired devices and this device is advertising the TurnTouch
                 //    button service
-                auto address = enclosed->getPairedTurnTouchAddress();
-                if ((address != nullptr && *address == advertisedDevice->getAddress()) ||
-                    (address == nullptr &&
+                std::optional<BLEAddress> address = enclosed->prefs.pairedTurnTouchAddress;
+                if ((address.has_value() && address.value() == advertisedDevice->getAddress()) ||
+                    (!address.has_value() &&
                      advertisedDevice->isAdvertisingService(BLEUUID(TURNTOUCH_BUTTON_SVC_ID)))) {
                     BLEDevice::getScan()->stop();
                     log_i("%s TurnTouch device found; queueing for connect...",
-                          address == nullptr ? "New" : "Paired");
+                          address.has_value() ? "Paired" : "New");
                     if (enclosed->turntouchDevice != nullptr) {
                         delete enclosed->turntouchDevice;
                     }

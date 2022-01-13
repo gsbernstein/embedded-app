@@ -208,7 +208,7 @@ void RootUI::setup(DisplaySystem *display, OpticsSystem *optics, std::vector<Rea
         };
     }));
     settings_menu->add_menu_item(MenuItem("Unpair TurnTouch", [this, settings_menu]() {
-        prefs.prefs.remove(PAIRED_TURNTOUCH_KEY);
+        prefs.removePairedTurnTouchAddress();
         log_w("Unpaired TurnTouch. Rebooting...");
         renderer->render_max_box_with_text("Unpaired TurnTouch! Resetting...");
         delay(2000);
