@@ -27,7 +27,9 @@ public:
 
     void draw_text_in_box(String new_text, int start_x, int start_y, int end_x, int end_y);
 
+    void get_text_bounds(const char *buffer, uint16_t *w, uint16_t *h);
     int get_text_height();
+    int get_text_height(const char *buffer);
     int get_text_width(const char *buffer);
 
     void set_partial_refresh();

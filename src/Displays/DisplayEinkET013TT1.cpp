@@ -83,7 +83,19 @@ const GFXfont *DisplayEinkET013TT1::get_font() { return gfxFont; }
 
 void DisplayEinkET013TT1::set_font(const GFXfont *new_font) { setFont(new_font); }
 
+void DisplayEinkET013TT1::get_text_bounds(const char *buffer, uint16_t *w, uint16_t *h) {
+    int16_t x, y;
+    getTextBounds(buffer, 0, 0, &x, &y, w, h);
+}
+
 auto DisplayEinkET013TT1::get_text_height() -> int { return gfxFont->yAdvance + 1; }
+
+auto DisplayEinkET013TT1::get_text_height(const char *buffer) -> int {
+    int16_t x, y;
+    uint16_t w, h;
+    getTextBounds(buffer, 0, 0, &x, &y, &w, &h);
+    return h;
+}
 
 auto DisplayEinkET013TT1::get_text_width(const char *buffer) -> int {
     int16_t x, y;

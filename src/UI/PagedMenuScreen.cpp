@@ -49,12 +49,10 @@ void PagedMenuScreen::render() {
             itemTitle = itemTitle.substring(0, itemTitle.length() - 4) + "...";
         }
         // Now draw!
-        int width = eink->get_text_width(itemTitle.c_str());
-        int height = eink->get_text_height();
-        // Not sure exactly why it needs to be 70% instead of 50%; I suspect it has something
-        // to do with average lowercase character height and may be font-specific. -cojo
+        uint16_t width = 0, height = 0;
+        eink->get_text_bounds(itemTitle.c_str(), &width, &height);
         eink->draw_text(itemTitle.c_str(), (EinkET013TT1_X_PIXELS - width) / 2,
-                        (EinkET013TT1_Y_PIXELS - height) / 2 + (height * 0.7));
+                        (EinkET013TT1_Y_PIXELS - height) / 2 + (height / 2));
         eink->updateDisplay();
         eink->setFont(prevFont);
         eink->set_auto_update(autoUpdate);
