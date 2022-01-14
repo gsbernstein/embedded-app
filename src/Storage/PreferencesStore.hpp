@@ -3,52 +3,137 @@
 #include <Preferences.h>
 #include <optional>
 
-#define PAIRED_TURNTOUCH_KEY "paired-tt"
+#define MAX_KEY_LENGTH 15
 
 class PreferencesStore {
 public:
-    Preferences prefs;
+    template <typename T> class PrefsItemBase {
+    public:
+        PrefsItemBase(Preferences &prefs) : prefs(prefs) {}
 
-    int local_x_offset;
-    void setLocalXOffset(int local_x_offset) {
-        this->local_x_offset = local_x_offset;
-        prefs.putInt("x-offset", local_x_offset);
-    }
+        void writeToStorage(const char *key, T value) {
+            if constexpr (std::is_same_v<T, int>) {
+                this->prefs.putInt(key, value);
+            } else if constexpr (std::is_same_v<T, String>) {
+                this->prefs.putString(key, value);
+            } else {
+                log_e("Unhandled prefs type");
+                assert(0);
+            }
+        }
 
-    int local_y_offset;
-    void setLocalYOffset(int local_y_offset) {
-        this->local_y_offset = local_y_offset;
-        prefs.putInt("y-offset", local_y_offset);
-    }
+        void deleteFromStorage(const char *key) { this->prefs.remove(key); }
 
-    // Default area for browsing should be MAIN MENU which is readables length + 2 (length is
-    // SETTINGS MENU)
-    int area_in_browsing;
-    void setAreaInBrowsing(int area_in_browsing) {
-        this->area_in_browsing = area_in_browsing;
-        prefs.putInt("browse-area", area_in_browsing);
-    }
+        Preferences &prefs;
+    };
 
-    char pocket_api_token[40];
-    void setPocketApiToken(const char *pocketApiToken) {
-        strcpy(pocket_api_token, pocketApiToken);
-        prefs.putString("pocket-token", pocket_api_token);
-    }
+    template <typename T> class PrefsItem : public PrefsItemBase<T> {
+    public:
+        PrefsItem(Preferences &prefs, const char *key) : PrefsItemBase<T>(prefs) {
+            strcpy(this->key, key);
+        }
 
-    std::optional<BLEAddress> pairedTurnTouchAddress;
-    void setPairedTurnTouchAddress(const BLEAddress &address) {
-        this->prefs.putULong64(PAIRED_TURNTOUCH_KEY, uint64_t(address));
-        this->pairedTurnTouchAddress = address;
-    }
-    void removePairedTurnTouchAddress() { this->prefs.remove(PAIRED_TURNTOUCH_KEY); }
+        virtual void loadValue() {
+            if constexpr (std::is_same_v<T, int>) {
+                this->value = this->prefs.getInt(this->key);
+            } else if constexpr (std::is_same_v<T, String>) {
+                // TODO: This behavior is a little inconsistent between types. For String types, the
+                // std::optional will have `has_value()==false` if it's not stored in NVS. For
+                // primitive types (e.g. int), `has_value()==true` and the value is just the
+                // `Preferences` default value. It would be good to make this consistent but
+                // unfortunately `Preferences.isKey` looks like it's relatively expensive.
+                String val = this->prefs.getString(this->key);
+                if (!val.isEmpty()) {
+                    this->value = val;
+                }
+            } else {
+                log_e("Unhandled prefs type");
+                assert(0);
+            }
+        }
 
+        virtual std::optional<T> get() {
+            if (!this->loaded) {
+                this->loadValue();
+                this->loaded = true;
+            }
+            return this->value;
+        }
+
+        virtual void set(T value) {
+            this->value = value;
+            this->writeToStorage(this->key, value);
+        }
+
+        void remove() { this->deleteFromStorage(this->key); }
+
+    protected:
+        bool loaded;
+        std::optional<T> value;
+        char key[MAX_KEY_LENGTH + 1];
+    };
+
+    class BLEAddressPrefsItem : public PrefsItem<BLEAddress> {
+    public:
+        BLEAddressPrefsItem(Preferences &prefs, const char *key) : PrefsItem(prefs, key){};
+
+        void loadValue() override {
+            uint64_t addressValue = this->prefs.getULong64(this->key, -1);
+            if (addressValue != -1) {
+                this->value = BLEAddress(addressValue);
+            }
+        }
+
+        void set(BLEAddress address) override {
+            this->prefs.putULong64(this->key, uint64_t(address));
+            this->value = address;
+        }
+    };
+
+    template <typename T> class KeyedPrefsItem : PrefsItemBase<T> {
+    public:
+        KeyedPrefsItem(Preferences &prefs, const char *suffix)
+            : PrefsItemBase<T>(prefs), suffix(suffix) {}
+
+        void makeKey(char *key, const char *prefix) { sprintf(key, "%s%s", prefix, this->suffix); }
+
+        T get(const char *prefix) {
+            char key[MAX_KEY_LENGTH + 1];
+            this->makeKey(key, prefix);
+            if constexpr (std::is_same_v<T, int>) {
+                return this->prefs.getInt(key);
+            } else {
+                log_e("Unhandled prefs type");
+                assert(0);
+            }
+        }
+
+        void set(const char *prefix, T value) {
+            char key[MAX_KEY_LENGTH + 1];
+            this->makeKey(key, prefix);
+            this->writeToStorage(key, value);
+        }
+
+    protected:
+        const char *suffix;
+    };
+
+    PreferencesStore()
+        : localXOffset(this->prefs, "x-offset"), localYOffset(this->prefs, "y-offset"),
+          pairedTurnTouchAddress(this->prefs, "paired-tt"),
+          pocketApiToken(this->prefs, "pocket-token"), lastReadableId(this->prefs, "rui-readable"),
+          readablePlace(this->prefs, "-p"), readablePreviousPlace(this->prefs, "-pr-p"){};
     void begin();
+    void clear() { prefs.clear(); }
 
-    auto getInstance() -> PreferencesStore * {
-        if (instance == nullptr) instance = new PreferencesStore();
-        return instance;
-    }
+    PrefsItem<int> localXOffset;
+    PrefsItem<int> localYOffset;
+    PrefsItem<String> pocketApiToken;
+    BLEAddressPrefsItem pairedTurnTouchAddress;
+    PrefsItem<String> lastReadableId;
+    KeyedPrefsItem<int> readablePlace;
+    KeyedPrefsItem<int> readablePreviousPlace;
 
 protected:
-    static PreferencesStore *instance;
+    Preferences prefs;
 };
