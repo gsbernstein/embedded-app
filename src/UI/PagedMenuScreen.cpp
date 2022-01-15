@@ -13,9 +13,12 @@
 #include "Fonts/LucidaGrande6pt7b.h"
 
 #define MAX_WIDTH 152
-#define NUM_FONTS_TO_TRY 4
-const GFXfont *shrinkingFonts[] = {&LucidaGrande14pt7b, &LucidaGrande10pt7b, &LucidaGrande6pt7b,
-                                   &LucidaGrande5pt7b};
+
+// BC: I'm reducing the number of fonts to 2 here as I feel 14 is too big and 5 is too
+// small when I look at it in glass
+const GFXfont *shrinkingFonts[] = {/*&LucidaGrande14pt7b,*/
+                                   &LucidaGrande10pt7b, &LucidaGrande6pt7b
+                                   /*,&LucidaGrande5pt7b */};
 
 void PagedMenuScreen::render() {
     if (!needs_rerender) {
@@ -35,7 +38,7 @@ void PagedMenuScreen::render() {
         // Cache / replace old font; then try descending size fonts until we find one that fits our
         // string in the desired space.
         auto prevFont = eink->get_font();
-        for (int i = 0; i < NUM_FONTS_TO_TRY; ++i) {
+        for (int i = 0; i < sizeof(shrinkingFonts); ++i) {
             eink->set_font(shrinkingFonts[i]);
             if (eink->get_text_width(itemTitle.c_str()) < MAX_WIDTH) {
                 break;
@@ -50,9 +53,19 @@ void PagedMenuScreen::render() {
         }
         // Now draw!
         uint16_t width = 0, height = 0;
+        String battery_status = this->power.getBatteryLifeString();
         eink->get_text_bounds(itemTitle.c_str(), &width, &height);
-        eink->draw_text(itemTitle.c_str(), (EinkET013TT1_X_PIXELS - width) / 2,
-                        (EinkET013TT1_Y_PIXELS - height) / 2 + (height / 2));
+        eink->draw_text(itemTitle.c_str(),
+                        this->renderer.local_x_offset + (EinkET013TT1_X_PIXELS) / 2 - (width / 2),
+                        this->renderer.local_y_offset + (EinkET013TT1_Y_PIXELS) / 2 + (height / 2));
+        eink->setFont(&LucidaGrande5pt7b);
+        eink->get_text_bounds(battery_status.c_str(), &width, &height);
+        // Arbitrarily put the battery text off of the bottom of the screen 20 pixels
+        // This is just so we always have it in our prototype, not that it'll be
+        // the right place (or icon) long term
+        // Not taking into account the rednerer x and y offsets here on purpose
+        eink->draw_text(battery_status.c_str(), (EinkET013TT1_X_PIXELS) / 2 - (width / 2),
+                        EinkET013TT1_Y_PIXELS - 20);
         eink->updateDisplay();
         eink->setFont(prevFont);
         eink->set_auto_update(autoUpdate);
