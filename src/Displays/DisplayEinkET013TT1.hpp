@@ -27,6 +27,8 @@ public:
 
     void draw_text_in_box(String new_text, int start_x, int start_y, int end_x, int end_y);
 
+    void draw_calibration_screen(int start_x, int start_y, int end_x, int end_y);
+
     void get_text_bounds(const char *buffer, uint16_t *w, uint16_t *h);
     int get_text_height();
     int get_text_height(const char *buffer);

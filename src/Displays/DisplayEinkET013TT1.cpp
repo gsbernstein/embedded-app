@@ -212,6 +212,46 @@ void DisplayEinkET013TT1::draw_text_cmds_only(const String &new_text, int x, int
     }
 }
 
+/* This is BC's code to try one additional calibration screen
+   attempt that uses Adafruit GFX rendering instead of a bmp to draw the
+   screen. It takes in the bounding box (start x & y, end x & y) and
+   calculates where everything needs to go. It currently isn't called
+   from anywhere. */
+void DisplayEinkET013TT1::draw_calibration_screen(int start_x, int start_y, int end_x, int end_y) {
+    const int edge_offset = 5;
+    int midpoint_x = ((end_x - start_x) / 2) + start_x;
+    int midpoint_y = ((end_y - start_y) / 2) + start_y;
+    int box_width = end_x - start_x;
+    int box_height = end_y - start_y;
+
+    fillRect(start_x, start_y, box_width, box_height, fg);
+    fillRect(start_x + 2, start_y + 2, box_width - 4, box_height - 4, bg);
+    setFont(&LucidaGrande5pt7b);
+
+    int lets_width = get_text_width("let's");
+    int focus_width = get_text_width("focus");
+    int lets_height = get_text_height();
+    int focus_height = get_text_height();
+
+    for (int i = 30; i > 23; i--) {
+        drawCircle(midpoint_x, midpoint_y, i, fg);
+    }
+
+    setCursor(midpoint_x - lets_width / 2, midpoint_y - 3);
+    println("let's");
+    setCursor(midpoint_x - focus_width / 2, midpoint_y + focus_height - 6);
+    println("focus");
+
+    setCursor(end_x - get_text_width("lower right") - edge_offset, end_y - edge_offset - 2);
+    println("lower right");
+    setCursor(start_x + edge_offset, end_y - edge_offset - 2); // lower left
+    println("lower left");
+    setCursor(start_x + edge_offset, start_y + get_text_height() - 2); // upper left
+    println("upper left");
+    setCursor(end_x - get_text_width("upper right") - edge_offset, start_y + get_text_height() - 2);
+    println("upper right");
+}
+
 void DisplayEinkET013TT1::setPartialWindow(uint16_t x, uint16_t y, uint16_t w, uint16_t h) {
     set_partial_refresh();
     partialX = min(x, width());
