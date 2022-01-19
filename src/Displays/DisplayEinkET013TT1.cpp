@@ -84,7 +84,7 @@ auto DisplayEinkET013TT1::getAutoUpdate() -> bool { return autoUpdate_; }
 
 auto DisplayEinkET013TT1::getFont() -> const GFXfont * { return gfxFont; }
 
-void DisplayEinkET013TT1::setFont(const GFXfont *newFont) { setFont(newFont); }
+void DisplayEinkET013TT1::setFont(const GFXfont *newFont) { Adafruit_GFX::setFont(newFont); }
 
 void DisplayEinkET013TT1::getTextBounds(const char *buffer, uint16_t *w, uint16_t *h) {
     int16_t x, y;
