@@ -3,5 +3,5 @@
 
 #include "Arduino.h"
 
-auto urldecode(const String &str) -> String;
-auto urlencode(const String &str) -> String;
+auto Urldecode(const String &str) -> String;
+auto Urlencode(const String &str) -> String;

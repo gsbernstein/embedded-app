@@ -4,7 +4,7 @@
 
 #include "sindarin-debug.h"
 
-const char *codeToString(RemoteCommand code) {
+auto CodeToString(RemoteCommand code) -> const char * {
     switch (code) {
     case VOL_DOWN:
         return "Volume Down";
@@ -35,4 +35,4 @@ const char *codeToString(RemoteCommand code) {
 }
 
 // Returns the IR code of the last button pressed or released
-auto RemoteInput::get_code() -> RemoteCommand { return last_code; }
+auto RemoteInput::getCode() -> RemoteCommand { return lastCode_; }

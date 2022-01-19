@@ -29,59 +29,59 @@ void RootUI::setup(DisplaySystem *display, OpticsSystem *optics, std::vector<Rea
     // TODO: Reload the current book / spot / menu
 
     // General renderer shared by menus and simple UIs
-    this->renderer = new Renderer(optics, display);
-    this->renderer->local_x_offset = prefs.localXOffset.get().value();
-    this->renderer->local_y_offset = prefs.localYOffset.get().value();
-    SIZE_OF(*this->renderer);
+    this->renderer_ = new Renderer(optics, display);
+    this->renderer_->localXOffset = prefs_.localXOffset.get().value();
+    this->renderer_->localYOffset = prefs_.localYOffset.get().value();
+    SIZE_OF(*this->renderer_);
 
-    auto main_menu = new PagedMenuScreen(*this->renderer, this->power);
-    SIZE_OF(*main_menu);
+    auto mainMenu = new PagedMenuScreen(*this->renderer_, this->power_);
+    SIZE_OF(*mainMenu);
 
     auto createReadableScreen = [this, optics, display,
-                                 main_menu](Readable *readable) -> ReadableScreen * {
+                                 mainMenu](Readable *readable) -> ReadableScreen * {
         // TODO: Would be better to not allocate / delete these all the time
-        FileRenderer *bookRenderer = new FileRenderer(optics, display, *readable);
-        bookRenderer->local_x_offset = this->prefs.localXOffset.get().value();
-        bookRenderer->local_y_offset = this->prefs.localYOffset.get().value();
-        this->prefs.lastReadableId.set(readable->id);
-        ReadableScreen *readableScreen = new ReadableScreen(bookRenderer, *readable, this->prefs);
-        readableScreen->back_callback = [this, bookRenderer, readableScreen, main_menu]() {
+        auto *bookRenderer = new FileRenderer(optics, display, *readable);
+        bookRenderer->localXOffset = this->prefs_.localXOffset.get().value();
+        bookRenderer->localYOffset = this->prefs_.localYOffset.get().value();
+        this->prefs_.lastReadableId.set(readable->id);
+        auto *readableScreen = new ReadableScreen(bookRenderer, *readable, this->prefs_);
+        readableScreen->backCallback = [this, bookRenderer, readableScreen, mainMenu]() {
             delete bookRenderer;
             delete readableScreen;
-            prefs.lastReadableId.remove();
-            set_current_screen(*main_menu);
+            prefs_.lastReadableId.remove();
+            setCurrentScreen(*mainMenu);
         };
         return readableScreen;
     };
 
     for (Readable &r : readables) {
         Readable *readable = &r;
-        r.place = prefs.readablePlace.get(r.id);
-        r.place_prev = prefs.readablePreviousPlace.get(r.id);
-        main_menu->add_menu_item(MenuItem(r.name, [this, readable, createReadableScreen]() {
+        r.place = prefs_.readablePlace.get(r.id);
+        r.placePrev = prefs_.readablePreviousPlace.get(r.id);
+        mainMenu->addMenuItem(MenuItem(r.name, [this, readable, createReadableScreen]() {
             auto readableScreen = createReadableScreen(readable);
-            this->set_current_screen(*readableScreen);
+            this->setCurrentScreen(*readableScreen);
         }));
     }
     SHOW_HEAP();
 
     // Set up pocket article menu
 #if !defined(DISABLE_WIFI)
-    main_menu->add_menu_item(MenuItem("Pocket Articles", [this, main_menu, optics, display]() {
+    mainMenu->addMenuItem(MenuItem("Pocket Articles", [this, mainMenu, optics, display]() {
         if (!WiFi.isConnected()) {
             log_w("Tried to load Pocket articles but WiFi not connected");
-            this->renderer->render_max_box_with_text(String("WiFi Disconnected"));
+            this->renderer_->renderMaxBoxWithText(String("WiFi Disconnected"));
             delay(2000);
-            needs_rerender = true;
+            needsRerender = true;
             return;
         }
 
         log_i("Loading top Pocket article");
         // TODO(John): I wanted to make a loading indicator for this but then realized I'll
         // need to add threading / tasks since the HTTP code is synchronous right now.
-        this->renderer->render_max_box_with_text(String("Downloading..."));
+        this->renderer_->renderMaxBoxWithText(String("Downloading..."));
         PocketAPI *pocket = PocketAPI::getInstance();
-        pocket->setAccessToken(prefs.pocketApiToken.get().value().c_str());
+        pocket->setAccessToken(prefs_.pocketApiToken.get().value().c_str());
 
         // Since we're reading this directly out of this from the closures, this needs to exist
         // until the closures no longer exist. That or we need to copy some strings.
@@ -90,191 +90,190 @@ void RootUI::setup(DisplaySystem *display, OpticsSystem *optics, std::vector<Rea
         int code = pocket->get(&response);
         if (code != 200) {
             log_e("Pocket HTTP error: %d", code);
-            this->renderer->render_max_box_with_text(String("HTTP error: ") + String(code));
+            this->renderer_->renderMaxBoxWithText(String("HTTP error: ") + String(code));
             delay(2000);
-            set_current_screen(*main_menu);
+            setCurrentScreen(*mainMenu);
             return;
         }
 
         JsonObject list = (*response)["list"].as<JsonObject>();
         if (list.size() <= 0) {
             log_w("No Pocket articles found");
-            this->renderer->render_max_box_with_text(String("No articles found"));
+            this->renderer_->renderMaxBoxWithText(String("No articles found"));
             delay(2000);
-            set_current_screen(*main_menu);
+            setCurrentScreen(*mainMenu);
             delete response;
             return;
         }
 
         log_i("Pocket /get request succeeded");
-        auto pocket_menu = new MenuScreen(*renderer, this->power);
+        auto pocketMenu = new MenuScreen(*renderer_, this->power_);
 
         for (JsonPair keyValue : list) {
             JsonObject article = keyValue.value().as<JsonObject>();
             const char *url = article["resolved_url"].as<const char *>();
             log_i("Got Pocket url %s", url);
             const char *title = article["resolved_title"].as<const char *>();
-            pocket_menu->add_menu_item(MenuItem(title, [this, pocket_menu, title, url, pocket,
-                                                        optics, display]() {
-                log_d("Loading article %s (%s)", title, url);
-                renderer->render_max_box_with_text(String("Downloading..."));
-                SpiRamJsonDocument *response;
-                auto code = pocket->text(url, &response);
-                if (code != 200) {
-                    if (code == -1) {
-                        log_e("Pocket HTTP Error: %d (Article too long?)", code);
-                        this->renderer->render_max_box_with_text(String("Error: Too long"));
-                    } else {
-                        log_e("Pocket HTTP Error: %d", code);
-                        this->renderer->render_max_box_with_text(String("Pocket Error: ") + code);
+            pocketMenu->addMenuItem(
+                MenuItem(title, [this, pocketMenu, title, url, pocket, optics, display]() {
+                    log_d("Loading article %s (%s)", title, url);
+                    renderer_->renderMaxBoxWithText(String("Downloading..."));
+                    SpiRamJsonDocument *response;
+                    auto code = pocket->text(url, &response);
+                    if (code != 200) {
+                        if (code == -1) {
+                            log_e("Pocket HTTP Error: %d (Article too long?)", code);
+                            this->renderer_->renderMaxBoxWithText(String("Error: Too long"));
+                        } else {
+                            log_e("Pocket HTTP Error: %d", code);
+                            this->renderer_->renderMaxBoxWithText(String("Pocket Error: ") + code);
+                        }
+                        delay(2000);
+                        setCurrentScreen(*pocketMenu);
+                        return;
                     }
-                    delay(2000);
-                    set_current_screen(*pocket_menu);
-                    return;
-                }
-                const char *text = (*response)["article"].as<const char *>();
-                log_i("Pocket text succeeded for %s", url);
-                // TODO(john): We should eventually just save these to files and handle them
-                // the same as any other readable. Probably not great to be copying this whole
-                // article anyways.
-                auto str = std::string(text);
-                auto raw_renderer = new RawRenderer(optics, display, str);
-                raw_renderer->local_x_offset = prefs.localXOffset.get().value();
-                raw_renderer->local_y_offset = prefs.localYOffset.get().value();
-                SIZE_OF(*raw_renderer);
-                raw_renderer->render_page_with_box(0);
+                    const char *text = (*response)["article"].as<const char *>();
+                    log_i("Pocket text succeeded for %s", url);
+                    // TODO(john): We should eventually just save these to files and handle them
+                    // the same as any other readable. Probably not great to be copying this whole
+                    // article anyways.
+                    auto str = std::string(text);
+                    auto rawRenderer = new RawRenderer(optics, display, str);
+                    rawRenderer->localXOffset = prefs_.localXOffset.get().value();
+                    rawRenderer->localYOffset = prefs_.localYOffset.get().value();
+                    SIZE_OF(*rawRenderer);
+                    rawRenderer->renderPageWithBox(0);
 
-                auto raw_renderer_screen = new RawRendererScreen(raw_renderer);
-                set_current_screen(*raw_renderer_screen);
+                    auto rawRendererScreen = new RawRendererScreen(rawRenderer);
+                    setCurrentScreen(*rawRendererScreen);
 
-                raw_renderer_screen->back_callback = [this, raw_renderer, raw_renderer_screen,
-                                                      pocket_menu, response]() {
-                    set_current_screen(*pocket_menu);
-                    delete raw_renderer_screen;
-                    delete raw_renderer;
-                    delete response;
-                };
-            }));
+                    rawRendererScreen->backCallback = [this, rawRenderer, rawRendererScreen,
+                                                       pocketMenu, response]() {
+                        setCurrentScreen(*pocketMenu);
+                        delete rawRendererScreen;
+                        delete rawRenderer;
+                        delete response;
+                    };
+                }));
         }
 
-        set_current_screen(*pocket_menu);
-        pocket_menu->back_callback = [this, main_menu, pocket_menu, response]() {
-            set_current_screen(*main_menu);
-            delete pocket_menu;
+        setCurrentScreen(*pocketMenu);
+        pocketMenu->backCallback = [this, mainMenu, pocketMenu, response]() {
+            setCurrentScreen(*mainMenu);
+            delete pocketMenu;
             delete response;
         };
     }));
 #endif // DISABLE_WIFI
 
     // Settings menu
-    auto settings_menu = new MenuScreen(*renderer, this->power);
+    auto settingsMenu = new MenuScreen(*renderer_, this->power_);
 
-    settings_menu->add_menu_item(
-        MenuItem("Adjust Offset", [this, settings_menu, optics, display]() {
-            log_d("Loading adjust offset");
-            auto str = std::string();
-            auto raw_renderer = new RawRenderer(optics, display, str);
-            raw_renderer->local_x_offset = prefs.localXOffset.get().value();
-            raw_renderer->local_y_offset = prefs.localYOffset.get().value();
-            auto offset_adjust = new OffsetAdjustScreen(*raw_renderer, prefs, this->power);
-            this->set_current_screen(*offset_adjust);
-            log_d("setting up callback");
-            offset_adjust->back_callback = [this, offset_adjust, settings_menu]() {
-                set_current_screen(*settings_menu);
-                delete offset_adjust;
-                this->renderer->local_x_offset = prefs.localXOffset.get().value();
-                this->renderer->local_y_offset = prefs.localYOffset.get().value();
-            };
-            log_d("set up callback");
-        }));
-    settings_menu->add_menu_item(MenuItem("Reset Prefs", [this, settings_menu]() {
-        prefs.clear();
+    settingsMenu->addMenuItem(MenuItem("Adjust Offset", [this, settingsMenu, optics, display]() {
+        log_d("Loading adjust offset");
+        auto str = std::string();
+        auto rawRenderer = new RawRenderer(optics, display, str);
+        rawRenderer->localXOffset = prefs_.localXOffset.get().value();
+        rawRenderer->localYOffset = prefs_.localYOffset.get().value();
+        auto offsetAdjust = new OffsetAdjustScreen(*rawRenderer, prefs_, this->power_);
+        this->setCurrentScreen(*offsetAdjust);
+        log_d("setting up callback");
+        offsetAdjust->backCallback = [this, offsetAdjust, settingsMenu]() {
+            setCurrentScreen(*settingsMenu);
+            delete offsetAdjust;
+            this->renderer_->localXOffset = prefs_.localXOffset.get().value();
+            this->renderer_->localYOffset = prefs_.localYOffset.get().value();
+        };
+        log_d("set up callback");
+    }));
+    settingsMenu->addMenuItem(MenuItem("Reset Prefs", [this, settingsMenu]() {
+        prefs_.clear();
         log_w("Preferences cleared. Rebooting...");
 
-        this->renderer->render_max_box_with_text("Preferences cleared! Resetting...");
+        this->renderer_->renderMaxBoxWithText("Preferences cleared! Resetting...");
         delay(2000);
         esp_restart();
     }));
-    settings_menu->add_menu_item(
-        MenuItem("Factory Defaults", [this, settings_menu]() { this->restoreFactoryDefaults(); }));
-    settings_menu->add_menu_item(MenuItem("Loading Test", [this, settings_menu]() {
-        auto loading_screen = new LoadingScreen(this->renderer);
-        set_current_screen(*loading_screen);
-        loading_screen->back_callback = [this, loading_screen, settings_menu]() {
-            set_current_screen(*settings_menu);
-            delete loading_screen;
+    settingsMenu->addMenuItem(
+        MenuItem("Factory Defaults", [this, settingsMenu]() { this->restoreFactoryDefaults(); }));
+    settingsMenu->addMenuItem(MenuItem("Loading Test", [this, settingsMenu]() {
+        auto loadingScreen = new LoadingScreen(this->renderer_);
+        setCurrentScreen(*loadingScreen);
+        loadingScreen->backCallback = [this, loadingScreen, settingsMenu]() {
+            setCurrentScreen(*settingsMenu);
+            delete loadingScreen;
         };
     }));
-    settings_menu->add_menu_item(MenuItem("Test Bitmap Screen", [this, settings_menu]() {
-        auto bitmap_screen = new BitmapScreen(*this->renderer, Logo_bits);
-        set_current_screen(*bitmap_screen);
-        bitmap_screen->back_callback = [this, bitmap_screen, settings_menu]() {
-            set_current_screen(*settings_menu);
-            delete bitmap_screen;
+    settingsMenu->addMenuItem(MenuItem("Test Bitmap Screen", [this, settingsMenu]() {
+        auto bitmapScreen = new BitmapScreen(*this->renderer_, LOGO_BITS);
+        setCurrentScreen(*bitmapScreen);
+        bitmapScreen->backCallback = [this, bitmapScreen, settingsMenu]() {
+            setCurrentScreen(*settingsMenu);
+            delete bitmapScreen;
         };
     }));
-    settings_menu->add_menu_item(MenuItem("Unpair TurnTouch", [this, settings_menu]() {
-        prefs.pairedTurnTouchAddress.remove();
+    settingsMenu->addMenuItem(MenuItem("Unpair TurnTouch", [this, settingsMenu]() {
+        prefs_.pairedTurnTouchAddress.remove();
         log_w("Unpaired TurnTouch. Rebooting...");
-        this->renderer->render_max_box_with_text("Unpaired TurnTouch! Resetting...");
+        this->renderer_->renderMaxBoxWithText("Unpaired TurnTouch! Resetting...");
         delay(2000);
         esp_restart();
     }));
-    settings_menu->back_callback = [this, main_menu]() { set_current_screen(*main_menu); };
+    settingsMenu->backCallback = [this, mainMenu]() { setCurrentScreen(*mainMenu); };
 
-    main_menu->add_menu_item(
-        MenuItem("**SETTINGS**", [this, settings_menu]() { set_current_screen(*settings_menu); }));
+    mainMenu->addMenuItem(
+        MenuItem("**SETTINGS**", [this, settingsMenu]() { setCurrentScreen(*settingsMenu); }));
 
     // Check if we left-off on a readable and if so, reload that readable by default
-    auto currentReadable = prefs.lastReadableId.get();
+    auto currentReadable = prefs_.lastReadableId.get();
     if (currentReadable.has_value()) {
         log_d("Attempting to find readable: %s", currentReadable.value().c_str());
         // If we previously had a readable loaded, show that same readable by default
-        std::vector<Readable>::iterator it =
+        auto it =
             std::find_if(readables.begin(), readables.end(),
                          [&currentReadable](const Readable &x) { return currentReadable == x.id; });
         if (it != readables.end()) {
             auto readableScreen = createReadableScreen(&(*it));
-            this->set_current_screen(*readableScreen);
+            this->setCurrentScreen(*readableScreen);
             log_i("Resuming readable from last session: %s", (*it).name);
         } else {
             // Assume this readable has gone away
-            prefs.lastReadableId.remove();
+            prefs_.lastReadableId.remove();
         }
     }
 
     // By default, if we don't already have a different first screen ready, show the calibration
     // screen
-    if (this->current_screen == nullptr) {
-        auto calibration_screen = new CalibrationScreen(*this->renderer);
-        calibration_screen->back_callback = [this, calibration_screen, display, main_menu]() {
-            this->renderer->render_max_box();
+    if (this->currentScreen_ == nullptr) {
+        auto calibrationScreen = new CalibrationScreen(*this->renderer_);
+        calibrationScreen->backCallback = [this, calibrationScreen, display, mainMenu]() {
+            this->renderer_->renderMaxBox();
             delay(100);
 
-            display->set_partial_refresh();
+            display->setPartialRefresh();
 
-            set_current_screen(*main_menu);
-            delete calibration_screen;
+            setCurrentScreen(*mainMenu);
+            delete calibrationScreen;
         };
 
-        set_current_screen(*calibration_screen);
+        setCurrentScreen(*calibrationScreen);
     }
 
     SHOW_HEAP();
 }
 
-void RootUI::process_command(RemoteCommand command) {
+void RootUI::processCommand(RemoteCommand command) {
     if (command == FACTORY_DEFAULTS) {
         restoreFactoryDefaults();
     }
-    ContainerScreen::process_command(command);
+    ContainerScreen::processCommand(command);
 }
 
 void RootUI::loop(RemoteCommand command) {
-    if (this->power.getDepleted()) {
+    if (this->power_.getDepleted()) {
         // Force render immediately as we are about to shut off
-        PowerDepletedScreen powerDepleted(*(this->renderer));
-        set_current_screen(powerDepleted);
+        PowerDepletedScreen powerDepleted(*(this->renderer_));
+        setCurrentScreen(powerDepleted);
         this->render();
         // Wait 5 seconds to be able to see the message
         delay(5000);
@@ -287,7 +286,7 @@ void RootUI::loop(RemoteCommand command) {
 void RootUI::restoreFactoryDefaults() {
     nvs_flash_erase();
     log_w("NVS cleared. Rebooting...");
-    renderer->render_max_box_with_text("NVS cleared! Resetting...");
+    renderer_->renderMaxBoxWithText("NVS cleared! Resetting...");
     delay(2000);
     esp_restart();
 }

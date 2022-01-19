@@ -1,2 +1,4 @@
 # Initial clang-format on all source code
 c18a68a7561bea365fc34abdf196ef885394d412
+# Big clang-tidy commit from https://github.com/sindarin-inc/embedded-app/pull/73
+2e51ef5c3aa7cc73ae70f8974c6691c4c1b9ffc2

@@ -6,12 +6,12 @@
 
 class LoadingScreen : public Screen {
 public:
-    LoadingScreen(Renderer *renderer) : renderer(renderer) {}
-    void render();
-    void process_command(RemoteCommand command);
+    LoadingScreen(Renderer *renderer) : renderer_(renderer) {}
+    void render() override;
+    void processCommand(RemoteCommand command) override;
 
 protected:
-    Renderer *renderer;
-    unsigned long timer = 0;
-    int state = 0;
+    Renderer *renderer_;
+    unsigned long timer_ = 0;
+    int state_ = 0;
 };

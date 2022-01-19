@@ -5,6 +5,6 @@
 
 class PowerDepletedScreen : public BitmapScreen {
 public:
-    PowerDepletedScreen(Renderer &renderer) : BitmapScreen(renderer, Battery_Low_bits) {}
-    ~PowerDepletedScreen() = default;
+    PowerDepletedScreen(Renderer &renderer) : BitmapScreen(renderer, BATTERY_LOW_BITS) {}
+    ~PowerDepletedScreen() override = default;
 };

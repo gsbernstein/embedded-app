@@ -13,16 +13,16 @@
 
 class RootUI : public ContainerScreen {
 public:
-    RootUI(PreferencesStore &prefs, Power &power) : prefs(prefs), power(power) {}
+    RootUI(PreferencesStore &prefs, Power &power) : prefs_(prefs), power_(power) {}
 
     void setup(DisplaySystem *display, OpticsSystem *optics, std::vector<Readable> &readables);
-    void process_command(RemoteCommand command) override;
+    void processCommand(RemoteCommand command) override;
     void loop(RemoteCommand command) override;
 
 protected:
-    Renderer *renderer;
-    PreferencesStore &prefs;
-    Power &power;
+    Renderer *renderer_;
+    PreferencesStore &prefs_;
+    Power &power_;
 
 private:
     void restoreFactoryDefaults();

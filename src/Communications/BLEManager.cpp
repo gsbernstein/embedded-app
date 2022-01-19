@@ -13,17 +13,17 @@ auto BLEManager::getInstance() -> BLEManager * {
 
 BLEManager::BLEManager() { BLEDevice::init("Sindarin"); }
 
-BLEServer *BLEManager::server() {
-    if (_server == nullptr) {
-        _server = BLEDevice::createServer();
-        _server->setCallbacks(new ServerCallbacks());
+auto BLEManager::server() -> BLEServer * {
+    if (server_ == nullptr) {
+        server_ = BLEDevice::createServer();
+        server_->setCallbacks(new ServerCallbacks());
     }
-    return _server;
+    return server_;
 }
 
 void BLEManager::startAdvertisingIfNecessary() {
-    if (_server != nullptr) {
-        auto advertising = _server->getAdvertising();
+    if (server_ != nullptr) {
+        auto advertising = server_->getAdvertising();
         advertising->start();
     }
 }

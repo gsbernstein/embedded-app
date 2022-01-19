@@ -1,1 +1,1 @@
-void connectWiFiIfCredentialsExist();
+void ConnectWiFiIfCredentialsExist();

@@ -9,31 +9,31 @@ void BitmapScreen::render() {
     // Ideally this would just use dynamic_cast plus the null check,
     // but it appears ESP-IDF doesn't necessarily play nice yet with RTTI enabled,
     // so we will hack it with #ifdef for now... -cojo
-    if (!needs_rerender) {
+    if (!needsRerender) {
         return;
     }
 #ifdef EINKET013TT1
-    DisplayEinkET013TT1 *eink = (DisplayEinkET013TT1 *)renderer.get_display();
+    auto *eink = (DisplayEinkET013TT1 *)renderer_.getDisplay();
     if (eink != nullptr) {
         eink->fillScreen(eink->bg);
         // TODO: We should figure out what we really want for these 'full-screen' bitmaps
         // so that they can use the screen offset settings as well. Probably we want 'full-screen'
         // to mean the full width of the focus area, in which case we shouldn't hardcode 256 here.
-        eink->drawXBitmap(0, 0, bitmap, 256, 256, eink->fg);
+        eink->drawXBitmap(0, 0, bitmap_, 256, 256, eink->fg);
     }
 #endif
-    needs_rerender = false;
+    needsRerender = false;
 }
 
-void BitmapScreen::process_command(RemoteCommand command) {
+void BitmapScreen::processCommand(RemoteCommand command) {
     switch (command) {
     case RemoteCommand::CHANNEL_MINUS:
     case RemoteCommand::CHANNEL_PLUS:
     case RemoteCommand::PREV:
     case RemoteCommand::NEXT:
     case RemoteCommand::BACK:
-        if (back_callback != nullptr) {
-            back_callback();
+        if (backCallback != nullptr) {
+            backCallback();
         }
         break;
     default:

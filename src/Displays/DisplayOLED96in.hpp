@@ -21,34 +21,33 @@ public:
     DisplayOLED96in();
     ~DisplayOLED96in();
 
-    void draw_box(int x_start, int y_start, int x_end, int y_end) override;
+    void drawBox(int xStart, int yStart, int xEnd, int yEnd) override;
 
-    void draw_text() override;
-    void draw_text(String new_text) override;
-    void draw_text(String new_text, int x, int y) override;
-    void draw_text_in_box(String new_text, int start_x, int start_y, int end_x, int end_y) override;
-    void draw_big_word_in_box(String new_text, int start_x, int start_y, int end_x,
-                              int end_y) override;
+    void drawText() override;
+    void drawText(String newText) override;
+    void drawText(String newText, int x, int y) override;
+    void drawTextInBox(String newText, int startX, int startY, int endX, int endY) override;
+    void drawBigWordInBox(String newText, int startX, int startY, int endX, int endY) override;
 
-    auto get_text_height() -> int override;
-    auto get_text_width(const char *buffer) -> int override;
+    auto getTextHeight() -> int override;
+    auto getTextWidth(const char *buffer) -> int override;
 
-    void set_font(const uint8_t *new_font);
+    void setFont(const uint8_t *newFont);
 
-    void display_splash_screen() override;
+    void displaySplashScreen() override;
 
-    void set_partial_refresh();
-    void unset_partial_refresh();
-    auto get_partial_refresh() -> int;
+    void setPartialRefresh() override;
+    void unsetPartialRefresh() override;
+    auto getPartialRefresh() -> int override;
 
 protected:
-    void draw_text_cmds_only(const String &new_text, int x, int y);
-    void draw_box_cmds_only(int x_start, int y_start, int x_end, int y_end);
+    void drawTextCmdsOnly(const String &newText, int x, int y);
+    void drawBoxCmdsOnly(int xStart, int yStart, int xEnd, int yEnd);
 
-    const uint8_t *font;
-    const uint8_t *big_font;
+    const uint8_t *font_;
+    const uint8_t *bigFont_;
 
-    U8G2_SSD1306_128X64_NONAME_F_HW_I2C *u8g2;
+    U8G2_SSD1306_128X64_NONAME_F_HW_I2C *u8g2_;
 };
 
 #endif

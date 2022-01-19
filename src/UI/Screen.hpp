@@ -13,15 +13,15 @@ class Screen {
 public:
     virtual ~Screen() = default;
     virtual void render() = 0;
-    virtual void process_command(RemoteCommand command) = 0;
+    virtual void processCommand(RemoteCommand command) = 0;
 
     virtual void loop(RemoteCommand command) {
         if (command != RemoteCommand::NONE) {
-            process_command(command);
+            processCommand(command);
         }
         render();
     }
 
-    std::function<void()> back_callback;
-    bool needs_rerender = true;
+    std::function<void()> backCallback;
+    bool needsRerender = true;
 };

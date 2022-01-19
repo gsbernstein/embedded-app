@@ -1,18 +1,18 @@
 #include "UI/ContainerScreen.hpp"
 
-void ContainerScreen::set_current_screen(Screen &screen) {
-    screen.needs_rerender = true;
-    current_screen = &screen;
+void ContainerScreen::setCurrentScreen(Screen &screen) {
+    screen.needsRerender = true;
+    currentScreen_ = &screen;
 }
 
 void ContainerScreen::render() {
-    if (current_screen != nullptr) {
-        current_screen->render();
+    if (currentScreen_ != nullptr) {
+        currentScreen_->render();
     }
 };
 
-void ContainerScreen::process_command(RemoteCommand command) {
-    if (current_screen != nullptr) {
-        current_screen->process_command(command);
+void ContainerScreen::processCommand(RemoteCommand command) {
+    if (currentScreen_ != nullptr) {
+        currentScreen_->processCommand(command);
     }
 }

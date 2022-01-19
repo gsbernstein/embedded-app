@@ -19,26 +19,26 @@ class OpticsSystem {
 public:
     OpticsSystem();
 
-    auto get_x_inches() -> float;
-    auto get_y_inches() -> float;
+    auto getXInches() -> float;
+    auto getYInches() -> float;
 
-    auto get_x_mm() -> float;
-    auto get_y_mm() -> float;
+    auto getXMm() -> float;
+    auto getYMm() -> float;
 
-    void set_eye_relief_mm(float new_eye_relief);
-    void set_eye_relief_in(float new_eye_relief);
+    void setEyeReliefMm(float newEyeRelief);
+    void setEyeReliefIn(float newEyeRelief);
 
-    void set_xy_in_inches(float new_x, float new_y);
-    void set_xy_in_mm(float new_x, float new_y);
+    void setXyInInches(float newX, float newY);
+    void setXyInMm(float newX, float newY);
 
 protected:
-    float x_mm;
-    float y_mm;
-    float x_in;
-    float y_in;
-    float inch_mm_conversion = 25.4;
-    float eye_relief_mm;
-    float eye_relief_in;
+    float xMm_;
+    float yMm_;
+    float xIn_;
+    float yIn_;
+    float inchMmConversion_ = 25.4;
+    float eyeReliefMm_;
+    float eyeReliefIn_;
 };
 
 #endif

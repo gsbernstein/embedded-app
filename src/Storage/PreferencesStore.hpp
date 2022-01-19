@@ -30,21 +30,21 @@ public:
     template <typename T> class PrefsItem : public PrefsItemBase<T> {
     public:
         PrefsItem(Preferences &prefs, const char *key) : PrefsItemBase<T>(prefs) {
-            strcpy(this->key, key);
+            strcpy(this->key_, key);
         }
 
         virtual void loadValue() {
             if constexpr (std::is_same_v<T, int>) {
-                this->value = this->prefs.getInt(this->key);
+                this->value_ = this->prefs.getInt(this->key_);
             } else if constexpr (std::is_same_v<T, String>) {
                 // TODO: This behavior is a little inconsistent between types. For String types, the
                 // std::optional will have `has_value()==false` if it's not stored in NVS. For
                 // primitive types (e.g. int), `has_value()==true` and the value is just the
                 // `Preferences` default value. It would be good to make this consistent but
                 // unfortunately `Preferences.isKey` looks like it's relatively expensive.
-                String val = this->prefs.getString(this->key);
+                String val = this->prefs.getString(this->key_);
                 if (!val.isEmpty()) {
-                    this->value = val;
+                    this->value_ = val;
                 }
             } else {
                 log_e("Unhandled prefs type");
@@ -52,25 +52,25 @@ public:
             }
         }
 
-        virtual std::optional<T> get() {
-            if (!this->loaded) {
+        virtual auto get() -> std::optional<T> {
+            if (!this->loaded_) {
                 this->loadValue();
-                this->loaded = true;
+                this->loaded_ = true;
             }
-            return this->value;
+            return this->value_;
         }
 
         virtual void set(T value) {
-            this->value = value;
-            this->writeToStorage(this->key, value);
+            this->value_ = value;
+            this->writeToStorage(this->key_, value);
         }
 
-        void remove() { this->deleteFromStorage(this->key); }
+        void remove() { this->deleteFromStorage(this->key_); }
 
     protected:
-        bool loaded;
-        std::optional<T> value;
-        char key[MAX_KEY_LENGTH + 1];
+        bool loaded_;
+        std::optional<T> value_;
+        char key_[MAX_KEY_LENGTH + 1];
     };
 
     class BLEAddressPrefsItem : public PrefsItem<BLEAddress> {
@@ -78,26 +78,26 @@ public:
         BLEAddressPrefsItem(Preferences &prefs, const char *key) : PrefsItem(prefs, key){};
 
         void loadValue() override {
-            uint64_t addressValue = this->prefs.getULong64(this->key, -1);
+            uint64_t addressValue = this->prefs.getULong64(this->key_, -1);
             if (addressValue != -1) {
-                this->value = BLEAddress(addressValue);
+                this->value_ = BLEAddress(addressValue);
             }
         }
 
         void set(BLEAddress address) override {
-            this->prefs.putULong64(this->key, uint64_t(address));
-            this->value = address;
+            this->prefs.putULong64(this->key_, uint64_t(address));
+            this->value_ = address;
         }
     };
 
     template <typename T> class KeyedPrefsItem : PrefsItemBase<T> {
     public:
         KeyedPrefsItem(Preferences &prefs, const char *suffix)
-            : PrefsItemBase<T>(prefs), suffix(suffix) {}
+            : PrefsItemBase<T>(prefs), suffix_(suffix) {}
 
-        void makeKey(char *key, const char *prefix) { sprintf(key, "%s%s", prefix, this->suffix); }
+        void makeKey(char *key, const char *prefix) { sprintf(key, "%s%s", prefix, this->suffix_); }
 
-        T get(const char *prefix) {
+        auto get(const char *prefix) -> T {
             char key[MAX_KEY_LENGTH + 1];
             this->makeKey(key, prefix);
             if constexpr (std::is_same_v<T, int>) {
@@ -115,16 +115,17 @@ public:
         }
 
     protected:
-        const char *suffix;
+        const char *suffix_;
     };
 
     PreferencesStore()
-        : localXOffset(this->prefs, "x-offset"), localYOffset(this->prefs, "y-offset"),
-          pairedTurnTouchAddress(this->prefs, "paired-tt"),
-          pocketApiToken(this->prefs, "pocket-token"), lastReadableId(this->prefs, "rui-readable"),
-          readablePlace(this->prefs, "-p"), readablePreviousPlace(this->prefs, "-pr-p"){};
+        : localXOffset(this->prefs_, "x-offset"), localYOffset(this->prefs_, "y-offset"),
+          pairedTurnTouchAddress(this->prefs_, "paired-tt"),
+          pocketApiToken(this->prefs_, "pocket-token"),
+          lastReadableId(this->prefs_, "rui-readable"), readablePlace(this->prefs_, "-p"),
+          readablePreviousPlace(this->prefs_, "-pr-p"){};
     void begin();
-    void clear() { prefs.clear(); }
+    void clear() { prefs_.clear(); }
 
     PrefsItem<int> localXOffset;
     PrefsItem<int> localYOffset;
@@ -135,5 +136,5 @@ public:
     KeyedPrefsItem<int> readablePreviousPlace;
 
 protected:
-    Preferences prefs;
+    Preferences prefs_;
 };

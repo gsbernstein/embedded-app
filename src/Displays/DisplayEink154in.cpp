@@ -3,45 +3,43 @@
 #include <Fonts/FreeMonoBold9pt7b.h>
 #include <utility>
 
-const char HelloWorld[] = "Hello Fy World!";
+const char HELLO_WORLD[] = "Hello Fy World!";
 
 // Set up the U8g2lib display
 DisplayEink154in::DisplayEink154in() {
-    font = u8g2_font_tom_thumb_4x6_tf;
+    font_ = u8g2_font_tom_thumb_4x6_tf;
 #ifdef HUZZAH32_SINDARIN
     display.init();
     display.setRotation(2);
 #else
-    display.init();
-    display.setRotation(0);
+    display_.init();
+    display_.setRotation(0);
 #endif
-    u8g2Fonts.begin(display);
-    u8g2Fonts.setFont(font);
-    log_d("Set up display (%ld)", (long)&display);
+    u8g2Fonts_.begin(display_);
+    u8g2Fonts_.setFont(font_);
+    log_d("Set up display (%ld)", (long)&display_);
 
-    set_x(Eink154in_X_PIXELS);
-    set_y(Eink154in_Y_PIXELS);
-    set_width(Eink154in_WIDTH_IN_MM);
-    set_height(Eink154in_HEIGHT_IN_MM);
+    setX(Eink154in_X_PIXELS);
+    setY(Eink154in_Y_PIXELS);
+    setWidth(Eink154in_WIDTH_IN_MM);
+    setHeight(Eink154in_HEIGHT_IN_MM);
 }
 
 // Fill in with the right splash screen for Eink
-void DisplayEink154in::display_splash_screen() {}
+void DisplayEink154in::displaySplashScreen() {}
 
-DisplayEink154in::~DisplayEink154in() = default;
+void DisplayEink154in::setPartialRefresh() { partialRefresh_ = 1; }
 
-void DisplayEink154in::set_partial_refresh() { partial_refresh = 1; }
+void DisplayEink154in::unsetPartialRefresh() { partialRefresh_ = 0; }
 
-void DisplayEink154in::unset_partial_refresh() { partial_refresh = 0; }
+auto DisplayEink154in::getPartialRefresh() -> int { return partialRefresh_; }
 
-auto DisplayEink154in::get_partial_refresh() -> int { return partial_refresh; }
+void DisplayEink154in::setFont(const uint8_t *newFont) { font_ = newFont; }
 
-void DisplayEink154in::set_font(const uint8_t *new_font) { font = new_font; }
-
-auto DisplayEink154in::get_text_height() -> int {
+auto DisplayEink154in::getTextHeight() -> int {
     int ascent = 0;
     int descent = 0;
-    int line_height = 0;
+    int lineHeight = 0;
 
     // hack for now
     // figure out what the right window is
@@ -49,42 +47,40 @@ auto DisplayEink154in::get_text_height() -> int {
     // Need to figure out ascent
 
     // text to squeeze as much in there as we can
-    ascent = u8g2Fonts.getFontAscent();
-    descent = u8g2Fonts.getFontDescent();
+    ascent = u8g2Fonts_.getFontAscent();
+    descent = u8g2Fonts_.getFontDescent();
 
     // Note that descent is returned as a negative number. Therefore to get
     // the correct height, you have to subtract off the descent. We add
     // 1 to add the additional pixel between lines.
-    line_height = ascent - descent + 1;
+    lineHeight = ascent - descent + 1;
 
-    return line_height;
+    return lineHeight;
 }
 
-auto DisplayEink154in::get_text_width(const char *buffer) -> int {
-    return u8g2Fonts.getUTF8Width(buffer);
+auto DisplayEink154in::getTextWidth(const char *buffer) -> int {
+    return u8g2Fonts_.getUTF8Width(buffer);
 }
 
-void DisplayEink154in::draw_text_in_box(String new_text, int start_x, int start_y, int end_x,
-                                        int end_y) {
+void DisplayEink154in::drawTextInBox(String newText, int startX, int startY, int endX, int endY) {
 
-    int line_height = 0;
+    int lineHeight = 0;
 
-    setup_display_for_text();
+    setupDisplayForText();
 
-    log_d("Printing some stuff to screen! (%ld)", (long)&display);
+    log_d("Printing some stuff to screen! (%ld)", (long)&display_);
 
-    line_height = get_text_height();
+    lineHeight = getTextHeight();
 
-    if (get_partial_refresh()) {
-        display.setPartialWindow(start_x - 2, start_y - 2, (end_x - start_x) + 4,
-                                 (end_y - start_y) + 4);
+    if (getPartialRefresh()) {
+        display_.setPartialWindow(startX - 2, startY - 2, (endX - startX) + 4, (endY - startY) + 4);
     }
 
-    display.firstPage();
+    display_.firstPage();
     do {
-        draw_box_cmds_only(start_x, start_y, end_x, end_y);
-        draw_text_cmds_only(new_text, start_x + 3, start_y + line_height + 1, line_height);
-    } while (display.nextPage());
+        drawBoxCmdsOnly(startX, startY, endX, endY);
+        drawTextCmdsOnly(newText, startX + 3, startY + lineHeight + 1, lineHeight);
+    } while (display_.nextPage());
 
     /*
      display.setRotation(2);
@@ -106,44 +102,43 @@ void DisplayEink154in::draw_text_in_box(String new_text, int start_x, int start_
   while (display.nextPage());*/
 }
 
-void DisplayEink154in::draw_box_cmds_only(int start_x, int start_y, int end_x, int end_y) {
+void DisplayEink154in::drawBoxCmdsOnly(int startX, int startY, int endX, int endY) {
 
-    if (!get_partial_refresh()) {
-        display.fillScreen(bg);
+    if (!getPartialRefresh()) {
+        display_.fillScreen(bg_);
     }
-    display.drawRect(start_x, start_y, end_x - start_x, end_y - start_y, fg);
+    display_.drawRect(startX, startY, endX - startX, endY - startY, fg_);
 }
 
-void DisplayEink154in::draw_box(int start_x, int start_y, int end_x, int end_y) {
+void DisplayEink154in::drawBox(int startX, int startY, int endX, int endY) {
     // clear out one pixel around all of it
-    if (get_partial_refresh()) {
-        display.setPartialWindow(start_x - 2, start_y - 2, (end_x - start_x) + 4,
-                                 (end_y - start_y) + 4);
+    if (getPartialRefresh()) {
+        display_.setPartialWindow(startX - 2, startY - 2, (endX - startX) + 4, (endY - startY) + 4);
     }
     DEBUG_LN("Got here: drawing a box");
 
-    display.firstPage();
+    display_.firstPage();
     do {
-        draw_box_cmds_only(start_x, start_y, end_x, end_y);
-    } while (display.nextPage());
+        drawBoxCmdsOnly(startX, startY, endX, endY);
+    } while (display_.nextPage());
 }
 
-void DisplayEink154in::draw_text() { draw_text(string_to_draw, x_to_draw, y_to_draw); }
+void DisplayEink154in::drawText() { drawText(stringToDraw_, xToDraw_, yToDraw_); }
 
-void DisplayEink154in::draw_text(String new_text) { draw_text(new_text, x_to_draw, y_to_draw); }
+void DisplayEink154in::drawText(String newText) { drawText(newText, xToDraw_, yToDraw_); }
 
 // This method takes in a string, and assumes that it will have
 // \n characaters in it to determine new lines. By default, the u8g2
 // driver doesn't do new lines, so we have to do the parsing of that ourselves
 // in order to determine the right placement of each new line.
 
-void DisplayEink154in::draw_text(String new_text, int x, int y) {
+void DisplayEink154in::drawText(String newText, int x, int y) {
 
     int ascent = 0;
     int descent = 0;
-    int line_height = 0;
+    int lineHeight = 0;
 
-    setup_display_for_text();
+    setupDisplayForText();
 
     DEBUG_LN("Printing to screen!");
 
@@ -153,57 +148,57 @@ void DisplayEink154in::draw_text(String new_text, int x, int y) {
     // Need to figure out ascent
 
     // text to squeeze as much in there as we can
-    ascent = u8g2Fonts.getFontAscent();
-    descent = u8g2Fonts.getFontDescent();
+    ascent = u8g2Fonts_.getFontAscent();
+    descent = u8g2Fonts_.getFontDescent();
 
     // Note that descent is returned as a negative number. Therefore to get
     // the correct height, you have to subtract off the descent. We add
     // 1 to add the additional pixel between lines.
-    line_height = ascent - descent + 1;
+    lineHeight = ascent - descent + 1;
 
-    if (get_partial_refresh()) {
-        display.setPartialWindow(x, y - 10, Eink154in_X_PIXELS, (line_height + 1) * num_lines + 10);
+    if (getPartialRefresh()) {
+        display_.setPartialWindow(x, y - 10, Eink154in_X_PIXELS, (lineHeight + 1) * numLines_ + 10);
     }
 
-    display.firstPage();
+    display_.firstPage();
     do {
-        draw_text_cmds_only(new_text, x, y, line_height);
-    } while (display.nextPage());
+        drawTextCmdsOnly(newText, x, y, lineHeight);
+    } while (display_.nextPage());
 }
 
-void DisplayEink154in::setup_display_for_text() {
+void DisplayEink154in::setupDisplayForText() {
 
-    u8g2Fonts.setFontMode(1);
-    u8g2Fonts.setFontDirection(0);
-    u8g2Fonts.setForegroundColor(fg);
-    u8g2Fonts.setBackgroundColor(bg);
-    u8g2Fonts.setFont(font);
+    u8g2Fonts_.setFontMode(1);
+    u8g2Fonts_.setFontDirection(0);
+    u8g2Fonts_.setForegroundColor(fg_);
+    u8g2Fonts_.setBackgroundColor(bg_);
+    u8g2Fonts_.setFont(font_);
 }
 
-void DisplayEink154in::draw_text_cmds_only(const String &new_text, int x, int y, int line_height) {
+void DisplayEink154in::drawTextCmdsOnly(const String &newText, int x, int y, int lineHeight) {
 
-    string_to_draw = std::move(new_text);
+    stringToDraw_ = newText;
 
     // We want to draw the characters down from the x/y coordinates given
     // so the renderer doesn't need to concern itself with how tall the
     // font is, etc.
     // u8g2Fonts->setFontPosTop();
 
-    split_string_to_lines();
+    splitStringToLines();
 
     // We want to have only 1 pixel length difference between the rows of
     // text to squeeze as much in there as we can
     // ascent = u8g2Fonts->getAscent();
     // descent = u8g2Fonts->getDescent();
 
-    if (!get_partial_refresh()) {
-        display.fillScreen(bg);
+    if (!getPartialRefresh()) {
+        display_.fillScreen(bg_);
     }
 
-    for (int i = 0; i < num_lines; i++) {
+    for (int i = 0; i < numLines_; i++) {
         // Don't know if it starts the line from the baseline or from the top -- TO LEARN: HACK
-        u8g2Fonts.setCursor(x, y + i * (line_height));
-        u8g2Fonts.println(lines[i] + "\n");
+        u8g2Fonts_.setCursor(x, y + i * (lineHeight));
+        u8g2Fonts_.println(lines_[i] + "\n");
         // DEBUG_LN(lines[i]);
         // DEBUG_VAR(x);
         // DEBUG_LN(" is the x direction");

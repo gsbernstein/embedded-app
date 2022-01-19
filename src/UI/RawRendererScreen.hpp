@@ -5,13 +5,13 @@
 // `TextRenderer`
 class RawRendererScreen : public Screen {
 public:
-    RawRendererScreen(RawRenderer *renderer) : renderer(renderer) {}
-    ~RawRendererScreen() = default;
+    RawRendererScreen(RawRenderer *renderer) : renderer_(renderer) {}
+    ~RawRendererScreen() override = default;
 
     void render() override;
-    void process_command(RemoteCommand command) override;
+    void processCommand(RemoteCommand command) override;
 
 protected:
-    RawRenderer *renderer;
-    unsigned long new_place = 0, prev_place = 0;
+    RawRenderer *renderer_;
+    unsigned long newPlace_ = 0, prevPlace_ = 0;
 };

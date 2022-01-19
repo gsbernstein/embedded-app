@@ -13,7 +13,7 @@ public:
     // Underlying methods to init and read data
     void begin();
     // Note: File overrides bool and will be false if there's an error
-    File open(const String &path);
+    auto open(const String &path) -> File;
 
 protected:
     static FileSystem *instance;

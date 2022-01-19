@@ -11,8 +11,8 @@ class PagedMenuScreen : public MenuScreen {
 public:
     PagedMenuScreen(Renderer &renderer, Power &power) : MenuScreen(renderer, power){};
 
-    auto next_selection() -> int override;
-    auto prev_selection() -> int override;
+    auto nextSelection() -> int override;
+    auto prevSelection() -> int override;
 
     void render() override;
 };

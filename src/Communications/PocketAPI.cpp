@@ -13,13 +13,13 @@ auto PocketAPI::getInstance() -> PocketAPI * {
     return instance;
 }
 
-void PocketAPI::setAccessToken(const char *token) { access_token = token; }
+void PocketAPI::setAccessToken(const char *token) { accessToken_ = token; }
 
 auto PocketAPI::text(const char *url, SpiRamJsonDocument **response) -> int {
     SHOW_HEAP();
-    http.begin("https://text.getpocket.com/v3/text");
-    http.addHeader("Content-Type", "application/x-www-form-urlencoded");
-    http.useHTTP10(true);
+    http_.begin("https://text.getpocket.com/v3/text");
+    http_.addHeader("Content-Type", "application/x-www-form-urlencoded");
+    http_.useHTTP10(true);
 
     /*
         curl -v \
@@ -27,12 +27,12 @@ auto PocketAPI::text(const char *url, SpiRamJsonDocument **response) -> int {
         https://text.getpocket.com/v3/text | jq
     */
     char request[200];
-    int request_len =
-        sprintf(request, "consumer_key=%s&url=%s", consumer_key, urlencode(url).c_str());
-    if (request_len < -1) {
+    int requestLen =
+        sprintf(request, "consumer_key=%s&url=%s", consumerKey_, Urlencode(url).c_str());
+    if (requestLen < -1) {
         log_e("Failed to construct Pocket request body");
-        http.end();
-        return request_len;
+        http_.end();
+        return requestLen;
     }
 
     // TODO: create this statically?
@@ -40,32 +40,32 @@ auto PocketAPI::text(const char *url, SpiRamJsonDocument **response) -> int {
     filter["excerpt"] = true;
     filter["article"] = true;
 
-    int http_code = http.POST((uint8_t *)request, request_len);
-    if (http_code == 200) {
-        auto size = http.getSize();
+    int httpCode = http_.POST((uint8_t *)request, requestLen);
+    if (httpCode == 200) {
+        auto size = http_.getSize();
         if (size < 0) {
             log_e("Failed to parse Pocket response size=%d", size);
             return size;
         }
         log_d("Parsing Pocket response with size=%d", size);
-        SpiRamJsonDocument *resp = new SpiRamJsonDocument(size);
-        ArduinoJson::deserializeJson(*resp, http.getStream(),
+        auto *resp = new SpiRamJsonDocument(size);
+        ArduinoJson::deserializeJson(*resp, http_.getStream(),
                                      DeserializationOption::Filter(filter));
         *response = resp;
     } else {
-        log_w("Pocket request failed with code %d\n", http_code);
+        log_w("Pocket request failed with code %d\n", httpCode);
     }
     SHOW_HEAP();
-    http.end();
+    http_.end();
     SHOW_HEAP();
-    return http_code;
+    return httpCode;
 }
 
 auto PocketAPI::get(SpiRamJsonDocument **response) -> int {
     SHOW_HEAP();
-    http.begin("https://getpocket.com/v3/get");
-    http.addHeader("Content-Type", "application/x-www-form-urlencoded");
-    http.useHTTP10(true);
+    http_.begin("https://getpocket.com/v3/get");
+    http_.addHeader("Content-Type", "application/x-www-form-urlencoded");
+    http_.useHTTP10(true);
 
     /*
         curl -v \
@@ -73,12 +73,12 @@ auto PocketAPI::get(SpiRamJsonDocument **response) -> int {
         https://getpocket.com/v3/get | jq
     */
     char request[100];
-    int request_len =
-        sprintf(request, "state=all&access_token=%s&consumer_key=%s", access_token, consumer_key);
-    if (request_len < -1) {
+    int requestLen =
+        sprintf(request, "state=all&access_token=%s&consumer_key=%s", accessToken_, consumerKey_);
+    if (requestLen < -1) {
         log_e("Failed to construct Pocket request body");
-        http.end();
-        return request_len;
+        http_.end();
+        return requestLen;
     }
 
     // TODO: create this statically?
@@ -87,26 +87,26 @@ auto PocketAPI::get(SpiRamJsonDocument **response) -> int {
     filter["list"]["*"]["resolved_id"] = true;
     filter["list"]["*"]["resolved_url"] = true;
 
-    int http_code = http.POST((uint8_t *)request, request_len);
-    if (http_code == 200) {
-        auto size = http.getSize();
+    int httpCode = http_.POST((uint8_t *)request, requestLen);
+    if (httpCode == 200) {
+        auto size = http_.getSize();
         if (size < 0) {
             log_e("Failed to parse Pocket response size=%d", size);
             return size;
         }
         log_d("Parsing Pocket response with size=%d", size);
-        SpiRamJsonDocument *resp = new SpiRamJsonDocument(size);
-        ArduinoJson::deserializeJson(*resp, http.getStream(),
+        auto *resp = new SpiRamJsonDocument(size);
+        ArduinoJson::deserializeJson(*resp, http_.getStream(),
                                      DeserializationOption::Filter(filter));
         log_i("Pocket request succeeded");
         *response = resp;
     } else {
-        log_w("Pocket request failed with code %d", http_code);
+        log_w("Pocket request failed with code %d", httpCode);
     }
     SHOW_HEAP();
-    http.end();
+    http_.end();
     SHOW_HEAP();
-    return http_code;
+    return httpCode;
 }
 
 auto PocketAPI::getFirstArticleText(const char **text) -> int {

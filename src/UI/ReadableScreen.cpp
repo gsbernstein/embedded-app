@@ -3,73 +3,73 @@
 #include "sindarin-debug.h"
 
 void ReadableScreen::render() {
-    if (file_renderer != nullptr && file_renderer->get_read_mode() == PAGE_READ) {
-        readable.place_screed = file_renderer->render_continue_screed();
+    if (fileRenderer_ != nullptr && fileRenderer_->getReadMode() == PAGE_READ) {
+        readable_.placeScreed = fileRenderer_->renderContinueScreed();
     }
 
-    if (!needs_rerender) {
+    if (!needsRerender) {
         return;
     }
     log_d("Rendering some text in READ MODE");
-    new_place = file_renderer->render_page_with_box(readable.place);
-    log_d("%d is the new place in the text", new_place);
-    needs_rerender = false;
+    newPlace_ = fileRenderer_->renderPageWithBox(readable_.place);
+    log_d("%d is the new place in the text", newPlace_);
+    needsRerender = false;
 }
 
-void ReadableScreen::process_command(RemoteCommand command) {
+void ReadableScreen::processCommand(RemoteCommand command) {
     auto back = [this]() {
-        if (file_renderer != nullptr && file_renderer->get_read_mode() == SCREED_READ) {
-            readable.place_prev = readable.place;
-            readable.place = readable.place_screed;
-            prefs.readablePlace.set(readable.id, readable.place);
-            prefs.readablePreviousPlace.set(readable.id, readable.place_prev);
+        if (fileRenderer_ != nullptr && fileRenderer_->getReadMode() == SCREED_READ) {
+            readable_.placePrev = readable_.place;
+            readable_.place = readable_.placeScreed;
+            prefs_.readablePlace.set(readable_.id, readable_.place);
+            prefs_.readablePreviousPlace.set(readable_.id, readable_.placePrev);
         }
 
-        if (back_callback != nullptr) {
-            back_callback();
+        if (backCallback != nullptr) {
+            backCallback();
         }
-        needs_rerender = true;
+        needsRerender = true;
     };
 
     switch (command) {
     case RemoteCommand::CHANNEL_MINUS: {
-        readable.place = file_renderer->get_previous_place();
-        prefs.readablePreviousPlace.set(readable.id, readable.place);
-        needs_rerender = true;
+        readable_.place = fileRenderer_->getPreviousPlace();
+        prefs_.readablePreviousPlace.set(readable_.id, readable_.place);
+        needsRerender = true;
         break;
     }
     case RemoteCommand::CHANNEL_PLUS: {
-        readable.place_prev = readable.place;
-        readable.place = new_place;
-        prefs.readablePlace.set(readable.id, readable.place);
-        prefs.readablePreviousPlace.set(readable.id, readable.place_prev);
-        needs_rerender = true;
+        readable_.placePrev = readable_.place;
+        readable_.place = newPlace_;
+        prefs_.readablePlace.set(readable_.id, readable_.place);
+        prefs_.readablePreviousPlace.set(readable_.id, readable_.placePrev);
+        needsRerender = true;
         break;
     }
     case RemoteCommand::PREV:
-        if (file_renderer->get_read_mode() == SCREED_READ) {
-            file_renderer->increase_speed();
+        if (fileRenderer_->getReadMode() == SCREED_READ) {
+            fileRenderer_->increaseSpeed();
         }
         back();
         break;
     case RemoteCommand::NEXT:
-        if (file_renderer->get_read_mode() == SCREED_READ) {
-            file_renderer->decrease_speed();
+        if (fileRenderer_->getReadMode() == SCREED_READ) {
+            fileRenderer_->decreaseSpeed();
         }
-        needs_rerender = true;
+        needsRerender = true;
         break;
     case RemoteCommand::BACK:
         back();
         break;
     case RemoteCommand::NOP_BUTTON:
-        if (file_renderer->get_read_mode() == SCREED_READ) {
-            readable.place_prev = readable.place;
-            readable.place = readable.place_screed;
-            prefs.readablePlace.set(readable.id, readable.place);
-            prefs.readablePreviousPlace.set(readable.id, readable.place_prev);
+        if (fileRenderer_->getReadMode() == SCREED_READ) {
+            readable_.placePrev = readable_.place;
+            readable_.place = readable_.placeScreed;
+            prefs_.readablePlace.set(readable_.id, readable_.place);
+            prefs_.readablePreviousPlace.set(readable_.id, readable_.placePrev);
         }
-        file_renderer->flip_read_mode();
-        needs_rerender = true;
+        fileRenderer_->flipReadMode();
+        needsRerender = true;
         break;
     default:
         break;

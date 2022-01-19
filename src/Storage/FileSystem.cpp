@@ -17,7 +17,7 @@ auto FileSystem::getInstance() -> FileSystem * {
 
 void FileSystem::getReadables(std::vector<Readable> *readables) {
 #if !defined(DISABLE_SPIRAM)
-    SpiRamJsonDocument *manifest = new SpiRamJsonDocument(2048);
+    auto *manifest = new SpiRamJsonDocument(2048);
 #else
     DynamicJsonDocument *manifest = new DynamicJsonDocument(2048);
 #endif
@@ -29,7 +29,7 @@ void FileSystem::getReadables(std::vector<Readable> *readables) {
     deserializeJson(*manifest, manifestFile);
     manifestFile.close();
 
-    JsonArray array = manifest->as<JsonArray>();
+    auto array = manifest->as<JsonArray>();
     readables->reserve(array.size());
     for (JsonVariant v : array) {
         auto readable = Readable(v["id"], v["name"], v["path"]);
@@ -53,14 +53,14 @@ void FileSystem::begin() {
     const char *partitionLabel = "storage";
 
     // Set up SPI bus and initialize the external SPI Flash chip
-    esp_flash_t *flash = SPIFlashInit();
-    if (flash == NULL) {
+    esp_flash_t *flash = SpiFlashInit();
+    if (flash == nullptr) {
         log_e("Failed to load external flash");
         return;
     }
 
     // Add the entire external flash chip as a partition
-    SPIFlashAddPartition(flash, partitionLabel, ESP_PARTITION_SUBTYPE_DATA_SPIFFS);
+    SpiFlashAddPartition(flash, partitionLabel, ESP_PARTITION_SUBTYPE_DATA_SPIFFS);
 #endif
 
     // Launch SPIFFS file system
@@ -71,4 +71,4 @@ void FileSystem::begin() {
     SHOW_HEAP();
 }
 
-File FileSystem::open(const String &path) { return SPIFFS.open(path); }
+auto FileSystem::open(const String &path) -> File { return SPIFFS.open(path); }

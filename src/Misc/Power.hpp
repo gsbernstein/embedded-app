@@ -27,14 +27,14 @@ public:
 protected:
     auto average(const std::array<float, BATTERY_MEASUREMENTS_COUNT> &array, int count) -> float;
 
-    unsigned long lastMeasurementTime;
-    bool depleted;
-    int leftIndex;
-    int rightIndex;
-    int leftMeasurementCount;
-    int rightMeasurementCount;
-    bool leftConnected;
-    bool rightConnected;
-    std::array<float, BATTERY_MEASUREMENTS_COUNT> leftMeasurements;
-    std::array<float, BATTERY_MEASUREMENTS_COUNT> rightMeasurements;
+    unsigned long lastMeasurementTime_;
+    bool depleted_;
+    int leftIndex_;
+    int rightIndex_;
+    int leftMeasurementCount_;
+    int rightMeasurementCount_;
+    bool leftConnected_;
+    bool rightConnected_;
+    std::array<float, BATTERY_MEASUREMENTS_COUNT> leftMeasurements_;
+    std::array<float, BATTERY_MEASUREMENTS_COUNT> rightMeasurements_;
 };

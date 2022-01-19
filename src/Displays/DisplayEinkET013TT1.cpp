@@ -3,22 +3,26 @@
 #include <EPD_TCON.h>
 #include <UI/Fonts/LucidaGrande5pt7b.h>
 
+// These are defined by the lib/swtcon which we don't clang-tidy
+// NOLINTNEXTLINE(readability-identifier-naming)
 extern const EPD_TCON_DRIVER_HAL g_TCON_HAL;
+// NOLINTNEXTLINE(readability-identifier-naming)
 extern void EPD_HAL_Init(uint8_t CS, uint8_t OEI, uint8_t RST, uint8_t BUSY);
+// NOLINTNEXTLINE(readability-identifier-naming)
 extern const unsigned char g_WaveformData[];
 
 // Set up the U8g2lib display
-DisplayEinkET013TT1::DisplayEinkET013TT1(uint8_t CS, uint8_t OEI, uint8_t RST, uint8_t BUSY)
+DisplayEinkET013TT1::DisplayEinkET013TT1(uint8_t cs, uint8_t oei, uint8_t rst, uint8_t busy)
     : Adafruit_GFX(EinkET013TT1_X_PIXELS, EinkET013TT1_Y_PIXELS) {
-    EPD_HAL_Init(CS, OEI, RST, BUSY);
+    EPD_HAL_Init(cs, oei, rst, busy);
 
-    auto_update = true;
+    autoUpdate_ = true;
 
     int32_t ret = EPD_TCON_Init(&g_TCON_HAL);
 
     if (ret < 0) {
         log_d("Bad return code from TCON Init: %d", ret);
-        while (1)
+        while (true)
             ;
     }
 
@@ -29,7 +33,7 @@ DisplayEinkET013TT1::DisplayEinkET013TT1(uint8_t CS, uint8_t OEI, uint8_t RST, u
 
     if (!ret) {
         log_d("Bad return code from waveform load: %d", ret);
-        while (1)
+        while (true)
             ;
     }
 
@@ -53,112 +57,110 @@ DisplayEinkET013TT1::DisplayEinkET013TT1(uint8_t CS, uint8_t OEI, uint8_t RST, u
 #else
     setRotation(0);
 #endif
-    setFont(&LucidaGrande5pt7b);
+    setFont(&LUCIDA_GRANDE5PT7B);
     setTextColor(fg, bg);
     log_d("Set up display (%ld)", (long)this);
 
-    set_x(EinkET013TT1_X_PIXELS);
-    set_y(EinkET013TT1_Y_PIXELS);
-    set_width(EinkET013TT1_WIDTH_IN_MM);
-    set_height(EinkET013TT1_HEIGHT_IN_MM);
+    setX(EinkET013TT1_X_PIXELS);
+    setY(EinkET013TT1_Y_PIXELS);
+    setWidth(EinkET013TT1_WIDTH_IN_MM);
+    setHeight(EinkET013TT1_HEIGHT_IN_MM);
 }
 
 // Fill in with the right splash screen for Eink
-void DisplayEinkET013TT1::display_splash_screen() {}
-
-DisplayEinkET013TT1::~DisplayEinkET013TT1() = default;
+void DisplayEinkET013TT1::displaySplashScreen() {}
 
 // BC: Changed to never do partial_referesh for now.
 // Change to = 1 when we want to try partial refresh again.
-void DisplayEinkET013TT1::set_partial_refresh() { partial_refresh = 0; }
+void DisplayEinkET013TT1::setPartialRefresh() { partialRefresh_ = 0; }
 
-void DisplayEinkET013TT1::unset_partial_refresh() { partial_refresh = 0; }
+void DisplayEinkET013TT1::unsetPartialRefresh() { partialRefresh_ = 0; }
 
-auto DisplayEinkET013TT1::get_partial_refresh() -> int { return partial_refresh; }
+auto DisplayEinkET013TT1::getPartialRefresh() -> int { return partialRefresh_; }
 
-void DisplayEinkET013TT1::set_auto_update(bool update) { auto_update = update; }
+void DisplayEinkET013TT1::setAutoUpdate(bool update) { autoUpdate_ = update; }
 
-bool DisplayEinkET013TT1::get_auto_update() { return auto_update; }
+auto DisplayEinkET013TT1::getAutoUpdate() -> bool { return autoUpdate_; }
 
-const GFXfont *DisplayEinkET013TT1::get_font() { return gfxFont; }
+auto DisplayEinkET013TT1::getFont() -> const GFXfont * { return gfxFont; }
 
-void DisplayEinkET013TT1::set_font(const GFXfont *new_font) { setFont(new_font); }
+void DisplayEinkET013TT1::setFont(const GFXfont *newFont) { Adafruit_GFX::setFont(newFont); }
 
-void DisplayEinkET013TT1::get_text_bounds(const char *buffer, uint16_t *w, uint16_t *h) {
+void DisplayEinkET013TT1::getTextBounds(const char *buffer, uint16_t *w, uint16_t *h) {
     int16_t x, y;
-    getTextBounds(buffer, 0, 0, &x, &y, w, h);
+    Adafruit_GFX::getTextBounds(buffer, 0, 0, &x, &y, w, h);
 }
 
-auto DisplayEinkET013TT1::get_text_height() -> int { return gfxFont->yAdvance + 1; }
+auto DisplayEinkET013TT1::getTextHeight() -> int { return gfxFont->yAdvance + 1; }
 
-auto DisplayEinkET013TT1::get_text_height(const char *buffer) -> int {
+auto DisplayEinkET013TT1::getTextHeight(const char *buffer) -> int {
     int16_t x, y;
     uint16_t w, h;
-    getTextBounds(buffer, 0, 0, &x, &y, &w, &h);
+    Adafruit_GFX::getTextBounds(buffer, 0, 0, &x, &y, &w, &h);
     return h;
 }
 
-auto DisplayEinkET013TT1::get_text_width(const char *buffer) -> int {
+auto DisplayEinkET013TT1::getTextWidth(const char *buffer) -> int {
     int16_t x, y;
     uint16_t w, h;
-    getTextBounds(buffer, 0, 0, &x, &y, &w, &h);
+    Adafruit_GFX::getTextBounds(buffer, 0, 0, &x, &y, &w, &h);
     return w;
 }
 
-void DisplayEinkET013TT1::draw_text_in_box(String new_text, int start_x, int start_y, int end_x,
-                                           int end_y) {
+void DisplayEinkET013TT1::drawTextInBox(String newText, int startX, int startY, int endX,
+                                        int endY) {
 
-    int line_height = 0;
+    int lineHeight = 0;
 
     log_d("Printing some stuff to screen! (%ld)", (long)this);
 
-    line_height = get_text_height();
+    lineHeight = getTextHeight();
 
-    if (get_partial_refresh()) {
-        setPartialWindow(start_x - 2, start_y - 2, (end_x - start_x) + 4, (end_y - start_y) + 4);
+    if (getPartialRefresh()) {
+        setPartialWindow(startX - 2, startY - 2, (endX - startX) + 4, (endY - startY) + 4);
     }
 
-    draw_box_cmds_only(start_x, start_y, end_x, end_y);
-    draw_text_cmds_only(new_text, start_x + 3, start_y + line_height + 1, line_height);
-    if (auto_update) {
+    drawBoxCmdsOnly(startX, startY, endX, endY);
+    drawTextCmdsOnly(newText, startX + 3, startY + lineHeight + 1, lineHeight);
+    if (autoUpdate_) {
         // DO WRITE AND REFRESH
         updateDisplay();
     }
 }
 
-void DisplayEinkET013TT1::draw_box_cmds_only(int start_x, int start_y, int end_x, int end_y) {
+void DisplayEinkET013TT1::drawBoxCmdsOnly(int startX, int startY, int endX, int endY) {
 
-    if (!get_partial_refresh() && auto_update) {
+    if (!getPartialRefresh() && autoUpdate_) {
         fillScreen(bg);
     }
-    drawRect(start_x, start_y, end_x - start_x, end_y - start_y, fg);
+    drawRect(startX, startY, endX - startX, endY - startY, fg);
 }
 
-void DisplayEinkET013TT1::draw_box(int start_x, int start_y, int end_x, int end_y) {
+void DisplayEinkET013TT1::drawBox(int startX, int startY, int endX, int endY) {
     // clear out one pixel around all of it
-    if (get_partial_refresh()) {
-        log_d("Draw box: %d %d | %d %d", start_x, start_y, end_x, end_y);
-        setPartialWindow(start_x - 2, start_y - 2, (end_x - start_x) + 4, (end_y - start_y) + 4);
+    if (getPartialRefresh()) {
+        log_d("Draw box: %d %d | %d %d", startX, startY, endX, endY);
+        setPartialWindow(startX - 2, startY - 2, (endX - startX) + 4, (endY - startY) + 4);
     }
-    log_d("Got here - drawing a box: %d %d | %d %d", start_x, start_y, end_x, end_y);
+    log_d("Got here - drawing a box: %d %d | %d %d", startX, startY, endX, endY);
 
-    draw_box_cmds_only(start_x, start_y, end_x, end_y);
-    if (auto_update) {
+    drawBoxCmdsOnly(startX, startY, endX, endY);
+    if (autoUpdate_) {
         // DO WRITE AND REFRESH
         updateDisplay();
     }
 }
 
-void DisplayEinkET013TT1::draw_text() { draw_text(string_to_draw, x_to_draw, y_to_draw); }
+void DisplayEinkET013TT1::drawText() { drawText(stringToDraw_, xToDraw_, yToDraw_); }
 
-void DisplayEinkET013TT1::draw_text(String new_text) { draw_text(new_text, x_to_draw, y_to_draw); }
+void DisplayEinkET013TT1::drawText(String newText) { drawText(newText, xToDraw_, yToDraw_); }
 
 // This method takes in a string, and assumes that it will have
 // \n characaters in it to determine new lines. By default, the u8g2
 // driver doesn't do new lines, so we have to do the parsing of that ourselves
 // in order to determine the right placement of each new line.
 
-void DisplayEinkET013TT1::draw_text(String new_text, int x, int y) {
+void DisplayEinkET013TT1::drawText(String newText, int x, int y) {
     DEBUG_LN("Printing to screen!");
 
     // hack for now
@@ -166,44 +168,43 @@ void DisplayEinkET013TT1::draw_text(String new_text, int x, int y) {
     // SUPER HACK -- the y value is just guessing about ascent
     // Need to figure out ascent
 
-    int lineHeight = get_text_height();
+    int lineHeight = getTextHeight();
 
-    if (get_partial_refresh()) {
-        setPartialWindow(x, y - 10, EinkET013TT1_X_PIXELS, lineHeight * num_lines + 10);
+    if (getPartialRefresh()) {
+        setPartialWindow(x, y - 10, EinkET013TT1_X_PIXELS, lineHeight * numLines_ + 10);
     }
 
-    draw_text_cmds_only(new_text, x, y, lineHeight);
-    if (auto_update) {
+    drawTextCmdsOnly(newText, x, y, lineHeight);
+    if (autoUpdate_) {
         // DO WRITE AND REFRESH
         updateDisplay();
     }
 }
 
-void DisplayEinkET013TT1::draw_text_cmds_only(const String &new_text, int x, int y,
-                                              int line_height) {
+void DisplayEinkET013TT1::drawTextCmdsOnly(const String &newText, int x, int y, int lineHeight) {
 
-    string_to_draw = std::move(new_text);
+    stringToDraw_ = newText;
 
     // We want to draw the characters down from the x/y coordinates given
     // so the renderer doesn't need to concern itself with how tall the
     // font is, etc.
     // u8g2Fonts->setFontPosTop();
 
-    split_string_to_lines();
+    splitStringToLines();
 
     // We want to have only 1 pixel length difference between the rows of
     // text to squeeze as much in there as we can
     // ascent = u8g2Fonts->getAscent();
     // descent = u8g2Fonts->getDescent();
 
-    if (!get_partial_refresh() && auto_update) {
+    if (!getPartialRefresh() && autoUpdate_) {
         fillScreen(bg);
     }
 
-    for (int i = 0; i < num_lines; i++) {
+    for (int i = 0; i < numLines_; i++) {
         // Don't know if it starts the line from the baseline or from the top -- TO LEARN: HACK
-        setCursor(x, y + i * (line_height));
-        println(lines[i] + "\n");
+        setCursor(x, y + i * (lineHeight));
+        println(lines_[i] + "\n");
         // DEBUG_LN(lines[i]);
         // DEBUG_VAR(x);
         // DEBUG_LN(" is the x direction");
@@ -217,52 +218,52 @@ void DisplayEinkET013TT1::draw_text_cmds_only(const String &new_text, int x, int
    screen. It takes in the bounding box (start x & y, end x & y) and
    calculates where everything needs to go. It currently isn't called
    from anywhere. */
-void DisplayEinkET013TT1::draw_calibration_screen(int start_x, int start_y, int end_x, int end_y) {
-    const int edge_offset = 5;
-    int midpoint_x = ((end_x - start_x) / 2) + start_x;
-    int midpoint_y = ((end_y - start_y) / 2) + start_y;
-    int box_width = end_x - start_x;
-    int box_height = end_y - start_y;
+void DisplayEinkET013TT1::drawCalibrationScreen(int startX, int startY, int endX, int endY) {
+    const int edgeOffset = 5;
+    int midpointX = ((endX - startX) / 2) + startX;
+    int midpointY = ((endY - startY) / 2) + startY;
+    int boxWidth = endX - startX;
+    int boxHeight = endY - startY;
 
-    fillRect(start_x, start_y, box_width, box_height, fg);
-    fillRect(start_x + 2, start_y + 2, box_width - 4, box_height - 4, bg);
-    setFont(&LucidaGrande5pt7b);
+    fillRect(startX, startY, boxWidth, boxHeight, fg);
+    fillRect(startX + 2, startY + 2, boxWidth - 4, boxHeight - 4, bg);
+    setFont(&LUCIDA_GRANDE5PT7B);
 
-    int lets_width = get_text_width("let's");
-    int focus_width = get_text_width("focus");
-    int lets_height = get_text_height();
-    int focus_height = get_text_height();
+    int letsWidth = getTextWidth("let's");
+    int focusWidth = getTextWidth("focus");
+    int letsHeight = getTextHeight();
+    int focusHeight = getTextHeight();
 
     for (int i = 30; i > 23; i--) {
-        drawCircle(midpoint_x, midpoint_y, i, fg);
+        drawCircle(midpointX, midpointY, i, fg);
     }
 
-    setCursor(midpoint_x - lets_width / 2, midpoint_y - 3);
+    setCursor(midpointX - letsWidth / 2, midpointY - 3);
     println("let's");
-    setCursor(midpoint_x - focus_width / 2, midpoint_y + focus_height - 6);
+    setCursor(midpointX - focusWidth / 2, midpointY + focusHeight - 6);
     println("focus");
 
-    setCursor(end_x - get_text_width("lower right") - edge_offset, end_y - edge_offset - 2);
+    setCursor(endX - getTextWidth("lower right") - edgeOffset, endY - edgeOffset - 2);
     println("lower right");
-    setCursor(start_x + edge_offset, end_y - edge_offset - 2); // lower left
+    setCursor(startX + edgeOffset, endY - edgeOffset - 2); // lower left
     println("lower left");
-    setCursor(start_x + edge_offset, start_y + get_text_height() - 2); // upper left
+    setCursor(startX + edgeOffset, startY + getTextHeight() - 2); // upper left
     println("upper left");
-    setCursor(end_x - get_text_width("upper right") - edge_offset, start_y + get_text_height() - 2);
+    setCursor(endX - getTextWidth("upper right") - edgeOffset, startY + getTextHeight() - 2);
     println("upper right");
 }
 
 void DisplayEinkET013TT1::setPartialWindow(uint16_t x, uint16_t y, uint16_t w, uint16_t h) {
-    set_partial_refresh();
-    partialX = min(x, width());
-    partialY = min(y, height());
-    partialW = min(w, width() - partialX);
-    partialH = min(h, height() - partialY);
-    rotate(partialX, partialY, partialW, partialH);
+    setPartialRefresh();
+    partialX_ = min(x, width());
+    partialY_ = min(y, height());
+    partialW_ = min(w, width() - partialX_);
+    partialH_ = min(h, height() - partialY_);
+    rotate(partialX_, partialY_, partialW_, partialH_);
     // force partialX, partialW multiple of 8?
-    partialW += partialX % 8;
-    if (partialW % 8 > 0) partialW += 8 - partialW % 8;
-    partialX -= partialX % 8;
+    partialW_ += partialX_ % 8;
+    if (partialW_ % 8 > 0) partialW_ += 8 - partialW_ % 8;
+    partialX_ -= partialX_ % 8;
 }
 
 void DisplayEinkET013TT1::drawPixel(int16_t x, int16_t y, uint16_t color) {
@@ -284,43 +285,43 @@ void DisplayEinkET013TT1::drawPixel(int16_t x, int16_t y, uint16_t color) {
         y = HEIGHT - y - 1;
         break;
     }
-    if (get_partial_refresh()) {
+    if (getPartialRefresh()) {
         // Transpose partial window to 0,0
-        x -= partialX;
-        y -= partialY;
+        x -= partialX_;
+        y -= partialY_;
         // Enforce partial window size
-        if ((x < 0) || (x >= partialW) || (y < 0) || (y >= partialH)) {
+        if ((x < 0) || (x >= partialW_) || (y < 0) || (y >= partialH_)) {
             log_d("drawPixel out of partial window bounds; short-circuiting call: %d %d | %d %d", x,
-                  y, partialW, partialH);
+                  y, partialW_, partialH_);
             return;
         }
     }
-    uint16_t i = x / 8 + y * (partialW / 8);
-    buffer[i] =
-        (color == 0x0000) ? (buffer[i] & ~(1 << (7 - x % 8))) : (buffer[i] | (1 << (7 - x % 8)));
+    uint16_t i = x / 8 + y * (partialW_ / 8);
+    buffer_[i] =
+        (color == 0x0000) ? (buffer_[i] & ~(1 << (7 - x % 8))) : (buffer_[i] | (1 << (7 - x % 8)));
 }
 
 void DisplayEinkET013TT1::drawXBitmap(int16_t x, int16_t y, const uint8_t bitmap[], int16_t w,
                                       int16_t h, uint16_t color) {
-    if (get_partial_refresh()) {
+    if (getPartialRefresh()) {
         setPartialWindow(x, y, w, h);
     }
     Adafruit_GFX::drawXBitmap(x, y, bitmap, w, h, color);
     log_d("Bitmap drawn, updating display!");
-    if (auto_update) {
+    if (autoUpdate_) {
         // DO WRITE AND REFRESH
         updateDisplay();
     }
 }
 
 void DisplayEinkET013TT1::updateDisplay() {
-    if (get_partial_refresh()) {
-        writePartialImage(partialX, partialY, buffer, partialW, partialH);
+    if (getPartialRefresh()) {
+        writePartialImage(partialX_, partialY_, buffer_, partialW_, partialH_);
         EPD_TCON_PowerOn();
         EPD_TCON_Update(WF_MODE_GU4);
         EPD_TCON_PowerOff();
     } else {
-        writeImage(EPD_TCON_GetUpdateBuffer(), buffer,
+        writeImage(EPD_TCON_GetUpdateBuffer(), buffer_,
                    (EinkET013TT1_X_PIXELS * EinkET013TT1_Y_PIXELS / 8));
         EPD_TCON_Set_Border(bg == 0x00 ? EPD_BORDER_BLACK : EPD_BORDER_WHITE);
         EPD_TCON_PowerOn();
@@ -341,21 +342,21 @@ void DisplayEinkET013TT1::writeImage(uint8_t *fb, const unsigned char *img, uint
     }
 }
 
-uint8_t DisplayEinkET013TT1::writePartialImage(uint16_t x, uint16_t y, const unsigned char *img,
-                                               uint16_t img_w, uint16_t img_h) {
+auto DisplayEinkET013TT1::writePartialImage(uint16_t x, uint16_t y, const unsigned char *img,
+                                            uint16_t imgW, uint16_t imgH) -> uint8_t {
     uint8_t *fb;
     uint32_t i;
 
-    if (((x + img_w) > EinkET013TT1_X_PIXELS) || ((y + img_h) > EinkET013TT1_Y_PIXELS))
+    if (((x + imgW) > EinkET013TT1_X_PIXELS) || ((y + imgH) > EinkET013TT1_Y_PIXELS))
         return 0; // over range
 
-    for (i = 0; i < img_h; ++i) {
+    for (i = 0; i < imgH; ++i) {
         fb = EPD_TCON_GetUpdateBuffer();
 
         fb += (y + i) * (EinkET013TT1_X_PIXELS / 4);
         fb += (x >> 2);
 
-        writeImage(fb, img + (i * (img_w / 8)), (img_w / 8));
+        writeImage(fb, img + (i * (imgW / 8)), (imgW / 8));
     }
     return 1;
 }
