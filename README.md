@@ -51,3 +51,13 @@ Make sure you have `clang-format` installed (`brew install clang-format`). Then 
 ```bash
 find src -iname "*.hpp" -o -iname "*.h" -o -iname "*.cpp" -o -iname "*.c" | xargs clang-format -i
 ```
+
+## Clang-tidy
+
+You can run clang-tidy to do some more advance C++ static analysis and fixes. Make sure you install `clang-tidy` (included with `brew install llvm`) and then run the following to automatically fix things:
+
+```bash
+./scripts/clang-tidy -w --fix
+```
+
+Issues that will be fixed automatically will be fixed by clang-tidy, warnings will mark any suggestions that clang-tidy couldn't fix directly.

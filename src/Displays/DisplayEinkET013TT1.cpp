@@ -3,8 +3,12 @@
 #include <EPD_TCON.h>
 #include <UI/Fonts/LucidaGrande5pt7b.h>
 
+// These are defined by the lib/swtcon which we don't clang-tidy
+// NOLINTNEXTLINE(readability-identifier-naming)
 extern const EPD_TCON_DRIVER_HAL g_TCON_HAL;
+// NOLINTNEXTLINE(readability-identifier-naming)
 extern void EPD_HAL_Init(uint8_t CS, uint8_t OEI, uint8_t RST, uint8_t BUSY);
+// NOLINTNEXTLINE(readability-identifier-naming)
 extern const unsigned char g_WaveformData[];
 
 // Set up the U8g2lib display
