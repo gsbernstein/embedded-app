@@ -25,7 +25,7 @@ void InitializePlatform() {
 
 // Forked from TinyPico's GetBatteryVoltage() method:
 // https://github.com/tinypico/tinypico-arduino/blob/master/TinyPICO-Helper/src/TinyPICO.cpp#L207
-float GetBatteryVoltageLeft() {
+auto GetBatteryVoltageLeft() -> float {
     uint32_t raw, mv;
     esp_adc_cal_characteristics_t chars;
 
@@ -43,7 +43,7 @@ float GetBatteryVoltageLeft() {
     return (float)mv / 1000.0;
 }
 
-float GetBatteryVoltageRight() {
+auto GetBatteryVoltageRight() -> float {
     uint32_t raw, mv;
     esp_adc_cal_characteristics_t chars;
 

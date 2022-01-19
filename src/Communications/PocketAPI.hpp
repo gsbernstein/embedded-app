@@ -10,7 +10,7 @@ class PocketAPI {
 public:
     static auto getInstance() -> PocketAPI *;
 
-    void setAccessToken(const char *access_token);
+    void setAccessToken(const char *accessToken);
     // https://text.getpocket.com/v3/text API
     // Docs: https://docs.google.com/document/d/1R4weidHWfRXjOx8BEROE01ZNQwIGna7KXbIUKH2rzQ0/edit
     // Note: the JsonDocument needs to be freed by the caller
@@ -26,11 +26,11 @@ public:
 
 protected:
     static PocketAPI *instance;
-    const char *access_token;
-    const char *consumer_key = "98329-339ec9babc792e8024ca00e8";
+    const char *accessToken_;
+    const char *consumerKey_ = "98329-339ec9babc792e8024ca00e8";
 
 private:
-    HTTPClient http;
+    HTTPClient http_;
 };
 
 #endif

@@ -5,58 +5,57 @@
 #include "sindarin-debug.h"
 
 DisplaySystem::DisplaySystem() {
-    x_to_draw = 0;
-    y_to_draw = 0;
-    string_to_draw = "";
+    xToDraw_ = 0;
+    yToDraw_ = 0;
+    stringToDraw_ = "";
 }
 
-DisplaySystem::~DisplaySystem() = default;
 /*
 void DisplaySystem::draw_box(int start_x, int start_y, int end_x, int end_y) {
     DEBUG_LN("Drawing box in wrong class :(");
 
 }*/
 
-void DisplaySystem::set_x(int new_x) { x = new_x; }
+void DisplaySystem::setX(int newX) { x_ = newX; }
 
-void DisplaySystem::set_y(int new_y) { y = new_y; }
+void DisplaySystem::setY(int newY) { y_ = newY; }
 
-auto DisplaySystem::get_x() -> int { return x; }
+auto DisplaySystem::getX() -> int { return x_; }
 
-auto DisplaySystem::get_y() -> int { return y; }
+auto DisplaySystem::getY() -> int { return y_; }
 
-void DisplaySystem::set_width(float new_width) { width_in_mm = new_width; }
+void DisplaySystem::setWidth(float newWidth) { widthInMm_ = newWidth; }
 
-void DisplaySystem::set_height(float new_height) { height_in_mm = new_height; }
+void DisplaySystem::setHeight(float newHeight) { heightInMm_ = newHeight; }
 
-auto DisplaySystem::get_width() -> float { return width_in_mm; }
+auto DisplaySystem::getWidth() -> float { return widthInMm_; }
 
-auto DisplaySystem::get_height() -> float { return height_in_mm; }
+auto DisplaySystem::getHeight() -> float { return heightInMm_; }
 
-void DisplaySystem::set_partial_refresh() { partial_refresh = 1; }
+void DisplaySystem::setPartialRefresh() { partialRefresh_ = 1; }
 
-void DisplaySystem::unset_partial_refresh() { partial_refresh = 0; }
+void DisplaySystem::unsetPartialRefresh() { partialRefresh_ = 0; }
 
-auto DisplaySystem::get_partial_refresh() -> int { return partial_refresh; }
+auto DisplaySystem::getPartialRefresh() -> int { return partialRefresh_; }
 
-void DisplaySystem::set_coordinates(int init_x, int init_y) {
-    x_to_draw = init_x;
-    y_to_draw = init_y;
+void DisplaySystem::setCoordinates(int initX, int initY) {
+    xToDraw_ = initX;
+    yToDraw_ = initY;
 }
 
-void DisplaySystem::set_text(const String &new_text) { string_to_draw = std::move(new_text); }
+void DisplaySystem::setText(const String &newText) { stringToDraw_ = newText; }
 
 // Takes the member variable string_to_draw and splits it
 // based on the \n characater and populates the String* lines;
-void DisplaySystem::split_string_to_lines() {
-    int len, i, start_pos, end_pos;
+void DisplaySystem::splitStringToLines() {
+    int len, i, startPos, endPos;
 
-    len = string_to_draw.length();
+    len = stringToDraw_.length();
 
     // Track where we are in the string
-    start_pos = 0;
-    end_pos = 0;
-    num_lines = 1;
+    startPos = 0;
+    endPos = 0;
+    numLines_ = 1;
     // if (Serial) Serial.println("Got to split");
     // if (Serial) Serial.println(string_to_draw);
 
@@ -64,15 +63,15 @@ void DisplaySystem::split_string_to_lines() {
         // We found a new line. Split off the previous line and
         // start processing the new line
         // if (Serial) Serial.print(string_to_draw.charAt(i));
-        if (string_to_draw.charAt(i) == '\n') {
+        if (stringToDraw_.charAt(i) == '\n') {
             // if (Serial) Serial.println("saw a new line");
-            lines[num_lines - 1] = string_to_draw.substring(start_pos, end_pos + 1);
-            num_lines++;
-            assert(num_lines < MAX_LINES_IN_SPLIT);
-            start_pos = i + 1;
-            end_pos = i + 1;
+            lines_[numLines_ - 1] = stringToDraw_.substring(startPos, endPos + 1);
+            numLines_++;
+            assert(numLines_ < MAX_LINES_IN_SPLIT);
+            startPos = i + 1;
+            endPos = i + 1;
         } else {
-            end_pos = i;
+            endPos = i;
         }
     }
 
@@ -83,10 +82,10 @@ void DisplaySystem::split_string_to_lines() {
     //
     // The second part of this || is to handle when there's just a single line with
     // a single character on it with no \n.
-    if ((start_pos != end_pos) || string_to_draw.charAt(end_pos) != '\n')
-        lines[num_lines - 1] = string_to_draw.substring(start_pos, end_pos + 1);
+    if ((startPos != endPos) || stringToDraw_.charAt(endPos) != '\n')
+        lines_[numLines_ - 1] = stringToDraw_.substring(startPos, endPos + 1);
     else
-        num_lines--;
+        numLines_--;
 
     // if (Serial) Serial.println("Finishing split");
 }

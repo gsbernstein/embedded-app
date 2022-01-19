@@ -13,14 +13,14 @@ class BLERemoteInput : public RemoteInput, public BLECharacteristicProvider {
 public:
     void configureCharacteristics(BLEService *service) override;
 
-    void start_remote(int receive_pin_input) override;
-    void start_remote() override;
-    auto check_press() -> int override;
-    auto check_release() -> int override;
+    void startRemote(int receivePinInput) override;
+    void startRemote() override;
+    auto checkPress() -> int override;
+    auto checkRelease() -> int override;
 
 protected:
-    int was_code_processed = 1;
-    RemoteCommand ble_code = RemoteCommand::NONE;
+    int wasCodeProcessed_ = 1;
+    RemoteCommand bleCode_ = RemoteCommand::NONE;
 
     class CharacteristicCallbacks : public BLECharacteristicCallbacks {
     public:
@@ -32,8 +32,8 @@ protected:
             std::string value = characteristic->getValue();
             if (value.length() > 0) {
                 log_d("New value: %.2x", value[0]);
-                enclosed->ble_code = (RemoteCommand)value.data()[0];
-                enclosed->was_code_processed = 0;
+                enclosed->bleCode_ = (RemoteCommand)value.data()[0];
+                enclosed->wasCodeProcessed_ = 0;
             }
         }
     };

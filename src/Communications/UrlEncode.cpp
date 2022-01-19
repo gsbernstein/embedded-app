@@ -3,7 +3,7 @@
 
 #include "UrlEncode.hpp"
 
-auto h2int(char c) -> unsigned char {
+auto H2int(char c) -> unsigned char {
     if (c >= '0' && c <= '9') {
         return ((unsigned char)c - '0');
     }
@@ -16,7 +16,7 @@ auto h2int(char c) -> unsigned char {
     return (0);
 }
 
-auto urldecode(const String &str) -> String {
+auto Urldecode(const String &str) -> String {
 
     String encodedString = "";
     char c;
@@ -31,7 +31,7 @@ auto urldecode(const String &str) -> String {
             code0 = str.charAt(i);
             i++;
             code1 = str.charAt(i);
-            c = (h2int(code0) << 4) | h2int(code1);
+            c = (H2int(code0) << 4) | H2int(code1);
             encodedString += c;
         } else {
 
@@ -44,7 +44,7 @@ auto urldecode(const String &str) -> String {
     return encodedString;
 }
 
-auto urlencode(const String &str) -> String {
+auto Urlencode(const String &str) -> String {
     String encodedString = "";
     char c;
     char code0;

@@ -23,65 +23,63 @@
 
 class DisplaySystem {
 public:
-    auto get_x() -> int;
-    auto get_y() -> int;
-    auto get_width() -> float;
-    auto get_height() -> float;
+    auto getX() -> int;
+    auto getY() -> int;
+    auto getWidth() -> float;
+    auto getHeight() -> float;
 
-    void set_x(int new_x);
-    void set_y(int new_y);
+    void setX(int newX);
+    void setY(int newY);
 
-    void set_width(float new_width);
-    void set_height(float new_height);
+    void setWidth(float newWidth);
+    void setHeight(float newHeight);
 
-    void set_text(const String &new_text);
+    void setText(const String &newText);
 
-    void set_coordinates(int x, int y);
+    void setCoordinates(int x, int y);
 
-    virtual void set_partial_refresh();
-    virtual void unset_partial_refresh();
-    virtual auto get_partial_refresh() -> int;
+    virtual void setPartialRefresh();
+    virtual void unsetPartialRefresh();
+    virtual auto getPartialRefresh() -> int;
 
-    virtual auto get_text_height() -> int = 0;
-    virtual auto get_text_width(const char *buffer) -> int = 0;
+    virtual auto getTextHeight() -> int = 0;
+    virtual auto getTextWidth(const char *buffer) -> int = 0;
 
-    virtual void draw_box(int x_start, int y_start, int x_end, int y_end) = 0;
+    virtual void drawBox(int xStart, int yStart, int xEnd, int yEnd) = 0;
 
-    virtual void draw_text() = 0;
-    virtual void draw_text(String new_text) = 0;
-    virtual void draw_text(String new_text, int x, int y) = 0;
+    virtual void drawText() = 0;
+    virtual void drawText(String newText) = 0;
+    virtual void drawText(String newText, int x, int y) = 0;
 
-    virtual void draw_text_in_box(String new_text, int start_x, int start_y, int end_x,
-                                  int end_y) = 0;
+    virtual void drawTextInBox(String newText, int startX, int startY, int endX, int endY) = 0;
 
-    virtual void draw_big_word_in_box(String new_text, int start_x, int start_y, int end_x,
-                                      int end_y) = 0;
+    virtual void drawBigWordInBox(String newText, int startX, int startY, int endX, int endY) = 0;
 
-    virtual void display_splash_screen() = 0;
+    virtual void displaySplashScreen() = 0;
 
     DisplaySystem();
-    ~DisplaySystem();
+    ~DisplaySystem() = default;
 
 protected:
     // Number of pixels in the X direction
-    int x;
+    int x_;
     // Number of pixels in the Y direction
-    int y;
+    int y_;
 
-    float width_in_mm;
-    float height_in_mm;
+    float widthInMm_;
+    float heightInMm_;
 
-    int x_to_draw = 0;
-    int y_to_draw = 0;
+    int xToDraw_ = 0;
+    int yToDraw_ = 0;
 
-    String string_to_draw;
+    String stringToDraw_;
 
-    void split_string_to_lines();
+    void splitStringToLines();
 
-    int partial_refresh = 0;
+    int partialRefresh_ = 0;
 
-    int num_lines = 0;
-    String lines[MAX_LINES_IN_SPLIT];
+    int numLines_ = 0;
+    String lines_[MAX_LINES_IN_SPLIT];
 };
 
 #endif

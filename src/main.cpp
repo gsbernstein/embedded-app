@@ -39,7 +39,7 @@ DisplayEink154in *my_display;
 #endif
 
 #ifdef EINKET013TT1
-DisplayEinkET013TT1 *my_display;
+DisplayEinkET013TT1 *myDisplay;
 #endif
 
 #ifdef OLED96in
@@ -59,7 +59,7 @@ OpticsPlanoConvex16mmX36mm *my_optics;
 #endif
 
 #ifdef Hastings20x40_3
-OpticsHastings20mmX40_3mm *my_optics;
+OpticsHastings20mmX403mm *myOptics;
 #endif
 
 PreferencesStore prefs;
@@ -76,22 +76,22 @@ BLESindarinService bleSindarinService;
 
 #ifdef USE_BLE_SERVER_REMOTE
 #include "Inputs/BLERemoteInput.hpp"
-BLERemoteInput *ble_remote_input;
+BLERemoteInput *bleRemoteInput;
 #endif
 
 #ifdef USE_BLE_SERVER_SETTINGS
 #include "Communications/BLESettings.hpp"
-BLESettings *ble_settings;
+BLESettings *bleSettings;
 #endif
 
 #ifdef USE_BLE_SERVER_IMPROV
 #include "Communications/BLEImprov.hpp"
-BLEImprov *ble_wifi;
+BLEImprov *bleWifi;
 #endif
 
 #ifdef USE_TURN_TOUCH_REMOTE
 #include "Inputs/TTRemoteInput.hpp"
-TTRemoteInput tt_remote_input(prefs);
+TTRemoteInput ttRemoteInput(prefs);
 #endif
 
 #ifdef ENABLE_OTA
@@ -100,9 +100,9 @@ OTA ota;
 
 Power power;
 
-RootUI root_ui(prefs, power);
+RootUI rootUi(prefs, power);
 
-void setupDisplayAndOptics() {
+void SetupDisplayAndOptics() {
 #ifdef EINK154in
     my_display = new DisplayEink154in();
     SIZE_OF(*my_display);
@@ -113,9 +113,9 @@ void setupDisplayAndOptics() {
 #ifdef GILPICO_SINDARIN
     // Turn on power to the screen
     digitalWrite(DISPLAY_POWER, HIGH);
-    my_display = new DisplayEinkET013TT1(DISPLAY_CS, DISPLAY_OEI, DISPLAY_RST, DISPLAY_BUSY);
+    myDisplay = new DisplayEinkET013TT1(DISPLAY_CS, DISPLAY_OEI, DISPLAY_RST, DISPLAY_BUSY);
 #endif
-    SIZE_OF(*my_display);
+    SIZE_OF(*myDisplay);
 #endif
 
 #ifdef OLED96in
@@ -135,8 +135,8 @@ void setupDisplayAndOptics() {
 #endif
 
 #ifdef Hastings20x40_3
-    my_optics = new OpticsHastings20mmX40_3mm();
-    SIZE_OF(*my_optics);
+    myOptics = new OpticsHastings20mmX403mm();
+    SIZE_OF(*myOptics);
 #endif
 }
 
@@ -147,7 +147,7 @@ void setup() {
 
     SHOW_HEAP();
 
-    setupDisplayAndOptics();
+    SetupDisplayAndOptics();
 
 #ifdef USE_IR_REMOTE
     ir_remote_input = new IRRemoteInput();
@@ -161,13 +161,13 @@ void setup() {
     auto sindarinService = bleSindarinService.configureService(bleManager->server());
 
 #ifdef USE_BLE_SERVER_REMOTE
-    ble_remote_input = new BLERemoteInput();
-    ble_remote_input->configureCharacteristics(sindarinService);
+    bleRemoteInput = new BLERemoteInput();
+    bleRemoteInput->configureCharacteristics(sindarinService);
 #endif
 
 #ifdef USE_BLE_SERVER_SETTINGS
-    ble_settings = new BLESettings(&prefs);
-    ble_settings->configureCharacteristics(sindarinService);
+    bleSettings = new BLESettings(&prefs);
+    bleSettings->configureCharacteristics(sindarinService);
 #endif
 
     bleSindarinService.start();
@@ -180,21 +180,21 @@ void setup() {
     // also use the Sindarin mobile app as-is after provisioning is done. If we
     // want to merge these in the future, it will be as simple as using
     // ble_wifi->configureCharacteristics(sindarinService)
-    ble_wifi = new BLEImprov();
-    ble_wifi->configureService(bleManager->server());
-    ble_wifi->start();
+    bleWifi = new BLEImprov();
+    bleWifi->configureService(bleManager->server());
+    bleWifi->start();
 #endif
 
     bleManager->startAdvertisingIfNecessary();
 
 #ifdef USE_TURN_TOUCH_REMOTE
-    tt_remote_input.start_remote();
+    ttRemoteInput.startRemote();
 #endif
 
     prefs.begin();
 
 #ifndef DISABLE_WIFI
-    connectWiFiIfCredentialsExist();
+    ConnectWiFiIfCredentialsExist();
 
 #ifdef ENABLE_OTA
     ota.setup();
@@ -209,7 +209,7 @@ void setup() {
 
     power.setup();
 
-    root_ui.setup(my_display, my_optics, *readables);
+    rootUi.setup(myDisplay, myOptics, *readables);
 
     SHOW_HEAP();
 
@@ -218,7 +218,7 @@ void setup() {
 
 void loop() {
 #if defined(USE_BLE_SERVER_REMOTE) && !defined(DISABLE_WIFI)
-    ble_wifi->loop();
+    bleWifi->loop();
 #endif
 
 // Always have to do a check press and check release. In this case, we don't care about press.
@@ -227,17 +227,17 @@ void loop() {
 #endif
 
 #ifdef USE_BLE_SERVER_REMOTE
-    ble_remote_input->check_press();
+    bleRemoteInput->checkPress();
 #endif
 
 #ifdef USE_TURN_TOUCH_REMOTE
-    tt_remote_input.check_press();
+    ttRemoteInput.checkPress();
 #endif
 
     // We could do this better by iterating, but fine for now with only a few input devices.
     // Note that if an IR input comes in and then a BLE input comes at the same time,
     // it may only get one of them. This seems unlikely.
-    RemoteCommand code_from_release = RemoteCommand::NONE;
+    RemoteCommand codeFromRelease = RemoteCommand::NONE;
 
 #ifdef USE_IR_REMOTE
     if (ir_remote_input->check_release()) {
@@ -246,22 +246,22 @@ void loop() {
 #endif
 
 #ifdef USE_BLE_SERVER_REMOTE
-    if (ble_remote_input->check_release()) {
-        code_from_release = ble_remote_input->get_code();
+    if (bleRemoteInput->checkRelease()) {
+        codeFromRelease = bleRemoteInput->getCode();
     }
 #endif
 
 #ifdef USE_TURN_TOUCH_REMOTE
-    if (tt_remote_input.check_release()) {
-        code_from_release = tt_remote_input.get_code();
+    if (ttRemoteInput.checkRelease()) {
+        codeFromRelease = ttRemoteInput.getCode();
     }
 #endif
 
-    if (code_from_release != RemoteCommand::NONE) {
+    if (codeFromRelease != RemoteCommand::NONE) {
         digitalWrite(RED_LED, HIGH);
     }
 
-    root_ui.loop(code_from_release);
+    rootUi.loop(codeFromRelease);
 
     digitalWrite(RED_LED, LOW);
 

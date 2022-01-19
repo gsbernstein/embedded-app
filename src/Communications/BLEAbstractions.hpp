@@ -11,9 +11,9 @@ public:
 //! Abstract class that provides a BLEService
 class BLEServiceProvider {
 protected:
-    BLEService *service;
+    BLEService *service_;
 
 public:
-    virtual BLEService *configureService(BLEServer *server) = 0;
+    virtual auto configureService(BLEServer *server) -> BLEService * = 0;
     virtual void start() = 0;
 };

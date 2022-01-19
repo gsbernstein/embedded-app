@@ -2,4 +2,4 @@
 
 #include "sindarin-debug.h"
 
-void PreferencesStore::begin() { prefs.begin("sindarin-app", false); }
+void PreferencesStore::begin() { prefs_.begin("sindarin-app", false); }

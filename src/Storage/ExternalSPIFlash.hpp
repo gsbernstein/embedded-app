@@ -1,9 +1,9 @@
 #include <esp_flash.h>
 #include <esp_partition.h>
 
-esp_flash_t *SPIFlashInit(void);
+auto SpiFlashInit() -> esp_flash_t *;
 
-const esp_partition_t *SPIFlashAddPartition(esp_flash_t *ext_flash, const char *partition_label,
-                                            esp_partition_subtype_t subtype);
+auto SpiFlashAddPartition(esp_flash_t *extFlash, const char *partitionLabel,
+                          esp_partition_subtype_t subtype) -> const esp_partition_t *;
 
-void SPIFlashListPartitions(void);
+void SpiFlashListPartitions();

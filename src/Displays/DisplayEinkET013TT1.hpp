@@ -16,58 +16,58 @@
 
 class DisplayEinkET013TT1 : public DisplaySystem, public Adafruit_GFX {
 public:
-    DisplayEinkET013TT1(uint8_t CS, uint8_t OEI, uint8_t RST, uint8_t BUSY);
-    ~DisplayEinkET013TT1();
+    DisplayEinkET013TT1(uint8_t cs, uint8_t oei, uint8_t rst, uint8_t busy);
+    ~DisplayEinkET013TT1() override = default;
 
-    void draw_box(int x_start, int y_start, int x_end, int y_end);
+    void drawBox(int xStart, int yStart, int xEnd, int yEnd) override;
 
-    void draw_text();
-    void draw_text(String new_text);
-    void draw_text(String new_text, int x, int y);
+    void drawText() override;
+    void drawText(String newText) override;
+    void drawText(String newText, int x, int y) override;
 
-    void draw_text_in_box(String new_text, int start_x, int start_y, int end_x, int end_y);
+    void drawTextInBox(String newText, int startX, int startY, int endX, int endY) override;
 
-    void draw_calibration_screen(int start_x, int start_y, int end_x, int end_y);
+    void drawCalibrationScreen(int startX, int startY, int endX, int endY);
 
-    void get_text_bounds(const char *buffer, uint16_t *w, uint16_t *h);
-    int get_text_height();
-    int get_text_height(const char *buffer);
-    int get_text_width(const char *buffer);
+    void getTextBounds(const char *buffer, uint16_t *w, uint16_t *h);
+    auto getTextHeight() -> int override;
+    auto getTextHeight(const char *buffer) -> int;
+    auto getTextWidth(const char *buffer) -> int override;
 
-    void set_partial_refresh();
-    void unset_partial_refresh();
-    int get_partial_refresh();
+    void setPartialRefresh() override;
+    void unsetPartialRefresh() override;
+    auto getPartialRefresh() -> int override;
 
-    void set_auto_update(bool update);
-    bool get_auto_update();
+    void setAutoUpdate(bool update);
+    auto getAutoUpdate() -> bool;
 
-    void display_splash_screen();
+    void displaySplashScreen() override;
 
-    void draw_big_word_in_box(String new_text, int start_x, int start_y, int end_x, int end_y) {
+    void drawBigWordInBox(String newText, int startX, int startY, int endX, int endY) override {
         assert(0);
     }
 
-    const GFXfont *get_font();
-    void set_font(const GFXfont *new_font);
+    auto getFont() -> const GFXfont *;
+    void setFont(const GFXfont *newFont);
 
-    virtual void drawPixel(int16_t x, int16_t y, uint16_t color);
+    void drawPixel(int16_t x, int16_t y, uint16_t color) override;
     virtual void drawXBitmap(int16_t x, int16_t y, const uint8_t bitmap[], int16_t w, int16_t h,
                              uint16_t color);
     void updateDisplay();
     void setPartialWindow(uint16_t x, uint16_t y, uint16_t w, uint16_t h);
     void setFullWindow() {
-        unset_partial_refresh();
-        partialX = 0;
-        partialY = 0;
-        partialW = WIDTH;
-        partialH = HEIGHT;
+        unsetPartialRefresh();
+        partialX_ = 0;
+        partialY_ = 0;
+        partialW_ = WIDTH;
+        partialH_ = HEIGHT;
     }
-    void fillScreen(uint16_t color) // 0x0 black, >0x0 white, to buffer
+    void fillScreen(uint16_t color) override // 0x0 black, >0x0 white, to buffer
     {
         // Clamp to black or white
         uint8_t data = (color == 0) ? color : 0xFF;
-        for (uint16_t x = 0; x < sizeof(buffer); x++) {
-            buffer[x] = data;
+        for (unsigned char &x : buffer_) {
+            x = data;
         }
     }
 
@@ -75,21 +75,21 @@ public:
     uint16_t fg = 0xFFFF; // 0x0000;
 
 protected:
-    bool auto_update;
+    bool autoUpdate_;
 
-    void draw_text_cmds_only(const String &new_text, int x, int y, int line_height);
-    void draw_box_cmds_only(int x_start, int y_start, int x_end, int y_end);
+    void drawTextCmdsOnly(const String &newText, int x, int y, int lineHeight);
+    void drawBoxCmdsOnly(int xStart, int yStart, int xEnd, int yEnd);
 
-    static inline uint16_t min(uint16_t a, uint16_t b) { return (a < b ? a : b); };
-    static inline uint16_t max(uint16_t a, uint16_t b) { return (a > b ? a : b); };
+    static inline auto min(uint16_t a, uint16_t b) -> uint16_t { return (a < b ? a : b); };
+    static inline auto max(uint16_t a, uint16_t b) -> uint16_t { return (a > b ? a : b); };
     template <typename T> static inline void swap(T &a, T &b) {
         T temp = a;
         a = b;
         b = temp;
     };
 
-    uint16_t partialX, partialY, partialW, partialH;
-    uint8_t buffer[(EinkET013TT1_X_PIXELS / 8) * EinkET013TT1_Y_PIXELS];
+    uint16_t partialX_, partialY_, partialW_, partialH_;
+    uint8_t buffer_[(EinkET013TT1_X_PIXELS / 8) * EinkET013TT1_Y_PIXELS];
     void rotate(uint16_t &x, uint16_t &y, uint16_t &w, uint16_t &h) {
         switch (getRotation()) {
         case 1:
@@ -109,8 +109,8 @@ protected:
         }
     }
     void writeImage(uint8_t *fb, const unsigned char *img, uint16_t size);
-    uint8_t writePartialImage(uint16_t x, uint16_t y, const unsigned char *img, uint16_t img_w,
-                              uint16_t img_h);
+    auto writePartialImage(uint16_t x, uint16_t y, const unsigned char *img, uint16_t imgW,
+                           uint16_t imgH) -> uint8_t;
 };
 
 #endif

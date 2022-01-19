@@ -6,7 +6,7 @@
 
 #include "config.h"
 
-void connectWiFiIfCredentialsExist() {
+void ConnectWiFiIfCredentialsExist() {
     // If credentials are available, go ahead and attempt WiFi connection
     if (!WiFi.enableSTA(true)) {
         log_e("STA enable failed!");

@@ -6,16 +6,16 @@
 
 class ReadableScreen : public Screen {
 public:
-    ReadableScreen(FileRenderer *file_renderer, Readable &readable, PreferencesStore &prefs)
-        : file_renderer(file_renderer), readable(readable), prefs(prefs) {}
-    ~ReadableScreen() = default;
+    ReadableScreen(FileRenderer *fileRenderer, Readable &readable, PreferencesStore &prefs)
+        : fileRenderer_(fileRenderer), readable_(readable), prefs_(prefs) {}
+    ~ReadableScreen() override = default;
 
-    void render();
-    void process_command(RemoteCommand command);
+    void render() override;
+    void processCommand(RemoteCommand command) override;
 
 protected:
-    FileRenderer *file_renderer;
-    Readable &readable;
-    PreferencesStore &prefs;
-    unsigned long new_place = 0;
+    FileRenderer *fileRenderer_;
+    Readable &readable_;
+    PreferencesStore &prefs_;
+    unsigned long newPlace_ = 0;
 };

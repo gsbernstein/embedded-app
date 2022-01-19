@@ -25,16 +25,16 @@ public:
     void loop();
 
     void configureCharacteristics(BLEService *service) override;
-    BLEService *configureService(BLEServer *server) override;
+    auto configureService(BLEServer *server) -> BLEService * override;
     void start() override;
 
 protected:
-    uint32_t last_state_change_millis;
-    BLECharacteristic *current_state_characteristic;
-    BLECharacteristic *error_state_characteristic;
-    BLECharacteristic *rpc_result_characteristic;
-    BLEImprovState state;
-    improv::ImprovCommand lastCommand;
+    uint32_t lastStateChangeMillis_;
+    BLECharacteristic *currentStateCharacteristic_;
+    BLECharacteristic *errorStateCharacteristic_;
+    BLECharacteristic *rpcResultCharacteristic_;
+    BLEImprovState state_;
+    improv::ImprovCommand lastCommand_;
 
     void setState(BLEImprovState state);
     void setError(improv::Error error, bool notify = true);
@@ -52,14 +52,14 @@ protected:
             if (characteristic->getUUID().equals(BLEUUID(improv::RPC_COMMAND_UUID))) {
                 std::string value = characteristic->getValue();
                 improv::ImprovCommand command =
-                    improv::parse_improv_data((uint8_t *)value.c_str(), value.length());
+                    improv::ParseImprovData((uint8_t *)value.c_str(), value.length());
                 switch (command.command) {
                 case improv::BAD_CHECKSUM: {
                     log_e("Error: Bad Checksum from Improv message");
                     break;
                 }
                 case improv::WIFI_SETTINGS: {
-                    this->enclosed->lastCommand = command;
+                    this->enclosed->lastCommand_ = command;
                     this->enclosed->setState(STATE_READY_TO_CONNECT);
                     break;
                 }

@@ -15,7 +15,7 @@ public:
     void configureCharacteristics(BLEService *service) override;
 
 protected:
-    PreferencesStore *prefs;
+    PreferencesStore *prefs_;
     class CharacteristicCallbacks : public BLECharacteristicCallbacks {
     public:
         BLESettings *enclosed;
@@ -26,7 +26,7 @@ protected:
             std::string value = characteristic->getValue();
             if (value.length() > 0) {
                 // TODO: Handle other types of settings values
-                enclosed->prefs->pocketApiToken.set(String(value.c_str()));
+                enclosed->prefs_->pocketApiToken.set(String(value.c_str()));
                 log_i("Got Pocket Access Token");
             }
         }

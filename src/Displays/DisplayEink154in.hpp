@@ -53,7 +53,7 @@
 class DisplayEink154in : public DisplaySystem {
 public:
     DisplayEink154in();
-    ~DisplayEink154in();
+    ~DisplayEink154in() = default;
 
 #ifdef Eink154in_USE_SPRAM
     auto operator new(size_t size) -> void * {
@@ -64,51 +64,50 @@ public:
     void operator delete(void *p) { heap_caps_free(p); }
 #endif
 
-    void draw_box(int x_start, int y_start, int x_end, int y_end) override;
+    void drawBox(int xStart, int yStart, int xEnd, int yEnd) override;
 
-    void draw_text() override;
-    void draw_text(String new_text) override;
-    void draw_text(String new_text, int x, int y) override;
+    void drawText() override;
+    void drawText(String newText) override;
+    void drawText(String newText, int x, int y) override;
 
-    void draw_text_in_box(String new_text, int start_x, int start_y, int end_x, int end_y) override;
+    void drawTextInBox(String newText, int startX, int startY, int endX, int endY) override;
 
-    auto get_text_height() -> int override;
-    auto get_text_width(const char *buffer) -> int override;
+    auto getTextHeight() -> int override;
+    auto getTextWidth(const char *buffer) -> int override;
 
-    void set_partial_refresh();
-    void unset_partial_refresh();
-    auto get_partial_refresh() -> int;
+    void setPartialRefresh() override;
+    void unsetPartialRefresh() override;
+    auto getPartialRefresh() -> int override;
 
-    void display_splash_screen() override;
-    void put_up_hello_world();
+    void displaySplashScreen() override;
+    void putUpHelloWorld();
 
-    void draw_big_word_in_box(String new_text, int start_x, int start_y, int end_x,
-                              int end_y) override {
+    void drawBigWordInBox(String newText, int startX, int startY, int endX, int endY) override {
         assert(0);
     }
 
-    void set_font(const uint8_t *new_font);
+    void setFont(const uint8_t *newFont);
 
 protected:
-    void draw_text_cmds_only(const String &new_text, int x, int y, int line_height);
-    void draw_box_cmds_only(int x_start, int y_start, int x_end, int y_end);
-    void setup_display_for_text();
+    void drawTextCmdsOnly(const String &newText, int x, int y, int lineHeight);
+    void drawBoxCmdsOnly(int xStart, int yStart, int xEnd, int yEnd);
+    void setupDisplayForText();
 
-    const uint8_t *font;
+    const uint8_t *font_;
     // U8G2_SSD1306_128X64_NONAME_F_HW_I2C* u8g2;
-    U8G2_FOR_ADAFRUIT_GFX u8g2Fonts;
+    U8G2_FOR_ADAFRUIT_GFX u8g2Fonts_;
 #ifdef HUZZAH32_SINDARIN
     GxEPD2_BW<GxEPD2_DRIVER_CLASS, MAX_HEIGHT(GxEPD2_DRIVER_CLASS)> display =
         GxEPD2_DISPLAY_CLASS<GxEPD2_DRIVER_CLASS, MAX_HEIGHT(GxEPD2_DRIVER_CLASS)>(
             GxEPD2_DRIVER_CLASS(/*CS=5*/ 14, /*DC=*/15, /*RST=*/27, /*BUSY=*/13));
 #else
-    GxEPD2_BW<GxEPD2_DRIVER_CLASS, MAX_HEIGHT(GxEPD2_DRIVER_CLASS)> display =
+    GxEPD2_BW<GxEPD2_DRIVER_CLASS, MAX_HEIGHT(GxEPD2_DRIVER_CLASS)> display_ =
         GxEPD2_DISPLAY_CLASS<GxEPD2_DRIVER_CLASS, MAX_HEIGHT(GxEPD2_DRIVER_CLASS)>(
             GxEPD2_DRIVER_CLASS(/*CS=5*/ 5, /*DC=*/4, /*RST=*/32, /*BUSY=*/33));
 #endif
 
-    uint16_t bg = GxEPD_WHITE;
-    uint16_t fg = GxEPD_BLACK;
+    uint16_t bg_ = GxEPD_WHITE;
+    uint16_t fg_ = GxEPD_BLACK;
 };
 
 #endif

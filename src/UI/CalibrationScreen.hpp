@@ -4,6 +4,6 @@
 
 class CalibrationScreen : public BitmapScreen {
 public:
-    CalibrationScreen(Renderer &renderer) : BitmapScreen(renderer, Logo_bits) {}
-    ~CalibrationScreen() = default;
+    CalibrationScreen(Renderer &renderer) : BitmapScreen(renderer, LOGO_BITS) {}
+    ~CalibrationScreen() override = default;
 };

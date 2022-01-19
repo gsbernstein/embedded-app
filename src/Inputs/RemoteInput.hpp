@@ -19,19 +19,19 @@ enum RemoteCommand : int {
     NONE = -1,
 };
 
-const char *codeToString(RemoteCommand code);
+auto CodeToString(RemoteCommand code) -> const char *;
 
 class RemoteInput {
 
 public:
-    virtual void start_remote() = 0;
-    virtual void start_remote(int data) = 0;
-    virtual auto check_press() -> int = 0;
-    virtual auto check_release() -> int = 0;
-    auto get_code() -> RemoteCommand;
+    virtual void startRemote() = 0;
+    virtual void startRemote(int data) = 0;
+    virtual auto checkPress() -> int = 0;
+    virtual auto checkRelease() -> int = 0;
+    auto getCode() -> RemoteCommand;
 
 protected:
-    RemoteCommand last_code = RemoteCommand::NONE;
+    RemoteCommand lastCode_ = RemoteCommand::NONE;
 };
 
 #endif

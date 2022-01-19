@@ -7,7 +7,7 @@
 
 #define SETTINGS_CHARACTERISTIC_UUID "611f68af-5ffe-4944-9b8f-ef6773326268"
 
-BLESettings::BLESettings(PreferencesStore *prefs) { this->prefs = prefs; }
+BLESettings::BLESettings(PreferencesStore *prefs) { this->prefs_ = prefs; }
 
 void BLESettings::configureCharacteristics(BLEService *service) {
     BLECharacteristic *characteristic = service->createCharacteristic(

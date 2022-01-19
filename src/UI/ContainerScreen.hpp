@@ -7,10 +7,10 @@ Screen that can contain other screens and switch between them.
 */
 class ContainerScreen : public Screen {
 public:
-    void set_current_screen(Screen &screen);
-    void render();
-    virtual void process_command(RemoteCommand command);
+    void setCurrentScreen(Screen &screen);
+    void render() override;
+    void processCommand(RemoteCommand command) override;
 
 protected:
-    Screen *current_screen;
+    Screen *currentScreen_;
 };

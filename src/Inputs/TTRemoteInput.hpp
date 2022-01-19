@@ -36,26 +36,26 @@
 class TTRemoteInput : public RemoteInput {
 
 public:
-    TTRemoteInput(PreferencesStore &prefs) : RemoteInput(), prefs(prefs){};
-    void start_remote(int receive_pin_input) override;
-    void start_remote() override;
-    auto check_press() -> int override;
-    auto check_release() -> int override;
+    TTRemoteInput(PreferencesStore &prefs) : RemoteInput(), prefs_(prefs){};
+    void startRemote(int receivePinInput) override;
+    void startRemote() override;
+    auto checkPress() -> int override;
+    auto checkRelease() -> int override;
     void buttonNotificationCallback(BLERemoteCharacteristic *remoteCharacteristic, uint8_t *data,
                                     size_t length, bool isNotify);
 
 protected:
-    void doneScanning(NimBLEScanResults results);
+    void doneScanning(const NimBLEScanResults &results);
 
-    PreferencesStore &prefs;
-    BLEAdvertisedDevice *turntouchDevice = nullptr;
-    bool deviceConnected = false;
-    int was_code_processed = 1;
-    RemoteCommand ble_code = RemoteCommand::NONE;
-    long lastScanMs = 0;
-    BLEClient *client = nullptr;
+    PreferencesStore &prefs_;
+    BLEAdvertisedDevice *turntouchDevice_ = nullptr;
+    bool deviceConnected_ = false;
+    int wasCodeProcessed_ = 1;
+    RemoteCommand bleCode_ = RemoteCommand::NONE;
+    long lastScanMs_ = 0;
+    BLEClient *client_ = nullptr;
 
-    bool connectToDevice(BLEAdvertisedDevice *device);
+    auto connectToDevice(BLEAdvertisedDevice *device) -> bool;
     void scanForDevice();
 
     class AdvertisedDeviceCallbacks : public BLEAdvertisedDeviceCallbacks {
@@ -76,17 +76,17 @@ protected:
                 //  - This is the paired device
                 //  - We don't have any paired devices and this device is advertising the TurnTouch
                 //    button service
-                std::optional<BLEAddress> address = enclosed->prefs.pairedTurnTouchAddress.get();
+                std::optional<BLEAddress> address = enclosed->prefs_.pairedTurnTouchAddress.get();
                 if ((address.has_value() && address.value() == advertisedDevice->getAddress()) ||
                     (!address.has_value() &&
                      advertisedDevice->isAdvertisingService(BLEUUID(TURNTOUCH_BUTTON_SVC_ID)))) {
                     BLEDevice::getScan()->stop();
                     log_i("%s TurnTouch device found; queueing for connect...",
                           address.has_value() ? "Paired" : "New");
-                    if (enclosed->turntouchDevice != nullptr) {
-                        delete enclosed->turntouchDevice;
+                    if (enclosed->turntouchDevice_ != nullptr) {
+                        delete enclosed->turntouchDevice_;
                     }
-                    enclosed->turntouchDevice = new BLEAdvertisedDevice(*advertisedDevice);
+                    enclosed->turntouchDevice_ = new BLEAdvertisedDevice(*advertisedDevice);
                 }
             }
         }
@@ -102,10 +102,10 @@ protected:
 
         void onDisconnect(BLEClient *client) override {
             log_i("BLE TurnTouch client disconnected!");
-            enclosed->deviceConnected = false;
-            if (enclosed->turntouchDevice != nullptr) {
-                delete enclosed->turntouchDevice;
-                enclosed->turntouchDevice = nullptr;
+            enclosed->deviceConnected_ = false;
+            if (enclosed->turntouchDevice_ != nullptr) {
+                delete enclosed->turntouchDevice_;
+                enclosed->turntouchDevice_ = nullptr;
             }
         }
     };

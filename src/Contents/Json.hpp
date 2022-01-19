@@ -8,8 +8,8 @@ struct SpiRamAllocator {
 
     void deallocate(void *pointer) { heap_caps_free(pointer); }
 
-    auto reallocate(void *ptr, size_t new_size) -> void * {
-        return heap_caps_realloc(ptr, new_size, MALLOC_CAP_SPIRAM);
+    auto reallocate(void *ptr, size_t newSize) -> void * {
+        return heap_caps_realloc(ptr, newSize, MALLOC_CAP_SPIRAM);
     }
 };
 

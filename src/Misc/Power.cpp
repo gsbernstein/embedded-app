@@ -6,36 +6,36 @@
 #include "Misc/Platform.hpp"
 #include "sindarin-debug.h"
 
-void Power::setup() { this->lastMeasurementTime = millis(); }
+void Power::setup() { this->lastMeasurementTime_ = millis(); }
 
 void Power::loop() {
     auto now = millis();
-    if (now > this->lastMeasurementTime + BATTERY_MEASUREMENT_PERIOD_SECONDS * 1000) {
+    if (now > this->lastMeasurementTime_ + BATTERY_MEASUREMENT_PERIOD_SECONDS * 1000) {
         auto left = GetBatteryVoltageLeft();
         auto right = GetBatteryVoltageRight();
-        this->leftConnected = left > BATTERY_DISCONNECT_THRESHOLD;
-        this->rightConnected = right > BATTERY_DISCONNECT_THRESHOLD;
+        this->leftConnected_ = left > BATTERY_DISCONNECT_THRESHOLD;
+        this->rightConnected_ = right > BATTERY_DISCONNECT_THRESHOLD;
 
         // Save into the array as a circular buffer of up to BATTERY_MEASUREMENTS_COUNT most recent
         // values, but only if the battery is connected. We don't want to mess up the averages if
         // the battery is disconnected temporarily.
-        if (this->leftConnected) {
-            this->leftMeasurements[this->leftIndex] = left;
-            this->leftIndex = (this->leftIndex + 1) % BATTERY_MEASUREMENTS_COUNT;
-            this->leftMeasurementCount =
-                std::min(this->leftMeasurementCount + 1, BATTERY_MEASUREMENTS_COUNT);
+        if (this->leftConnected_) {
+            this->leftMeasurements_[this->leftIndex_] = left;
+            this->leftIndex_ = (this->leftIndex_ + 1) % BATTERY_MEASUREMENTS_COUNT;
+            this->leftMeasurementCount_ =
+                std::min(this->leftMeasurementCount_ + 1, BATTERY_MEASUREMENTS_COUNT);
         } else {
-            this->leftMeasurementCount = 0;
-            this->leftIndex = 0;
+            this->leftMeasurementCount_ = 0;
+            this->leftIndex_ = 0;
         }
-        if (this->rightConnected) {
-            this->rightMeasurements[this->rightIndex] = right;
-            this->rightIndex = (this->rightIndex + 1) % BATTERY_MEASUREMENTS_COUNT;
-            this->rightMeasurementCount =
-                std::min(this->rightMeasurementCount + 1, BATTERY_MEASUREMENTS_COUNT);
+        if (this->rightConnected_) {
+            this->rightMeasurements_[this->rightIndex_] = right;
+            this->rightIndex_ = (this->rightIndex_ + 1) % BATTERY_MEASUREMENTS_COUNT;
+            this->rightMeasurementCount_ =
+                std::min(this->rightMeasurementCount_ + 1, BATTERY_MEASUREMENTS_COUNT);
         } else {
-            this->rightMeasurementCount = 0;
-            this->rightIndex = 0;
+            this->rightMeasurementCount_ = 0;
+            this->rightIndex_ = 0;
         }
 
         // Check if both batteries are below the threshold. If so, show the battery screen and halt
@@ -43,9 +43,9 @@ void Power::loop() {
         if (this->getLeftBatteryVoltage() < BATTERY_MIN_VOLTAGE &&
             this->getRightBatteryVoltage() < BATTERY_MIN_VOLTAGE) {
             log_i("Voltage is below threshold. Halting.");
-            this->depleted = true;
+            this->depleted_ = true;
         }
-        this->lastMeasurementTime = now;
+        this->lastMeasurementTime_ = now;
     }
 }
 
@@ -62,14 +62,14 @@ auto Power::average(const std::array<float, BATTERY_MEASUREMENTS_COUNT> &array, 
 }
 
 auto Power::getLeftBatteryVoltage() -> float {
-    auto avg = this->average(this->leftMeasurements, this->leftMeasurementCount);
-    log_d("Left: %.2fV %d %d", avg, this->leftIndex, this->leftMeasurementCount);
+    auto avg = this->average(this->leftMeasurements_, this->leftMeasurementCount_);
+    log_d("Left: %.2fV %d %d", avg, this->leftIndex_, this->leftMeasurementCount_);
     return avg;
 }
 
 auto Power::getRightBatteryVoltage() -> float {
-    auto avg = this->average(this->rightMeasurements, this->rightMeasurementCount);
-    log_d("Right: %.2fV %d %d", avg, this->rightIndex, this->rightMeasurementCount);
+    auto avg = this->average(this->rightMeasurements_, this->rightMeasurementCount_);
+    log_d("Right: %.2fV %d %d", avg, this->rightIndex_, this->rightMeasurementCount_);
     return avg;
 }
 
@@ -82,14 +82,14 @@ auto Power::getBatteryLifeString() -> String {
         (voltageLevelRight - BATTERY_MIN_VOLTAGE) / (BATTERY_MAX_VOLTAGE - BATTERY_MIN_VOLTAGE);
     batteryFractionLeft = std::clamp(batteryFractionLeft, 0.0f, 1.0f);
     batteryFractionRight = std::clamp(batteryFractionRight, 0.0f, 1.0f);
-    String battery_output = " Raw L:" + String(voltageLevelLeft, 2) +
-                            " R:" + String(voltageLevelRight, 2) +
-                            "  L:" + String(batteryFractionLeft * 100) +
-                            "% R:" + String(batteryFractionRight * 100) + "%";
+    String batteryOutput = " Raw L:" + String(voltageLevelLeft, 2) +
+                           " R:" + String(voltageLevelRight, 2) +
+                           "  L:" + String(batteryFractionLeft * 100) +
+                           "% R:" + String(batteryFractionRight * 100) + "%";
 
     log_d("Power: L: %.2f (%.0f%%) R: %.2f (%.0f%%)", voltageLevelLeft, batteryFractionLeft * 100,
           voltageLevelRight, batteryFractionRight * 100);
-    return battery_output;
+    return batteryOutput;
 }
 
-auto Power::getDepleted() -> bool { return this->depleted; }
+auto Power::getDepleted() -> bool { return this->depleted_; }
