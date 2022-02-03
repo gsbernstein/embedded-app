@@ -1,19 +1,8 @@
 #include "FileSystem.hpp"
 
-#include <SPIFFS.h>
-
 #include "Contents/Json.hpp"
 #include "Storage/ExternalSPIFlash.hpp"
 #include "sindarin-debug.h"
-
-FileSystem *FileSystem::instance = nullptr;
-
-auto FileSystem::getInstance() -> FileSystem * {
-    if (instance == nullptr) {
-        instance = new FileSystem();
-    }
-    return instance;
-}
 
 void FileSystem::getReadables(std::vector<Readable> *readables) {
 #if !defined(DISABLE_SPIRAM)
@@ -33,7 +22,7 @@ void FileSystem::getReadables(std::vector<Readable> *readables) {
     readables->reserve(array.size());
     for (JsonVariant v : array) {
         auto readable = Readable(v["id"], v["name"], v["path"]);
-        if (SPIFFS.exists(readable.path)) {
+        if (exists(readable.path)) {
             log_d("Found readable %s %s %s", readable.id, readable.name, readable.path);
             readables->emplace_back(readable);
         } else {
@@ -43,32 +32,3 @@ void FileSystem::getReadables(std::vector<Readable> *readables) {
 
     return;
 }
-
-void FileSystem::begin() {
-    SHOW_HEAP();
-
-#if INTERNAL_SPIFFS_FLASH
-    const char *partitionLabel = nullptr;
-#else
-    const char *partitionLabel = "storage";
-
-    // Set up SPI bus and initialize the external SPI Flash chip
-    esp_flash_t *flash = SpiFlashInit();
-    if (flash == nullptr) {
-        log_e("Failed to load external flash");
-        return;
-    }
-
-    // Add the entire external flash chip as a partition
-    SpiFlashAddPartition(flash, partitionLabel, ESP_PARTITION_SUBTYPE_DATA_SPIFFS);
-#endif
-
-    // Launch SPIFFS file system
-    if (!SPIFFS.begin(false, "/spiffs", 255, partitionLabel)) {
-        log_e("An Error has occurred while mounting SPIFFS");
-    }
-
-    SHOW_HEAP();
-}
-
-auto FileSystem::open(const String &path) -> File { return SPIFFS.open(path); }
