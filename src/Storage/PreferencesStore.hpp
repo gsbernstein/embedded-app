@@ -122,6 +122,8 @@ public:
 
     PreferencesStore()
         : localXOffset(this->prefs_, "x-offset"), localYOffset(this->prefs_, "y-offset"),
+          displayBoxWidthOffsetMm(this->prefs_, "box-w-off-mm"),
+          displayBoxHeightOffsetMm(this->prefs_, "box-h-off-mm"),
           pairedTurnTouchAddress(this->prefs_, "paired-tt"),
           pocketApiToken(this->prefs_, "pocket-token"),
           lastReadableId(this->prefs_, "rui-readable"), readablePlace(this->prefs_, "-p"),
@@ -131,6 +133,8 @@ public:
 
     PrefsItem<int> localXOffset;
     PrefsItem<int> localYOffset;
+    PrefsItem<int> displayBoxWidthOffsetMm;
+    PrefsItem<int> displayBoxHeightOffsetMm;
     PrefsItem<String> pocketApiToken;
     BLEAddressPrefsItem pairedTurnTouchAddress;
     PrefsItem<String> lastReadableId;

@@ -67,6 +67,10 @@ public:
     auto getFocusWidth() -> float { return focusWidthInMm_; }
     auto getFocusHeight() -> float { return focusHeightInMm_; }
 
+    void setFocusOffset(float width, float height);
+    auto getFocusOffsetWidth() -> float { return focusWidthOffsetInMm_; }
+    auto getFocusOffsetHeight() -> float { return focusHeightOffsetInMm_; }
+
     // MARK: - Text rendering code
 
     auto getFont() -> const GFXfont *;
@@ -125,7 +129,8 @@ protected:
     float heightInMm_ = 0;
     float focusWidthInMm_;
     float focusHeightInMm_;
-
+    float focusWidthOffsetInMm_ = 0;
+    float focusHeightOffsetInMm_ = 0;
     bool invertedDisplay_ = false;
 };
 

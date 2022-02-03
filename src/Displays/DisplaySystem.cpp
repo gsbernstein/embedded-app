@@ -96,6 +96,13 @@ void DisplaySystem::setFocusSize(float width, float height) {
     computeMinMax();
 }
 
+void DisplaySystem::setFocusOffset(float width, float height) {
+    focusWidthOffsetInMm_ = width;
+    focusHeightOffsetInMm_ = height;
+    // Any time the Offset is set, we need to recompute the MinMax
+    computeMinMax();
+}
+
 auto DisplaySystem::getFont() -> const GFXfont * { return gfxFont; }
 
 // Takes the member variable string_to_draw and splits it
@@ -310,8 +317,8 @@ void DisplaySystem::computeMinMax() {
     log_d("pixel pitch = (%d, %d)", pixelPitchX, pixelPitchY);
 
     // rounding down is ok here and what we want.
-    maxPixelsX = (int)(this->getFocusWidth() * pixelPitchX);
-    maxPixelsY = (int)(this->getFocusHeight() * pixelPitchY);
+    maxPixelsX = (int)((this->getFocusWidth() + this->getFocusOffsetWidth()) * pixelPitchX);
+    maxPixelsY = (int)((this->getFocusHeight() + this->getFocusOffsetHeight()) * pixelPitchY);
 
     log_d("max pixels = (%d, %d)", maxPixelsX, maxPixelsY);
 
