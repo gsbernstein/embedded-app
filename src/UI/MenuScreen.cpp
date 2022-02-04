@@ -22,11 +22,8 @@ auto MenuScreen::getCurrItem() -> MenuItem { return menuItems_[currSelection_]; 
 // Returns 1 if the selection was updated, 0 otherwise
 auto MenuScreen::nextSelection() -> int {
     int oldSel = currSelection_;
-    currSelection_++;
     // Don't go further than the last item in the menu
-    if (currSelection_ >= numMenuItems_) {
-        currSelection_ = numMenuItems_ - 1;
-    }
+    currSelection_ = std::min(numMenuItems_ - 1, currSelection_ + 1);
     auto diff = currSelection_ - oldSel;
     if (diff) {
         // Hit a page boundary -- update the page!
@@ -40,11 +37,8 @@ auto MenuScreen::nextSelection() -> int {
 // Returns 1 if the selection was updated, 0 otherwise
 auto MenuScreen::prevSelection() -> int {
     int oldSel = currSelection_;
-    currSelection_--;
     // Don't go before the first menu item
-    if (currSelection_ < 0) {
-        currSelection_ = 0;
-    }
+    currSelection_ = std::max(0, (int)currSelection_ - 1);
     auto diff = oldSel - currSelection_;
     if (diff) {
         // Hit a page boundary -- update the page!
@@ -92,8 +86,9 @@ auto MenuScreen::getMenuRangeAsString(int startItem, int endItem) -> String {
 }
 
 auto MenuScreen::getPaginatedMenuString() -> String {
-    String menuString = getMenuRangeAsString(curMenuPage_ * NUM_LINES_PER_MENU_PAGE + 1,
-                                             curMenuPage_ * NUM_LINES_PER_MENU_PAGE + 5);
+    String menuString =
+        getMenuRangeAsString(curMenuPage_ * NUM_LINES_PER_MENU_PAGE + 1,
+                             curMenuPage_ * NUM_LINES_PER_MENU_PAGE + NUM_LINES_PER_MENU_PAGE);
     return menuString;
 }
 
