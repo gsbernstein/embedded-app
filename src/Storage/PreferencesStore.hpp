@@ -30,7 +30,7 @@ public:
     template <typename T> class PrefsItem : public PrefsItemBase<T> {
     public:
         PrefsItem(Preferences &prefs, const char *key) : PrefsItemBase<T>(prefs) {
-            strcpy(this->key_, key);
+            strncpy(this->key_, key, sizeof(this->key_));
         }
 
         virtual void loadValue() {
