@@ -1,3 +1,5 @@
+#pragma once
+
 #include <FS.h>
 #include <vector>
 
@@ -7,15 +9,14 @@
 class FileSystem {
 public:
     // Convenience methods
-    static auto getInstance() -> FileSystem *;
     void getReadables(std::vector<Readable> *readables);
 
     // Underlying methods to init and read data
-    void begin();
+    virtual void begin(){};
     // Note: File overrides bool and will be false if there's an error
-    auto open(const String &path) -> File;
+    virtual File open(const String &path) { assert(0); };
+    virtual bool exists(const String &path) { assert(0); };
 
 protected:
-    static FileSystem *instance;
     FileSystem() = default;
 };

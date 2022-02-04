@@ -20,7 +20,6 @@
 #include "Inputs/RemoteInput.hpp"
 #include "Misc/Platform.hpp"
 #include "Misc/Power.hpp"
-#include "Storage/FileSystem.hpp"
 #include "Storage/PreferencesStore.hpp"
 #include "UI/RootUI.hpp"
 #include "sindarin-debug.h"
@@ -77,6 +76,9 @@ OTA ota;
 Power power;
 
 RootUI rootUi(prefs, power);
+
+#include "Storage/SpiffsFileSystem.hpp"
+SpiffsFileSystem fileSystem;
 
 void setup() {
     bool inputDeviceConnected = false;
@@ -154,15 +156,15 @@ void setup() {
 #endif
 #endif
 
-    FileSystem::getInstance()->begin();
     auto readables = new std::vector<Readable>();
-    FileSystem::getInstance()->getReadables(readables);
+    fileSystem.begin();
+    fileSystem.getReadables(readables);
 
     SHOW_HEAP();
 
     power.setup();
 
-    rootUi.setup(myDisplay, *readables, inputDeviceConnected);
+    rootUi.setup(myDisplay, *readables, inputDeviceConnected, fileSystem);
 
     SHOW_HEAP();
 

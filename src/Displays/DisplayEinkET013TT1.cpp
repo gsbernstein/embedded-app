@@ -1,6 +1,5 @@
 #include "DisplayEinkET013TT1.hpp"
 
-#include <UI/Fonts/LucidaGrande5pt7b.h>
 #include <algorithm>
 
 #include "Displays/EinkWaveforms.hpp"
@@ -19,10 +18,6 @@ DisplayEinkET013TT1::DisplayEinkET013TT1(uint8_t cs, uint8_t oei, uint8_t rst, u
     driver_.clear(PANEL_CLEAR_WAVEFORM);
 
     setFullWindow();
-
-    // TODO: Move these out of the e-ink class? They're not particularly driver specific
-    setFont(&LUCIDA_GRANDE5PT7B);
-    setTextColor(fg, bg);
 
     widthInMm_ = EinkET013TT1_WIDTH_IN_MM;
     heightInMm_ = EinkET013TT1_HEIGHT_IN_MM;

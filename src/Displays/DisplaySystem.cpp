@@ -1,5 +1,6 @@
 #include "DisplaySystem.hpp"
 
+#include <UI/Fonts/LucidaGrande5pt7b.h>
 #include <utility>
 
 #include "config.h"
@@ -8,6 +9,9 @@
 
 DisplaySystem::DisplaySystem(int16_t w, int16_t h) : GFXcanvas1(w, h) {
     autoUpdate_ = true;
+
+    setFont(&LUCIDA_GRANDE5PT7B);
+    setTextColor(fg, bg);
 
 #ifdef DISPLAY_ROTATION
     setRotation(DISPLAY_ROTATION);

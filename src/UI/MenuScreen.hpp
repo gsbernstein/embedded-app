@@ -15,7 +15,6 @@
 class MenuItem {
 public:
     MenuItem() = default;
-    ;
     MenuItem(String title) : title(std::move(title)){};
     MenuItem(String title, std::function<void()> callback)
         : title(std::move(title)), callback(std::move(std::move(callback))){};

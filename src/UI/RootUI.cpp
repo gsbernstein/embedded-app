@@ -25,7 +25,8 @@
 
 #define LAST_READABLE_ID "rui-readable"
 
-void RootUI::setup(DisplaySystem *display, std::vector<Readable> &readables, bool inputConnected) {
+void RootUI::setup(DisplaySystem *display, std::vector<Readable> &readables, bool inputConnected,
+                   FileSystem &fileSystem) {
     SHOW_HEAP();
 
     display_ = display;
@@ -36,9 +37,10 @@ void RootUI::setup(DisplaySystem *display, std::vector<Readable> &readables, boo
 
     SIZE_OF(*mainMenu);
 
-    auto createReadableScreen = [this, display, mainMenu](Readable *readable) -> ReadableScreen * {
+    auto createReadableScreen = [this, display, mainMenu,
+                                 &fileSystem](Readable *readable) -> ReadableScreen * {
         // TODO: Would be better to not allocate / delete these all the time
-        auto *bookRenderer = new FileRenderer(*display, *readable);
+        auto *bookRenderer = new FileRenderer(*display, *readable, fileSystem);
         this->prefs_.lastReadableId.set(readable->id);
         auto *readableScreen =
             new ReadableScreen(bookRenderer, *readable, this->prefs_, this->power_);
