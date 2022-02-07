@@ -1,7 +1,8 @@
 #include "UI/ReadableScreen.hpp"
 
-#include "sindarin-debug.h"
+#include <Arduino.h>
 
+#include "sindarin-debug.h"
 void ReadableScreen::render(DisplaySystem &display) {
 
     if (currentScreen_ != this) {
@@ -15,7 +16,7 @@ void ReadableScreen::render(DisplaySystem &display) {
     if (!inPopup_) {
         log_d("Rendering some text in READ MODE");
         newPlace_ = fileRenderer_->renderPageWithBox(readable_.place);
-        log_d("%d is the new place in the text", newPlace_);
+        log_d("%lu is the new place in the text", newPlace_);
         needsRerender = false;
     } else {
         log_d("Rendering popup menu");
@@ -114,6 +115,7 @@ void ReadableScreen::processCommand(RemoteCommand command) {
                 delay(2000);
                 esp_restart();
             }));
+#if USE_TURN_TOUCH_REMOTE
             settingsMenu->addMenuItem(MenuItem("Unpair TurnTouch", [this, display]() {
                 prefs_.pairedTurnTouchAddress.remove();
                 log_w("Unpaired TurnTouch. Rebooting...");
@@ -121,6 +123,7 @@ void ReadableScreen::processCommand(RemoteCommand command) {
                 delay(2000);
                 esp_restart();
             }));
+#endif
             settingsMenu->backCallback = [this, settingsMenu]() {
                 inPopup_ = false;
                 setCurrentScreen(*this);

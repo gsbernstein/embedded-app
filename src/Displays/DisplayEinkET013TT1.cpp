@@ -1,3 +1,5 @@
+#if EINKET013TT1
+
 #include "DisplayEinkET013TT1.hpp"
 
 #include <algorithm>
@@ -35,3 +37,5 @@ void DisplayEinkET013TT1::updateDisplay() {
     // Clear buffer afterwards
     fillScreen(bg);
 }
+
+#endif
