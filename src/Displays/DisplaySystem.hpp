@@ -47,6 +47,8 @@ public:
     void flipInversion();
     auto getInversion() -> bool { return invertedDisplay_; }
 
+    virtual void clearDisplay(){};
+
     // MARK: - AutoUpdate
 
     // Whether or not the display will immediately update after drawing operations. If this is set
