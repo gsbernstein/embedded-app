@@ -4,6 +4,8 @@
 #include <optional>
 #include <string>
 
+#include "sindarin-debug.h"
+
 #if USE_TURN_TOUCH_REMOTE
 #include <NimBLEDevice.h>
 #endif

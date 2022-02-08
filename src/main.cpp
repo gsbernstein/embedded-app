@@ -85,7 +85,9 @@ void setup() {
 
     InitializePlatform();
 
+#if !SIMULATOR
     Serial.begin(115200);
+#endif
 
     prefs.begin();
 
