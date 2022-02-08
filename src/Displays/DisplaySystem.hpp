@@ -16,8 +16,8 @@
 #define DISPLAY_SYSTEM_H
 
 #include <Adafruit_GFX.h>
-#include <Arduino.h>
 #include <array>
+#include <string>
 
 // This isn't the best -- we may want to make this dynamically
 // allocated instead in the object?
@@ -74,15 +74,15 @@ public:
     // MARK: - Text rendering code
 
     auto getFont() -> const GFXfont *;
-    void drawText(const String &newText, int x, int y, int width, int height);
-    void drawTextInBox(const String &newText, int startX, int startY, int endX, int endY);
+    void drawText(const std::string &newText, int x, int y, int width, int height);
+    void drawTextInBox(const std::string &newText, int startX, int startY, int endX, int endY);
     void getTextBounds(const char *buffer, uint16_t *w, uint16_t *h);
     auto getTextHeight() -> int;
     auto getTextHeight(const char *buffer) -> int;
     auto getTextWidth(const char *buffer) -> int;
 
     // Convenience methods for drawing that take into account offsets
-    void renderMaxBoxWithText(const String &text);
+    void renderMaxBoxWithText(const std::string &text);
     void renderBox(int xStart, int yStart, int xEnd, int yEnd);
 
     // MARK: - Graphic drawing code
@@ -113,10 +113,10 @@ public:
     int maxPixelsY = 0;
 
 protected:
-    void drawTextCmdsOnly(const String &newText, int x, int y, int lineHeight);
+    void drawTextCmdsOnly(const std::string &newText, int x, int y, int lineHeight);
     void drawBoxCmdsOnly(int xStart, int yStart, int xEnd, int yEnd);
-    void splitStringToLines(const String &stringToSplit,
-                            std::array<String, MAX_LINES_IN_SPLIT> &lines, int &numLines);
+    void splitStringToLines(const std::string &stringToSplit,
+                            std::array<std::string, MAX_LINES_IN_SPLIT> &lines, int &numLines);
     void rotate(uint16_t &x, uint16_t &y, uint16_t &w, uint16_t &h);
     void computeMinMax();
 

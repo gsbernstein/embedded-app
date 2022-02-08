@@ -8,10 +8,6 @@
 // on (similar to the above).
 //
 
-#include <Arduino.h>
-#include <SPI.h>
-#include <Wire.h>
-
 #include "Communications/OTA.hpp"
 #include "Communications/WiFi.hpp"
 #include "Contents/Readable.hpp"

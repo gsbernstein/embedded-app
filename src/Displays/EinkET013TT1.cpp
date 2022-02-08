@@ -2,7 +2,6 @@
 
 #include "EinkET013TT1.hpp"
 
-#include <Arduino.h>
 #include <SPI.h>
 #include <algorithm>
 

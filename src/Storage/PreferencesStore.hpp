@@ -2,6 +2,7 @@
 
 #include <Preferences.h>
 #include <optional>
+#include <string>
 
 #if USE_TURN_TOUCH_REMOTE
 #include <NimBLEDevice.h>
@@ -18,8 +19,8 @@ public:
         void writeToStorage(const char *key, T value) {
             if constexpr (std::is_same_v<T, int>) {
                 this->prefs.putInt(key, value);
-            } else if constexpr (std::is_same_v<T, String>) {
-                this->prefs.putString(key, value);
+            } else if constexpr (std::is_same_v<T, std::string>) {
+                this->prefs.putString(key, value.c_str());
             } else {
                 log_e("Unhandled prefs type");
                 assert(0);
@@ -40,14 +41,14 @@ public:
         virtual void loadValue() {
             if constexpr (std::is_same_v<T, int>) {
                 this->value_ = this->prefs.getInt(this->key_);
-            } else if constexpr (std::is_same_v<T, String>) {
-                // TODO: This behavior is a little inconsistent between types. For String types, the
-                // std::optional will have `has_value()==false` if it's not stored in NVS. For
-                // primitive types (e.g. int), `has_value()==true` and the value is just the
-                // `Preferences` default value. It would be good to make this consistent but
+            } else if constexpr (std::is_same_v<T, std::string>) {
+                // TODO: This behavior is a little inconsistent between types. For std::string
+                // types, the std::optional will have `has_value()==false` if it's not stored in
+                // NVS. For primitive types (e.g. int), `has_value()==true` and the value is just
+                // the `Preferences` default value. It would be good to make this consistent but
                 // unfortunately `Preferences.isKey` looks like it's relatively expensive.
-                String val = this->prefs.getString(this->key_);
-                if (!val.isEmpty()) {
+                std::string val = this->prefs.getString(this->key_).c_str();
+                if (!val.empty()) {
                     this->value_ = val;
                 }
             } else {
@@ -143,11 +144,11 @@ public:
     PrefsItem<int> localYOffset;
     PrefsItem<int> displayBoxWidthOffsetMm;
     PrefsItem<int> displayBoxHeightOffsetMm;
-    PrefsItem<String> pocketApiToken;
+    PrefsItem<std::string> pocketApiToken;
 #if USE_TURN_TOUCH_REMOTE
     BLEAddressPrefsItem pairedTurnTouchAddress;
 #endif
-    PrefsItem<String> lastReadableId;
+    PrefsItem<std::string> lastReadableId;
     KeyedPrefsItem<int> readablePlace;
     KeyedPrefsItem<int> readablePreviousPlace;
     PrefsItem<int> invertSetting;

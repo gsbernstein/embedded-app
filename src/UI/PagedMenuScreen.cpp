@@ -49,7 +49,7 @@ void PagedMenuScreen::render(DisplaySystem &display) {
                         display.localYOffset + (display.height() - menuHeight) / 2, menuBits,
                         menuWidth, menuHeight, display.fg);
 
-    String itemTitle = getCurrItem().title;
+    auto itemTitle = getCurrItem().title;
     // Cache / replace old font; then try descending size fonts until we find one that fits our
     // string in the desired space.
     auto prevFont = display.getFont();
@@ -64,11 +64,11 @@ void PagedMenuScreen::render(DisplaySystem &display) {
     while (display.getTextWidth(itemTitle.c_str()) > MAX_WIDTH) {
         log_d("Item title %s still too long at smallest font size; truncating...",
               itemTitle.c_str());
-        itemTitle = itemTitle.substring(0, itemTitle.length() - 4) + "...";
+        itemTitle = itemTitle.substr(0, itemTitle.length() - 4) + "...";
     }
     // Now draw!
     uint16_t width = 0, height = 0;
-    String batteryStatus = this->power_.getBatteryLifeString();
+    auto batteryStatus = this->power_.getBatteryLifeString();
     display.getTextBounds(itemTitle.c_str(), &width, &height);
     uint16_t screenWidth = display.width();
     uint16_t screenHeight = display.height();

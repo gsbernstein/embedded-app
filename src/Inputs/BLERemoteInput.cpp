@@ -2,8 +2,6 @@
 
 #include "BLERemoteInput.hpp"
 
-#include <Arduino.h>
-
 #include "sindarin-debug.h"
 
 #define CHARACTERISTIC_UUID "ed0c3501-a3cb-499f-93ad-2acbaa971d63"

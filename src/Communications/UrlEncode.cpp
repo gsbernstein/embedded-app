@@ -16,42 +16,40 @@ auto H2int(char c) -> unsigned char {
     return (0);
 }
 
-auto Urldecode(const String &str) -> String {
+auto Urldecode(const std::string &str) -> std::string {
 
-    String encodedString = "";
+    std::string encodedString = "";
     char c;
     char code0;
     char code1;
     for (int i = 0; i < str.length(); i++) {
-        c = str.charAt(i);
+        c = str.at(i);
         if (c == '+') {
             encodedString += ' ';
         } else if (c == '%') {
             i++;
-            code0 = str.charAt(i);
+            code0 = str.at(i);
             i++;
-            code1 = str.charAt(i);
+            code1 = str.at(i);
             c = (H2int(code0) << 4) | H2int(code1);
             encodedString += c;
         } else {
 
             encodedString += c;
         }
-
-        yield();
     }
 
     return encodedString;
 }
 
-auto Urlencode(const String &str) -> String {
-    String encodedString = "";
+auto Urlencode(const std::string &str) -> std::string {
+    std::string encodedString("");
     char c;
     char code0;
     char code1;
     char code2;
     for (int i = 0; i < str.length(); i++) {
-        c = str.charAt(i);
+        c = str.at(i);
         if (c == ' ') {
             encodedString += '+';
         } else if (isalnum(c)) {
@@ -72,7 +70,6 @@ auto Urlencode(const String &str) -> String {
             encodedString += code1;
             // encodedString+=code2;
         }
-        yield();
     }
     return encodedString;
 }

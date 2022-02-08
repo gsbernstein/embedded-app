@@ -2,17 +2,13 @@
 
 #include "TTRemoteInput.hpp"
 
-#include <Arduino.h>
 #include <functional>
 
 #include "sindarin-debug.h"
 
 using namespace std::placeholders;
 
-void TTRemoteInput::startRemote(int receivePinInput) {
-    DEBUG_LN("FAIL DUE TO BLE CONSTUCTOR NOT NEEDING THIS ONE");
-    assert(0);
-}
+void TTRemoteInput::startRemote(int receivePinInput) { assert(0); }
 
 void TTRemoteInput::startRemote() {}
 

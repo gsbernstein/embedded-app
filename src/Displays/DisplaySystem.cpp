@@ -3,6 +3,7 @@
 #include <UI/Fonts/LucidaGrande5pt7b.h>
 #include <utility>
 
+#include "Misc/StringUtil.hpp"
 #include "sindarin-debug.h"
 
 DisplaySystem::DisplaySystem(int16_t w, int16_t h) : GFXcanvas1(w, h) {
@@ -109,8 +110,8 @@ auto DisplaySystem::getFont() -> const GFXfont * { return gfxFont; }
 
 // Takes the member variable string_to_draw and splits it
 // based on the \n characater and populates the String* lines;
-void DisplaySystem::splitStringToLines(const String &stringToSplit,
-                                       std::array<String, MAX_LINES_IN_SPLIT> &lines,
+void DisplaySystem::splitStringToLines(const std::string &stringToSplit,
+                                       std::array<std::string, MAX_LINES_IN_SPLIT> &lines,
                                        int &numLines) {
     int len, i, startPos, endPos;
 
@@ -125,8 +126,8 @@ void DisplaySystem::splitStringToLines(const String &stringToSplit,
         // We found a new line. Split off the previous line and
         // start processing the new line
         // if (Serial) Serial.print(string_to_draw.charAt(i));
-        if (stringToSplit.charAt(i) == '\n') {
-            lines[numLines - 1] = stringToSplit.substring(startPos, endPos + 1);
+        if (stringToSplit.at(i) == '\n') {
+            lines[numLines - 1] = stringToSplit.substr(startPos, endPos - startPos + 1);
             numLines++;
             assert(numLines < MAX_LINES_IN_SPLIT);
             startPos = i + 1;
@@ -143,20 +144,20 @@ void DisplaySystem::splitStringToLines(const String &stringToSplit,
     //
     // The second part of this || is to handle when there's just a single line with
     // a single character on it with no \n.
-    if ((startPos != endPos) || stringToSplit.charAt(endPos) != '\n') {
-        lines[numLines - 1] = stringToSplit.substring(startPos, endPos + 1);
+    if ((startPos != endPos) || stringToSplit.at(endPos) != '\n') {
+        lines[numLines - 1] = stringToSplit.substr(startPos, endPos - startPos + 1);
     } else {
         numLines--;
     }
 }
 
-void DisplaySystem::drawTextCmdsOnly(const String &newText, int x, int y, int lineHeight) {
+void DisplaySystem::drawTextCmdsOnly(const std::string &newText, int x, int y, int lineHeight) {
     // We want to draw the characters down from the x/y coordinates given
     // so the renderer doesn't need to concern itself with how tall the
     // font is, etc.
     // u8g2Fonts->setFontPosTop();
 
-    std::array<String, MAX_LINES_IN_SPLIT> lines;
+    std::array<std::string, MAX_LINES_IN_SPLIT> lines;
     int numLines;
     splitStringToLines(newText, lines, numLines);
 
@@ -174,7 +175,7 @@ void DisplaySystem::drawTextCmdsOnly(const String &newText, int x, int y, int li
     for (int i = 0; i < numLines; i++) {
         // Don't know if it starts the line from the baseline or from the top -- TO LEARN: HACK
         setCursor(x, y + i * (lineHeight));
-        println(lines[i] + "\n");
+        printf("%s\n", lines[i].c_str());
     }
 }
 
@@ -182,9 +183,7 @@ void DisplaySystem::drawTextCmdsOnly(const String &newText, int x, int y, int li
 // \n characaters in it to determine new lines. By default, the u8g2
 // driver doesn't do new lines, so we have to do the parsing of that ourselves
 // in order to determine the right placement of each new line.
-void DisplaySystem::drawText(const String &newText, int x, int y, int width, int height) {
-    DEBUG_LN("Printing to screen!");
-
+void DisplaySystem::drawText(const std::string &newText, int x, int y, int width, int height) {
     // hack for now
     // figure out what the right window is
     // SUPER HACK -- the y value is just guessing about ascent
@@ -204,7 +203,7 @@ void DisplaySystem::drawText(const String &newText, int x, int y, int width, int
     }
 }
 
-void DisplaySystem::drawTextInBox(const String &newText, int startX, int startY, int endX,
+void DisplaySystem::drawTextInBox(const std::string &newText, int startX, int startY, int endX,
                                   int endY) {
 
     int lineHeight = 0;
@@ -246,7 +245,7 @@ auto DisplaySystem::getTextWidth(const char *buffer) -> int {
     return w;
 }
 
-void DisplaySystem::renderMaxBoxWithText(const String &text) {
+void DisplaySystem::renderMaxBoxWithText(const std::string &text) {
     drawTextInBox(text, xMin + localXOffset, yMin + localYOffset, xMax + localXOffset,
                   yMax + localYOffset);
 }

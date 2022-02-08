@@ -1,7 +1,5 @@
 #include "RemoteInput.hpp"
 
-#include <Arduino.h>
-
 #include "sindarin-debug.h"
 
 auto CodeToString(RemoteCommand code) -> const char * {

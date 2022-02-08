@@ -1,6 +1,5 @@
 #pragma once
 
-#include <Arduino.h>
 #include <functional>
 
 #include "Inputs/RemoteInput.hpp"

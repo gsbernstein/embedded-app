@@ -16,10 +16,7 @@ void IRRemoteInput::start_remote(int receive_pin_input) {
     state = LOW;
 }
 
-void IRRemoteInput::start_remote() {
-    DEBUG_LN("FAIL DUE TO NO PIN SENT IN IRREMOTE CONSTUCTOR");
-    assert(0);
-}
+void IRRemoteInput::start_remote() { assert(0); }
 
 auto IRRemoteInput::check_press() -> int {
     int new_press = 0;
