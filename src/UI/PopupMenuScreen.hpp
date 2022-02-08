@@ -1,7 +1,6 @@
 #ifndef POPUP_MENU_SYSTEM_H
 #define POPUP_MENU_SYSTEM_H
 
-#include <Arduino.h>
 #include <utility>
 
 #include "Inputs/RemoteInput.hpp"

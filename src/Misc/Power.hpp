@@ -8,8 +8,8 @@
 // Max LiPo cell voltage is 4.2 but as soon as its supplying current it tends to drop closer to 4V
 #define BATTERY_MAX_VOLTAGE 3.9F
 
-#include <Arduino.h>
 #include <array>
+#include <string>
 
 class Power {
 public:
@@ -18,8 +18,8 @@ public:
     void setup();
     void loop();
 
-    auto getBatteryLifeString() -> String;
-    auto getBatteryPercentageOnlyString() -> String;
+    auto getBatteryLifeString() -> std::string;
+    auto getBatteryPercentageOnlyString() -> std::string;
     auto getLeftBatteryVoltage() -> float;
     auto getRightBatteryVoltage() -> float;
 

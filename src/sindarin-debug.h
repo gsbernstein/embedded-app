@@ -3,9 +3,6 @@
 
 #include <Arduino.h>
 
-#define DEBUG_VAR(x) log_d("%s", String(x).c_str())
-#define DEBUG_LN(y) log_d("%s", String(y).c_str())
-
 #if SIMULATOR
 #define SHOW_HEAP()
 #else

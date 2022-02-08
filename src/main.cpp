@@ -8,10 +8,6 @@
 // on (similar to the above).
 //
 
-#include <Arduino.h>
-#include <SPI.h>
-#include <Wire.h>
-
 #include "Communications/OTA.hpp"
 #include "Communications/WiFi.hpp"
 #include "Contents/Readable.hpp"
@@ -89,7 +85,9 @@ void setup() {
 
     InitializePlatform();
 
+#if !SIMULATOR
     Serial.begin(115200);
+#endif
 
     prefs.begin();
 

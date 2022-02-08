@@ -1,6 +1,5 @@
 #include "RootUI.hpp"
 
-#include <Arduino.h>
 #include <nvs_flash.h>
 
 #include "Bitmaps/Logo.hpp"
@@ -8,6 +7,7 @@
 #include "Inputs/RemoteInput.hpp"
 #include "Inputs/TTRemoteInput.hpp"
 #include "Misc/Platform.hpp"
+#include "Misc/StringUtil.hpp"
 #include "Renderers/FileRenderer.hpp"
 #include "Renderers/StreamRenderer.hpp"
 #include "UI/CalibrationScreen.hpp"
@@ -81,7 +81,7 @@ void RootUI::setup(DisplaySystem *display, std::vector<Readable> &readables, boo
     mainMenu->addMenuItem(MenuItem("Pocket Articles", [this, mainMenu, display]() {
         if (!WiFi.isConnected()) {
             log_w("Tried to load Pocket articles but WiFi not connected");
-            display->renderMaxBoxWithText(String("WiFi Disconnected"));
+            display->renderMaxBoxWithText("WiFi Disconnected");
             delay(2000);
             needsRerender = true;
             return;
@@ -90,7 +90,7 @@ void RootUI::setup(DisplaySystem *display, std::vector<Readable> &readables, boo
         log_i("Loading top Pocket article");
         // TODO(John): I wanted to make a loading indicator for this but then realized I'll
         // need to add threading / tasks since the HTTP code is synchronous right now.
-        display->renderMaxBoxWithText(String("Downloading..."));
+        display->renderMaxBoxWithText("Downloading...");
         PocketAPI *pocket = PocketAPI::getInstance();
         pocket->setAccessToken(prefs_.pocketApiToken.get().value().c_str());
 
@@ -101,7 +101,7 @@ void RootUI::setup(DisplaySystem *display, std::vector<Readable> &readables, boo
         int code = pocket->get(&response);
         if (code != 200) {
             log_e("Pocket HTTP error: %d", code);
-            display->renderMaxBoxWithText(String("HTTP error: ") + String(code));
+            display->renderMaxBoxWithText(StringFormat("HTTP error: %d", code));
             delay(2000);
             setCurrentScreen(*mainMenu);
             return;
@@ -110,7 +110,7 @@ void RootUI::setup(DisplaySystem *display, std::vector<Readable> &readables, boo
         JsonObject list = (*response)["list"].as<JsonObject>();
         if (list.size() <= 0) {
             log_w("No Pocket articles found");
-            display->renderMaxBoxWithText(String("No articles found"));
+            display->renderMaxBoxWithText("No articles found");
             delay(2000);
             setCurrentScreen(*mainMenu);
             delete response;
@@ -128,16 +128,16 @@ void RootUI::setup(DisplaySystem *display, std::vector<Readable> &readables, boo
             pocketMenu->addMenuItem(
                 MenuItem(title, [this, pocketMenu, title, url, pocket, display]() {
                     log_d("Loading article %s (%s)", title, url);
-                    display->renderMaxBoxWithText(String("Downloading..."));
+                    display->renderMaxBoxWithText("Downloading...");
                     SpiRamJsonDocument *response;
                     auto code = pocket->text(url, &response);
                     if (code != 200) {
                         if (code == -1) {
                             log_e("Pocket HTTP Error: %d (Article too long?)", code);
-                            display->renderMaxBoxWithText(String("Error: Too long"));
+                            display->renderMaxBoxWithText("Error: Too long");
                         } else {
                             log_e("Pocket HTTP Error: %d", code);
-                            display->renderMaxBoxWithText(String("Pocket Error: ") + code);
+                            display->renderMaxBoxWithText(StringFormat("Pocket Error: %d", code));
                         }
                         delay(2000);
                         setCurrentScreen(*pocketMenu);
@@ -148,8 +148,9 @@ void RootUI::setup(DisplaySystem *display, std::vector<Readable> &readables, boo
                     // TODO(john): We should eventually just save these to files and handle them
                     // the same as any other readable. Probably not great to be copying this whole
                     // article anyways.
-                    auto str = std::string(text);
                     auto streamRenderer = new StreamRenderer(*display);
+                    std::string str = text;
+                    streamRenderer->setString(str);
                     SIZE_OF(*streamRenderer);
                     streamRenderer->renderPageWithBox(0);
 

@@ -8,6 +8,7 @@
 #include "Fonts/LucidaGrande14pt7b.h"
 #include "Fonts/LucidaGrande5pt7b.h"
 #include "Fonts/LucidaGrande6pt7b.h"
+#include "Misc/StringUtil.hpp"
 
 void PopupMenuScreen::render(DisplaySystem &display) {
     const int edgeOffset = 5;
@@ -29,7 +30,7 @@ void PopupMenuScreen::render(DisplaySystem &display) {
 
     // Now draw!
     uint16_t width = 0, height = 0;
-    String batteryStatus = this->power_.getBatteryPercentageOnlyString();
+    auto batteryStatus = this->power_.getBatteryPercentageOnlyString();
 
     display.getTextBounds(batteryStatus.c_str(), &width, &height);
     uint16_t screenWidth = display.width();
@@ -46,7 +47,7 @@ void PopupMenuScreen::render(DisplaySystem &display) {
     size_t lengthOfFile = fileRenderer_->size();
 
     float placeInTextPercentage = (float)place / (float)lengthOfFile * 100;
-    String placeString = String(placeInTextPercentage, 0) + "%";
+    std::string placeString = StringFormat("%.0f%%", placeInTextPercentage);
 
     display.getTextBounds(placeString.c_str(), &width, &height);
     display.drawText(placeString.c_str(), display.localXOffset + (screenWidth / 2) - (width / 2),

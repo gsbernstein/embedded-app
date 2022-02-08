@@ -5,6 +5,6 @@ public:
     SpiffsFileSystem() : FileSystem(){};
 
     void begin() override;
-    auto open(const String &path) -> File override;
-    auto exists(const String &path) -> bool override;
+    auto open(const std::string &path) -> File override;
+    auto exists(const std::string &path) -> bool override;
 };

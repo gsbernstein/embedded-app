@@ -51,8 +51,8 @@ auto MenuScreen::prevSelection() -> int {
 
 // Includes the name of the item and it's number preceding it for easy display
 // Offset by two spaces
-auto MenuScreen::getItemTitleAt(int index) -> String {
-    String all;
+auto MenuScreen::getItemTitleAt(int index) -> std::string {
+    std::string all;
     assert(index < numMenuItems_);
     // Add the indicator for where we are in the menu based on the current selection
     if (index == currSelection_) {
@@ -69,13 +69,13 @@ auto MenuScreen::getItemAt(int index) -> MenuItem {
     return menuItems_[index];
 }
 
-auto MenuScreen::getWholeMenuAsString() -> String {
+auto MenuScreen::getWholeMenuAsString() -> std::string {
     return getMenuRangeAsString(0, numMenuItems_ - 1);
 }
 
-auto MenuScreen::getMenuRangeAsString(int startItem, int endItem) -> String {
+auto MenuScreen::getMenuRangeAsString(int startItem, int endItem) -> std::string {
     int i;
-    String complete = "";
+    std::string complete("");
     // If the client gives us an end_item past the end of the range, just go to the
     // end only
     for (i = startItem - 1; i < endItem && i < numMenuItems_; i++) {
@@ -85,8 +85,8 @@ auto MenuScreen::getMenuRangeAsString(int startItem, int endItem) -> String {
     return complete;
 }
 
-auto MenuScreen::getPaginatedMenuString() -> String {
-    String menuString =
+auto MenuScreen::getPaginatedMenuString() -> std::string {
+    auto menuString =
         getMenuRangeAsString(curMenuPage_ * NUM_LINES_PER_MENU_PAGE + 1,
                              curMenuPage_ * NUM_LINES_PER_MENU_PAGE + NUM_LINES_PER_MENU_PAGE);
     return menuString;
@@ -97,9 +97,9 @@ void MenuScreen::render(DisplaySystem &display) {
         return;
     }
     log_i("Menuscreen render (selected = %s)", getCurrItem().title.c_str());
-    String menuString = getPaginatedMenuString();
-    String batLife = power_.getBatteryLifeString();
-    String totalToDisplay = menuString + String("\n\n") + batLife;
+    auto menuString = getPaginatedMenuString();
+    auto batLife = power_.getBatteryLifeString();
+    std::string totalToDisplay = menuString + std::string("\n\n") + batLife;
     display.drawTextInBox(totalToDisplay, display.xMin + display.localXOffset,
                           display.yMin + display.localYOffset, display.xMax + display.localXOffset,
                           display.yMax + display.localYOffset);

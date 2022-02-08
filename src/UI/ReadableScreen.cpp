@@ -1,7 +1,5 @@
 #include "UI/ReadableScreen.hpp"
 
-#include <Arduino.h>
-
 #include "sindarin-debug.h"
 void ReadableScreen::render(DisplaySystem &display) {
 

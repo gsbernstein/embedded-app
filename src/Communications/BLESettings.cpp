@@ -2,8 +2,6 @@
 
 #include "BLESettings.hpp"
 
-#include <Arduino.h>
-
 #include "sindarin-debug.h"
 
 #define SETTINGS_CHARACTERISTIC_UUID "611f68af-5ffe-4944-9b8f-ef6773326268"

@@ -1,7 +1,7 @@
 #ifndef MENU_SYSTEM_H
 #define MENU_SYSTEM_H
 
-#include <Arduino.h>
+#include <string>
 #include <utility>
 
 #include "Inputs/RemoteInput.hpp"
@@ -15,11 +15,11 @@
 class MenuItem {
 public:
     MenuItem() = default;
-    MenuItem(String title) : title(std::move(title)){};
-    MenuItem(String title, std::function<void()> callback)
+    MenuItem(std::string title) : title(std::move(title)){};
+    MenuItem(std::string title, std::function<void()> callback)
         : title(std::move(title)), callback(std::move(std::move(callback))){};
 
-    String title;
+    std::string title;
     // Called when this menu item is selected
     std::function<void()> callback;
 };
@@ -48,22 +48,22 @@ public:
 
     // Includes the name of the item and it's number preceding it for easy display
     // Offset by two spaces
-    auto getItemTitleAt(int index) -> String;
+    auto getItemTitleAt(int index) -> std::string;
 
     auto getItemAt(int index) -> MenuItem;
 
     // Easy \n separated list of the items in the menu that can simply be passed
     // to a display. May want to handle this in a Renderer? But for now, this
     // is simple enough.
-    auto getWholeMenuAsString() -> String;
+    auto getWholeMenuAsString() -> std::string;
 
     // Allows the client to determine how many items from the menu it wants and
     // to generate a string accordingly.
     // Note it's up to the client to figure out what to do if the current
     // selection is outside of this range.
-    auto getMenuRangeAsString(int startItem, int endItem) -> String;
+    auto getMenuRangeAsString(int startItem, int endItem) -> std::string;
 
-    auto getPaginatedMenuString() -> String;
+    auto getPaginatedMenuString() -> std::string;
 
     void render(DisplaySystem &display) override;
 

@@ -4,6 +4,7 @@
 #include <algorithm>
 
 #include "Misc/Platform.hpp"
+#include "Misc/StringUtil.hpp"
 #include "sindarin-debug.h"
 
 void Power::setup() { this->lastMeasurementTime_ = millis(); }
@@ -73,7 +74,7 @@ auto Power::getRightBatteryVoltage() -> float {
     return avg;
 }
 
-auto Power::getBatteryLifeString() -> String {
+auto Power::getBatteryLifeString() -> std::string {
     float voltageLevelLeft = this->getLeftBatteryVoltage();
     float batteryFractionLeft =
         (voltageLevelLeft - BATTERY_MIN_VOLTAGE) / (BATTERY_MAX_VOLTAGE - BATTERY_MIN_VOLTAGE);
@@ -82,17 +83,14 @@ auto Power::getBatteryLifeString() -> String {
         (voltageLevelRight - BATTERY_MIN_VOLTAGE) / (BATTERY_MAX_VOLTAGE - BATTERY_MIN_VOLTAGE);
     batteryFractionLeft = std::clamp(batteryFractionLeft, 0.0f, 1.0f);
     batteryFractionRight = std::clamp(batteryFractionRight, 0.0f, 1.0f);
-    String batteryOutput = " Raw L:" + String(voltageLevelLeft, 2) +
-                           " R:" + String(voltageLevelRight, 2) +
-                           "  L:" + String(batteryFractionLeft * 100) +
-                           "% R:" + String(batteryFractionRight * 100) + "%";
-
-    log_d("Power: L: %.2f (%.0f%%) R: %.2f (%.0f%%)", voltageLevelLeft, batteryFractionLeft * 100,
-          voltageLevelRight, batteryFractionRight * 100);
+    std::string batteryOutput =
+        StringFormat("L: %.2fV (%.0f%%) R: %.2fV (%.0f%%)", voltageLevelLeft,
+                     batteryFractionLeft * 100, voltageLevelRight, batteryFractionRight * 100);
+    log_d("Battery: %s", batteryOutput.c_str());
     return batteryOutput;
 }
 
-auto Power::getBatteryPercentageOnlyString() -> String {
+auto Power::getBatteryPercentageOnlyString() -> std::string {
     float voltageLevelLeft = this->getLeftBatteryVoltage();
     float batteryFractionLeft =
         (voltageLevelLeft - BATTERY_MIN_VOLTAGE) / (BATTERY_MAX_VOLTAGE - BATTERY_MIN_VOLTAGE);
@@ -102,7 +100,7 @@ auto Power::getBatteryPercentageOnlyString() -> String {
     batteryFractionLeft = std::clamp(batteryFractionLeft, 0.0f, 1.0f);
     batteryFractionRight = std::clamp(batteryFractionRight, 0.0f, 1.0f);
     float batteryAverage = (batteryFractionLeft + batteryFractionRight) / 2.0 * 100;
-    String averageOutput = String(batteryAverage, 0) + "%";
+    std::string averageOutput = StringFormat("%.0f%%", batteryAverage);
     return averageOutput;
 }
 

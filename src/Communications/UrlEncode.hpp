@@ -1,7 +1,7 @@
 // Based on example here:
 // https://github.com/zenmanenergy/ESP8266-Arduino-Examples/blob/master/helloWorld_urlencoded/urlencode.ino
 
-#include "Arduino.h"
+#include <string>
 
-auto Urldecode(const String &str) -> String;
-auto Urlencode(const String &str) -> String;
+auto Urldecode(const std::string &str) -> std::string;
+auto Urlencode(const std::string &str) -> std::string;
