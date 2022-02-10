@@ -61,3 +61,9 @@ You can run clang-tidy to do some more advance C++ static analysis and fixes. Ma
 ```
 
 Issues that will be fixed automatically will be fixed by clang-tidy, warnings will mark any suggestions that clang-tidy couldn't fix directly.
+
+## Simulator!
+
+The simulator compiles in <3sfrom a clean build, and even less on an incremental build. Thsi makes it super fast for us to iterate on anything that doesn't need the physical hardware.
+
+You'll need SDL2 for it to work: (`brew install SDL2`). But then you can just hit the upload button in VSCode+PlatformIO and it should build and run! We haven't figured out how to get VSCode to properly debug the binary yet, but for now you can use the command line: `pio run -e simulator && lldb .pio/build/simulator/program`. Enjoy!
