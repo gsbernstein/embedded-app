@@ -185,6 +185,9 @@ protected:
     uint8_t busy_;
     uint8_t vcom_;
 
+    int timerOverruns_;
+    int busyWaits_;
+
     BorderSetting previousBorder_ = BORDER_SETTING_NONE;
     BorderSetting border_ = BORDER_SETTING_NONE;
 

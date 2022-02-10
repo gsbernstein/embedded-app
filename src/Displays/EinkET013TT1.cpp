@@ -113,6 +113,9 @@ void EinkET013TT1::clear(const EinkET013TT1Waveform &waveform) {
 }
 
 void EinkET013TT1::update(const EinkET013TT1Waveform &waveform, const uint8_t *buffer) {
+    timerOverruns_ = 0;
+    busyWaits_ = 0;
+
     // Set up convenience variables to index into various parts of the scanline
     // TODO: Are there clever union types or other struct packing things we could do here?
     uint8_t scanLine[48];
@@ -222,9 +225,11 @@ void EinkET013TT1::update(const EinkET013TT1Waveform &waveform, const uint8_t *b
     powerOff();
 
     float timeNs = PROFILE_CALCULATE_NS(sendFrames);
-    log_d("Sent %d frames in %.2fms (%.2fms per frame, %.2fus per gate)", waveform.frameCount,
-          timeNs / 1000000, timeNs / waveform.frameCount / 1000000,
-          timeNs / waveform.frameCount / (EinkET013TT1_GATE_COUNT + 1) / 1000);
+    int totalScanlines = (EinkET013TT1_GATE_COUNT + 1) * waveform.frameCount;
+    log_d("Sent %d frames in %.2fms (%.2fms/frame, %.2fus/gate, %d/%d overruns, %d/%d busyWaits)",
+          waveform.frameCount, timeNs / 1000000, timeNs / waveform.frameCount / 1000000,
+          timeNs / waveform.frameCount / (EinkET013TT1_GATE_COUNT + 1) / 1000, timerOverruns_,
+          totalScanlines, busyWaits_, totalScanlines);
 
     // Move new buffer to be previous buffer
     memcpy(previousBuffer_, buffer, sizeof(previousBuffer_));
@@ -392,11 +397,20 @@ inline auto EinkET013TT1::timerRunning() -> bool {
 }
 
 inline void EinkET013TT1::waitForTimer() {
+    // If we ever wait for the timer, and the timer has already completed then we can conclude that
+    // that we spent too much time doing CPU things and the timer ran for longer than we wanted.
+    if (!timerRunning()) {
+        timerOverruns_ += 1;
+        return;
+    }
     while (timerRunning()) {
     }
 }
 
 inline void EinkET013TT1::waitForNotBusy() {
+    if (digitalRead(busy_) == HIGH) {
+        busyWaits_ += 1;
+    }
     while (digitalRead(busy_) == HIGH) {
     }
 }
