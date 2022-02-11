@@ -17,6 +17,7 @@
 #include "Misc/Power.hpp"
 #include "Storage/PreferencesStore.hpp"
 #include "UI/RootUI.hpp"
+#include "config.h"
 #include "sindarin-debug.h"
 
 #if EINKET013TT1
@@ -181,6 +182,8 @@ void setup() {
     rootUi.setup(myDisplay, *readables, inputDeviceConnected, fileSystem);
 
     SHOW_HEAP();
+
+    SetCpuSpeedMhz(CPU_FREQ_MHZ_LOW);
 
     log_i("Setup done");
 }

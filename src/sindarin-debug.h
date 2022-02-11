@@ -2,6 +2,9 @@
 #define SINDARIN_DEBUG_H
 
 #include <Arduino.h>
+extern "C" {
+#include <esp32/clk.h>
+}
 
 #if SIMULATOR
 #define SHOW_HEAP()
@@ -29,7 +32,7 @@
 
 // Logs the result of the profile
 #define PROFILE_LOG(identifier)                                                                    \
-    log_d("PROFILE_LOG(" #identifier ") %.0fns (%d-%d=%d cycles)",                                 \
+    log_d("PROFILE_LOG(" #identifier ") %.0fns (%u-%u=%u cycles)",                                 \
           PROFILE_CALCULATE_NS(identifier), profileEnd##identifier, profileStart##identifier,      \
           profileEnd##identifier - profileStart##identifier)
 
