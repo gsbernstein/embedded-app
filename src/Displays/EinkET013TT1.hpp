@@ -68,7 +68,7 @@ struct Frame {
 
     // Populates a look up table that takes a 4 pixel byte where the most significant 4
     // bits are the old pixels and the least significant 4 bits are the new pixels
-    void makeLUT(std::array<uint8_t, 256> *lut) {
+    inline void makeLUT(std::array<uint8_t, 256> *lut) {
         LUTPixels pixel;
         for (int i = 0; i < 256; ++i) {
             pixel.value = i;

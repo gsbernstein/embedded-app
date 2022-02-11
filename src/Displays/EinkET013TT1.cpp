@@ -11,29 +11,30 @@ extern "C" {
 #include <esp32/clk.h>
 }
 
-static const uint8_t CLEAR_PACKET[48] = {
+static const DRAM_ATTR uint8_t CLEAR_PACKET[48] = {
     0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 
-static const uint16_t GATE_SELECT_TABLE_L[] = {
+// These should go in RAM since they're used per-gate and the gate timing is sensitive
+static const DRAM_ATTR uint16_t GATE_SELECT_TABLE_L[] = {
     0x00C0, 0x0030, 0x000C, 0x0003, 0xC000, 0x3000, 0x0C00, 0x0300,
     0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
 };
 
-static const uint16_t GATE_SELECT_TABLE_H[] = {
+static const DRAM_ATTR uint16_t GATE_SELECT_TABLE_H[] = {
     0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
     0x00C0, 0x0030, 0x000C, 0x0003, 0xC000, 0x3000, 0x0C00, 0x0300,
 };
 
-static const uint32_t GATE_BLOCK_TABLE_L[] = {
+static const DRAM_ATTR uint32_t GATE_BLOCK_TABLE_L[] = {
     0x03000000, 0x0C000000, 0x30000000, 0xC0000000, 0x00030000, 0x000C0000, 0x00300000, 0x00C00000,
     0x00000300, 0x00000C00, 0x00003000, 0x0000C000, 0x00000003, 0x0000000C, 0x00000030, 0x000000C0,
     0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000,
     0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000,
 };
 
-static const uint32_t GATE_BLOCK_TABLE_H[] = {
+static const DRAM_ATTR uint32_t GATE_BLOCK_TABLE_H[] = {
     0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000,
     0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000,
     0x000000C0, 0x00000030, 0x0000000C, 0x00000003, 0x0000C000, 0x00003000, 0x00000C00, 0x00000300,
@@ -47,7 +48,10 @@ static uint8_t const BORDER_TEMPLATE[4] = {0x00, 0x00, 0x00, 0x0C};
 
 static uint8_t const BORDER_NONE[4] = {0x00, 0x00, 0x00, 0x03};
 
-static SPISettings spiSettings(8000000, SPI_MSBFIRST, SPI_MODE0);
+// According to the EinkET013TT1 datasheet, the min clock time is 50ns which equates to 20MHz
+// though experimentally 30MHz seems to be fine (but doesnt seem to have much benefit)
+// at 20Mhz it should take 20us to send a 50 byte scanline (50*8*(1/20000000))
+static SPISettings spiSettings(30000000, SPI_MSBFIRST, SPI_MODE0);
 
 void EinkET013TT1::init() {
     log_d("Initializing EinkET013TT1");
@@ -153,6 +157,7 @@ void EinkET013TT1::update(const EinkET013TT1Waveform &waveform, const uint8_t *b
         // Generate a look up table to quickly look up old bits -> new bits and the resulting
         // transitions
         std::array<uint8_t, 256> lut;
+        // This takes ~210us at 160MHz
         frame.makeLUT(&lut);
 
         if (border_ != BORDER_SETTING_NONE) {
@@ -169,8 +174,8 @@ void EinkET013TT1::update(const EinkET013TT1Waveform &waveform, const uint8_t *b
         // For each horizontal half-line
         for (int gate = 0; gate < EinkET013TT1_GATE_COUNT; gate++) {
             // Pick the correct gate based on the index
-            uint16_t gs = gate & 0x0F;
-            uint16_t gb = gate >> 4;
+            uint8_t gs = gate & 0x0F;
+            uint8_t gb = gate >> 4;
             *gateBlockLow = GATE_BLOCK_TABLE_L[gb];
             *gateSelectLow = GATE_SELECT_TABLE_L[gs];
             *gateSelectHigh = GATE_SELECT_TABLE_H[gs];
@@ -190,6 +195,7 @@ void EinkET013TT1::update(const EinkET013TT1Waveform &waveform, const uint8_t *b
             auto newBuffer = &(buffer[bufferIndex]);
             auto oldBuffer = &(previousBuffer_[bufferIndex]);
 
+            // This for loop takes 5.367us at 160MHz (1288 cycles)
             for (int pixel = 0; pixel < EinkET013TT1_PIXEL_WIDTH / 2; pixel += 4) {
                 uint8_t oldPixels;
                 uint8_t newPixels;
@@ -204,6 +210,8 @@ void EinkET013TT1::update(const EinkET013TT1Waveform &waveform, const uint8_t *b
             }
 
             // Send the scan line!
+            // `writeRegister` takes 24.7us at 160MHz (5994 cycles) which is about right since
+            // we're sending 50bytes at 20MHz so 50*8*(1/20000000)=20us
             writeRegister(WRITE_GATE_SOURCE_DATA, scanLine, sizeof(scanLine));
             // Wait for frame timer and busy signal
             waitForTimer();
@@ -399,12 +407,13 @@ inline auto EinkET013TT1::timerRunning() -> bool {
 inline void EinkET013TT1::waitForTimer() {
     // If we ever wait for the timer, and the timer has already completed then we can conclude that
     // that we spent too much time doing CPU things and the timer ran for longer than we wanted.
-    if (!timerRunning()) {
+    if (timerDurationCycles_ != 0 && !timerRunning()) {
         timerOverruns_ += 1;
         return;
     }
     while (timerRunning()) {
     }
+    timerDurationCycles_ = 0;
 }
 
 inline void EinkET013TT1::waitForNotBusy() {
