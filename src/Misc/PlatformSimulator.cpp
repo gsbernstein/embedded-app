@@ -8,6 +8,6 @@ auto GetBatteryVoltageLeft() -> float { return 0; }
 
 auto GetBatteryVoltageRight() -> float { return 0; }
 
-void SetCpuSpeedMhz(int speedMhz);
+void SetCpuSpeedMhz(int speedMhz) {}
 
 #endif

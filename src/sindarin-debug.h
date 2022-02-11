@@ -2,19 +2,24 @@
 #define SINDARIN_DEBUG_H
 
 #include <Arduino.h>
+
+#if SIMULATOR
+
+#define SHOW_HEAP()
+#define PROFILE_START(identifier)
+#define PROFILE_END(identifier)
+#define PROFILE_CALCULATE_NS(identifier)
+#define PROFILE_LOG(identifier)
+#define PROFILE_END_LOG(identifier)
+
+#else
 extern "C" {
 #include <esp32/clk.h>
 }
 
-#if SIMULATOR
-#define SHOW_HEAP()
-#else
 #define SHOW_HEAP()                                                                                \
     log_d("Free heap: %dk/%dk Free PSRAM: %dk/%dk", ESP.getFreeHeap() / 1000,                      \
           ESP.getHeapSize() / 1000, ESP.getFreePsram() / 1000, ESP.getPsramSize() / 1000)
-#endif
-
-#define SIZE_OF(obj) log_d("SIZE_OF(%s): %zu", #obj, sizeof(obj))
 
 // NOTE: based on the uint32_t, this cannot profile anything longer than 17.89569707
 #define PROFILE_START(identifier)                                                                  \
@@ -40,5 +45,9 @@ extern "C" {
 #define PROFILE_END_LOG(identifier)                                                                \
     PROFILE_END(identifier);                                                                       \
     PROFILE_LOG(identifier);
+
+#endif // SIMULATOR
+
+#define SIZE_OF(obj) log_d("SIZE_OF(%s): %zu", #obj, sizeof(obj))
 
 #endif
