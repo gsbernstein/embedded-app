@@ -168,10 +168,6 @@ void DisplaySystem::drawTextCmdsOnly(const std::string &newText, int x, int y, i
 
     setTextColor(fg);
 
-    if (!getPartialRefresh() && autoUpdate_) {
-        fillScreen(bg);
-    }
-
     for (int i = 0; i < numLines; i++) {
         // Don't know if it starts the line from the baseline or from the top -- TO LEARN: HACK
         setCursor(x, y + i * (lineHeight));
@@ -209,6 +205,10 @@ void DisplaySystem::drawTextInBox(const std::string &newText, int startX, int st
     int lineHeight = 0;
 
     log_d("Printing some stuff to screen!");
+
+    if (!getPartialRefresh() && autoUpdate_) {
+        fillScreen(bg);
+    }
 
     lineHeight = getTextHeight();
 
@@ -257,10 +257,6 @@ void DisplaySystem::renderBox(int xStart, int yStart, int xEnd, int yEnd) {
 }
 
 void DisplaySystem::drawBoxCmdsOnly(int startX, int startY, int endX, int endY) {
-
-    if (!getPartialRefresh() && autoUpdate_) {
-        fillScreen(bg);
-    }
     drawRect(startX, startY, endX - startX, endY - startY, fg);
 }
 
