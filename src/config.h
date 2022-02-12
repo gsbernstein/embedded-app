@@ -65,5 +65,5 @@
 #define DISPLAY_RST 32
 #define DISPLAY_BUSY 33
 
-#define CPU_FREQ_MHZ_HIGH 160
+#define CPU_FREQ_MHZ_HIGH 240
 #define CPU_FREQ_MHZ_LOW 80
