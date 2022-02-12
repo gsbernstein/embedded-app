@@ -22,10 +22,27 @@ static const DRAM_ATTR uint16_t GATE_SELECT_TABLE_L[] = {
     0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
 };
 
+inline IRAM_ATTR uint16_t gateSelectL(uint8_t i) {
+    if (i >= 8) {
+        return 0;
+    } else {
+        return ((uint16_t)0xC0 >> ((i % 4) * 2)) << ((i / 4) * 8);
+    }
+}
+
 static const DRAM_ATTR uint16_t GATE_SELECT_TABLE_H[] = {
     0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
     0x00C0, 0x0030, 0x000C, 0x0003, 0xC000, 0x3000, 0x0C00, 0x0300,
 };
+
+inline IRAM_ATTR uint16_t gateSelectH(uint8_t i) {
+    if (i < 8) {
+        return 0;
+    } else {
+        i -= 8;
+        return ((uint16_t)0xC0 >> ((i % 4) * 2)) << ((i / 4) * 8);
+    }
+}
 
 static const DRAM_ATTR uint32_t GATE_BLOCK_TABLE_L[] = {
     0x03000000, 0x0C000000, 0x30000000, 0xC0000000, 0x00030000, 0x000C0000, 0x00300000, 0x00C00000,
@@ -34,12 +51,29 @@ static const DRAM_ATTR uint32_t GATE_BLOCK_TABLE_L[] = {
     0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000,
 };
 
+uint32_t IRAM_ATTR gateBlockL(uint8_t i) {
+    if (i >= 16) {
+        return 0;
+    } else {
+        return ((uint32_t)0x03000000 << ((i % 4) * 2)) >> ((i / 4) * 8);
+    }
+}
+
 static const DRAM_ATTR uint32_t GATE_BLOCK_TABLE_H[] = {
     0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000,
     0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000,
     0x000000C0, 0x00000030, 0x0000000C, 0x00000003, 0x0000C000, 0x00003000, 0x00000C00, 0x00000300,
     0x00C00000, 0x00300000, 0x000C0000, 0x00030000, 0xC0000000, 0x30000000, 0x0C000000, 0x03000000,
 };
+
+uint32_t IRAM_ATTR gateBlockH(uint8_t i) {
+    if (i < 16) {
+        return 0;
+    } else {
+        i -= 16;
+        return ((uint32_t)0xC0 >> ((i % 4) * 2)) << ((i / 4) * 8);
+    }
+}
 
 static const uint8_t CHANNEL_SETTINGS[] = {0x1E, 0x00, 0xE0};
 
@@ -51,7 +85,7 @@ static uint8_t const BORDER_NONE[4] = {0x00, 0x00, 0x00, 0x03};
 // According to the EinkET013TT1 datasheet, the min clock time is 50ns which equates to 20MHz
 // though experimentally 30MHz seems to be fine (but doesnt seem to have much benefit)
 // at 20Mhz it should take 20us to send a 50 byte scanline (50*8*(1/20000000))
-static SPISettings spiSettings(30000000, SPI_MSBFIRST, SPI_MODE0);
+static SPISettings spiSettings(20000000, SPI_MSBFIRST, SPI_MODE0);
 
 void EinkET013TT1::init() {
     log_d("Initializing EinkET013TT1");
@@ -119,6 +153,7 @@ void EinkET013TT1::clear(const EinkET013TT1Waveform &waveform) {
 void EinkET013TT1::update(const EinkET013TT1Waveform &waveform, const uint8_t *buffer) {
     timerOverruns_ = 0;
     busyWaits_ = 0;
+    maxFrameCycles_ = 0;
 
     // Set up convenience variables to index into various parts of the scanline
     // TODO: Are there clever union types or other struct packing things we could do here?
@@ -171,15 +206,17 @@ void EinkET013TT1::update(const EinkET013TT1Waveform &waveform, const uint8_t *b
             borderSettings[1] = borderBits | borderBits << 2 | borderBits << 4 | borderBits << 6;
         }
 
+        portDISABLE_INTERRUPTS();
+
         // For each horizontal half-line
         for (int gate = 0; gate < EinkET013TT1_GATE_COUNT; gate++) {
             // Pick the correct gate based on the index
             uint8_t gs = gate & 0x0F;
             uint8_t gb = gate >> 4;
-            *gateBlockLow = GATE_BLOCK_TABLE_L[gb];
-            *gateSelectLow = GATE_SELECT_TABLE_L[gs];
-            *gateSelectHigh = GATE_SELECT_TABLE_H[gs];
-            *gateBlockHigh = GATE_BLOCK_TABLE_H[gb];
+            *gateBlockLow = gateBlockL(gb);
+            *gateSelectLow = gateSelectL(gs);
+            *gateSelectHigh = gateSelectH(gb);
+            *gateBlockHigh = gateBlockH(gb);
 
             // Gate indices represent half-lines in this order (with connector down):
             // bottom left -> top left -> bottom right -> top right
@@ -195,7 +232,7 @@ void EinkET013TT1::update(const EinkET013TT1Waveform &waveform, const uint8_t *b
             auto newBuffer = &(buffer[bufferIndex]);
             auto oldBuffer = &(previousBuffer_[bufferIndex]);
 
-            // This for loop takes 5.367us at 160MHz (1288 cycles)
+            // This for loop takes 4-16us at 240MHz
             for (int pixel = 0; pixel < EinkET013TT1_PIXEL_WIDTH / 2; pixel += 4) {
                 uint8_t oldPixels;
                 uint8_t newPixels;
@@ -226,6 +263,8 @@ void EinkET013TT1::update(const EinkET013TT1Waveform &waveform, const uint8_t *b
         waitForTimer();
         waitForNotBusy();
         writeRegister(MYSTERY_SETTING_1, 0x10);
+
+        portENABLE_INTERRUPTS();
     }
 
     PROFILE_END(sendFrames);
@@ -238,6 +277,10 @@ void EinkET013TT1::update(const EinkET013TT1Waveform &waveform, const uint8_t *b
           waveform.frameCount, timeNs / 1000000, timeNs / waveform.frameCount / 1000000,
           timeNs / waveform.frameCount / (EinkET013TT1_GATE_COUNT + 1) / 1000, timerOverruns_,
           totalScanlines, busyWaits_, totalScanlines);
+    if (timerOverruns_ > 0) {
+        log_w("%d timer overruns happened! %.2fus maxFrame", timerOverruns_,
+              CYCLES_TO_US(maxFrameCycles_));
+    }
 
     // Move new buffer to be previous buffer
     memcpy(previousBuffer_, buffer, sizeof(previousBuffer_));
@@ -395,6 +438,8 @@ inline void EinkET013TT1::startTimer(uint32_t ns) {
     timerDurationCycles_ = (esp_clk_cpu_freq() / 1000000000.0) * ns;
 }
 
+inline auto EinkET013TT1::timerActivated() -> bool { return timerDurationCycles_ != 0; }
+
 inline auto EinkET013TT1::timerRunning() -> bool {
     volatile uint32_t cycleCount = 0;
     RSR(CCOUNT, cycleCount);
@@ -405,10 +450,15 @@ inline auto EinkET013TT1::timerRunning() -> bool {
 }
 
 inline void EinkET013TT1::waitForTimer() {
-    // If we ever wait for the timer, and the timer has already completed then we can conclude that
-    // that we spent too much time doing CPU things and the timer ran for longer than we wanted.
-    if (timerDurationCycles_ != 0 && !timerRunning()) {
+    // If we ever wait for the timer, and the timer has already completed then we can conclude
+    // that that we spent too much time doing CPU things and the timer ran for longer than we
+    // wanted.
+    if (timerActivated() && !timerRunning()) {
+        volatile uint32_t cycleCount = 0;
+        RSR(CCOUNT, cycleCount);
+        maxFrameCycles_ = std::max(maxFrameCycles_, cycleCount - cycleCountStart_);
         timerOverruns_ += 1;
+        timerDurationCycles_ = 0;
         return;
     }
     while (timerRunning()) {

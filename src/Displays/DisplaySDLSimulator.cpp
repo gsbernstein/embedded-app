@@ -8,13 +8,10 @@
 extern SDL_Renderer *renderer;
 
 DisplaySDLSimulator::DisplaySDLSimulator()
-    : DisplaySystem(DisplaySDL_X_PIXELS, DisplaySDL_Y_PIXELS) {
-
-    setFullWindow();
-
-    widthInMm_ = 23.3;
-    heightInMm_ = 23.3;
+    : widthInMm_(23.3), heightInMm_(23.3), DisplaySystem(DisplaySDL_X_PIXELS, DisplaySDL_Y_PIXELS) {
 }
+
+void DisplaySDLSimulator::setup() { setFullWindow(); }
 
 void DisplaySDLSimulator::updateDisplay() {
     for (int x = 0; x < width(); x++) {

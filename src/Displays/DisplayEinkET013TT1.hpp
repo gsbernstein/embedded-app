@@ -13,6 +13,8 @@ public:
     DisplayEinkET013TT1(uint8_t cs, uint8_t oei, uint8_t rst, uint8_t busy);
     ~DisplayEinkET013TT1() override = default;
 
+    void setup() override;
+
     void updateDisplay() override;
 
     void clearDisplay() override;

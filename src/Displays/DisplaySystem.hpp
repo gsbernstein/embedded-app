@@ -31,6 +31,8 @@ public:
     DisplaySystem(int16_t w, int16_t h);
     ~DisplaySystem() override = default;
 
+    virtual void setup(){};
+
     // MARK: - Required virtual methods that subclasses must implement
 
     virtual void updateDisplay() = 0;

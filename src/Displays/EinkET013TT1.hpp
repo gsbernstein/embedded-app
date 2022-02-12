@@ -175,6 +175,7 @@ protected:
     auto readPumpStatus() -> PumpStatus;
     auto readDeviceIdReg() -> uint8_t;
     inline void startTimer(uint32_t ns);
+    inline auto timerActivated() -> bool;
     inline auto timerRunning() -> bool;
     inline void waitForTimer();
     inline void waitForNotBusy();
@@ -185,8 +186,9 @@ protected:
     uint8_t busy_;
     uint8_t vcom_;
 
-    int timerOverruns_;
-    int busyWaits_;
+    uint16_t timerOverruns_;
+    uint16_t busyWaits_;
+    uint32_t maxFrameCycles_;
 
     BorderSetting previousBorder_ = BORDER_SETTING_NONE;
     BorderSetting border_ = BORDER_SETTING_NONE;
