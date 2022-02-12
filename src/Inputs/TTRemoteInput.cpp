@@ -195,7 +195,7 @@ auto TTRemoteInput::checkRelease() -> int {
         wasCodeProcessed_ = 1;
         lastCode_ = (RemoteCommand)bleCode_;
         foundRelease = 1;
-        log_d("Got a TurnTouch code: %s", CodeToString(lastCode_));
+        log_d("TurnTouch code: %s", CodeToString(lastCode_));
     }
     return foundRelease;
 }

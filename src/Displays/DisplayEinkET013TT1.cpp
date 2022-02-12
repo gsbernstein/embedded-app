@@ -6,6 +6,8 @@
 
 #include "Displays/CustomWaveforms.hpp"
 #include "Displays/EinkWaveforms.hpp"
+#include "Misc/Platform.hpp"
+#include "config.h"
 
 #define EinkET013TT1_WIDTH_IN_MM 23.3
 #define EinkET013TT1_HEIGHT_IN_MM 23.3
@@ -19,7 +21,9 @@ const EinkET013TT1Waveform ORIGINAL_FULL_REFRESH_WAVEFORM = EINK_ORIGINAL_WAVEFO
 const EinkET013TT1Waveform ORIGINAL_PARTIAL_REFRESH_WAVEFORM = EINK_31_35C_WAVEFORM_PARTIAL;
 
 DisplayEinkET013TT1::DisplayEinkET013TT1(uint8_t cs, uint8_t oei, uint8_t rst, uint8_t busy)
-    : driver_(cs, oei, rst, busy), DisplaySystem(EinkET013TT1_X_PIXELS, EinkET013TT1_Y_PIXELS) {
+    : driver_(cs, oei, rst, busy), DisplaySystem(EinkET013TT1_X_PIXELS, EinkET013TT1_Y_PIXELS) {}
+
+void DisplayEinkET013TT1::setup() {
     log_d("Initializing EPD driver");
     driver_.init();
     log_d("Clearing display");
@@ -36,6 +40,8 @@ DisplayEinkET013TT1::DisplayEinkET013TT1(uint8_t cs, uint8_t oei, uint8_t rst, u
 }
 
 void DisplayEinkET013TT1::updateDisplay() {
+    SetCpuSpeedMhz(CPU_FREQ_MHZ_HIGH);
+
     if (getPartialRefresh()) {
         if (getInversion()) {
             driver_.update(PARTIAL_REFRESH_WAVEFORM_INVERTED, getBuffer());
@@ -48,6 +54,8 @@ void DisplayEinkET013TT1::updateDisplay() {
     }
     // Clear buffer afterwards
     fillScreen(bg);
+
+    SetCpuSpeedMhz(CPU_FREQ_MHZ_LOW);
 }
 
 void DisplayEinkET013TT1::clearDisplay() { driver_.clear(PANEL_CLEAR_WAVEFORM); }

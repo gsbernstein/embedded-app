@@ -4,14 +4,28 @@
 #include <Arduino.h>
 
 #if SIMULATOR
+
 #define SHOW_HEAP()
+#define PROFILE_START(identifier)
+#define PROFILE_END(identifier)
+#define PROFILE_CALCULATE_MS(identifier)
+#define PROFILE_CALCULATE_US(identifier)
+#define PROFILE_CALCULATE_NS(identifier)
+#define PROFILE_LOG_MS(identifier)
+#define PROFILE_LOG_US(identifier)
+#define PROFILE_LOG_NS(identifier)
+#define PROFILE_END_LOG_MS(identifier)
+#define PROFILE_END_LOG_US(identifier)
+#define PROFILE_END_LOG_NS(identifier)
+
 #else
+extern "C" {
+#include <esp32/clk.h>
+}
+
 #define SHOW_HEAP()                                                                                \
     log_d("Free heap: %dk/%dk Free PSRAM: %dk/%dk", ESP.getFreeHeap() / 1000,                      \
           ESP.getHeapSize() / 1000, ESP.getFreePsram() / 1000, ESP.getPsramSize() / 1000)
-#endif
-
-#define SIZE_OF(obj) log_d("SIZE_OF(%s): %zu", #obj, sizeof(obj))
 
 // NOTE: based on the uint32_t, this cannot profile anything longer than 17.89569707
 #define PROFILE_START(identifier)                                                                  \
@@ -22,20 +36,54 @@
     volatile uint32_t profileEnd##identifier = 0;                                                  \
     RSR(CCOUNT, profileEnd##identifier);
 
+#define CYCLES_TO_MS(cycles) (((cycles)*1000.0f) / (esp_clk_cpu_freq()))
+
+#define CYCLES_TO_US(cycles) (((cycles)*1000.0f) / (esp_clk_cpu_freq() / 1000.0f))
+
+#define CYCLES_TO_NS(cycles) (((cycles)*1000.0f) / (esp_clk_cpu_freq() / 1000000.0f))
+
+#define PROFILE_CALCULATE_MS(identifier)                                                           \
+    CYCLES_TO_MS(profileEnd##identifier - profileStart##identifier)
+
+// Calculates in us the difference between PROFILE_START and PROFILE_END
+#define PROFILE_CALCULATE_US(identifier)                                                           \
+    CYCLES_TO_US(profileEnd##identifier - profileStart##identifier)
+
 // Calculates in ns the difference between PROFILE_START and PROFILE_END
 #define PROFILE_CALCULATE_NS(identifier)                                                           \
-    (((profileEnd##identifier - profileStart##identifier) * 1000.0f) /                             \
-     (esp_clk_cpu_freq() / 1000000.0f))
+    CYCLES_TO_NS(profileEnd##identifier - profileStart##identifier)
+
+#define PROFILE_LOG_MS(identifier)                                                                 \
+    log_d("PROFILE_LOG_MS(" #identifier ") %.0fms (%u-%u=%u cycles)",                              \
+          PROFILE_CALCULATE_MS(identifier), profileEnd##identifier, profileStart##identifier,      \
+          profileEnd##identifier - profileStart##identifier)
+
+#define PROFILE_LOG_US(identifier)                                                                 \
+    log_d("PROFILE_LOG_US(" #identifier ") %.0fus (%u-%u=%u cycles)",                              \
+          PROFILE_CALCULATE_US(identifier), profileEnd##identifier, profileStart##identifier,      \
+          profileEnd##identifier - profileStart##identifier)
 
 // Logs the result of the profile
-#define PROFILE_LOG(identifier)                                                                    \
-    log_d("PROFILE_LOG(" #identifier ") %.0fns (%d-%d=%d cycles)",                                 \
+#define PROFILE_LOG_NS(identifier)                                                                 \
+    log_d("PROFILE_LOG_NS(" #identifier ") %.0fns (%u-%u=%u cycles)",                              \
           PROFILE_CALCULATE_NS(identifier), profileEnd##identifier, profileStart##identifier,      \
           profileEnd##identifier - profileStart##identifier)
 
-// Convenience method that ends the profile then logs the result
-#define PROFILE_END_LOG(identifier)                                                                \
+#define PROFILE_END_LOG_MS(identifier)                                                             \
     PROFILE_END(identifier);                                                                       \
-    PROFILE_LOG(identifier);
+    PROFILE_LOG_MS(identifier);
+
+#define PROFILE_END_LOG_US(identifier)                                                             \
+    PROFILE_END(identifier);                                                                       \
+    PROFILE_LOG_US(identifier);
+
+// Convenience method that ends the profile then logs the result
+#define PROFILE_END_LOG_NS(identifier)                                                             \
+    PROFILE_END(identifier);                                                                       \
+    PROFILE_LOG_NS(identifier);
+
+#endif // SIMULATOR
+
+#define SIZE_OF(obj) log_d("SIZE_OF(%s): %zu", #obj, sizeof(obj))
 
 #endif

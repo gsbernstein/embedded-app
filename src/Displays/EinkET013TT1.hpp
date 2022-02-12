@@ -68,7 +68,7 @@ struct Frame {
 
     // Populates a look up table that takes a 4 pixel byte where the most significant 4
     // bits are the old pixels and the least significant 4 bits are the new pixels
-    void makeLUT(std::array<uint8_t, 256> *lut) {
+    inline void makeLUT(std::array<uint8_t, 256> *lut) {
         LUTPixels pixel;
         for (int i = 0; i < 256; ++i) {
             pixel.value = i;
@@ -175,6 +175,7 @@ protected:
     auto readPumpStatus() -> PumpStatus;
     auto readDeviceIdReg() -> uint8_t;
     inline void startTimer(uint32_t ns);
+    inline auto timerActivated() -> bool;
     inline auto timerRunning() -> bool;
     inline void waitForTimer();
     inline void waitForNotBusy();
@@ -184,6 +185,10 @@ protected:
     uint8_t rst_;
     uint8_t busy_;
     uint8_t vcom_;
+
+    uint16_t timerOverruns_;
+    uint16_t busyWaits_;
+    uint32_t maxFrameCycles_;
 
     BorderSetting previousBorder_ = BORDER_SETTING_NONE;
     BorderSetting border_ = BORDER_SETTING_NONE;

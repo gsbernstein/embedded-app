@@ -11,5 +11,6 @@ public:
     DisplaySDLSimulator();
     ~DisplaySDLSimulator() = default;
 
+    void setup() override;
     void updateDisplay() override;
 };

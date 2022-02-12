@@ -1,4 +1,8 @@
 // Configuration defines
+// WARNING: Based on how this file is pre-included everywhere, we don't trigger
+// an entirely new build when this file changes. To make sure changes here get
+// picked up you need to clean and build everything. Or make sure any files that
+// need stuff from here explicitly #include "config.h"
 
 //#define EINK154in
 #ifndef EINKET013TT1
@@ -60,3 +64,6 @@
 #define DISPLAY_OEI 21
 #define DISPLAY_RST 32
 #define DISPLAY_BUSY 33
+
+#define CPU_FREQ_MHZ_HIGH 240
+#define CPU_FREQ_MHZ_LOW 80

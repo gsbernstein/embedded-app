@@ -5,6 +5,8 @@
 #include <WiFi.h>
 #include <esp_wifi.h>
 
+#include "config.h"
+
 void ConnectWiFiIfCredentialsExist() {
     // If credentials are available, go ahead and attempt WiFi connection
     if (!WiFi.enableSTA(true)) {

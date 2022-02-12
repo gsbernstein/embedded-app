@@ -17,14 +17,15 @@
 #include "Misc/Power.hpp"
 #include "Storage/PreferencesStore.hpp"
 #include "UI/RootUI.hpp"
+#include "config.h"
 #include "sindarin-debug.h"
 
 #if EINKET013TT1
-DisplayEinkET013TT1 *myDisplay;
+DisplayEinkET013TT1 myDisplay(DISPLAY_CS, DISPLAY_OEI, DISPLAY_RST, DISPLAY_BUSY);
 #endif
 
 #if SIMULATOR
-DisplaySDLSimulator *myDisplay;
+DisplaySDLSimulator myDisplay;
 #endif
 
 PreferencesStore prefs;
@@ -96,24 +97,24 @@ void setup() {
 #if EINKET013TT1
     // Turn on power to the screen
     digitalWrite(DISPLAY_POWER, HIGH);
-    myDisplay = new DisplayEinkET013TT1(DISPLAY_CS, DISPLAY_OEI, DISPLAY_RST, DISPLAY_BUSY);
-    myDisplay->setFocusSize(15, 15);
-    myDisplay->localXOffset = prefs.localXOffset.get().value();
-    myDisplay->localYOffset = prefs.localYOffset.get().value();
-    myDisplay->setFocusOffset(prefs.displayBoxWidthOffsetMm.get().value(),
-                              prefs.displayBoxHeightOffsetMm.get().value());
-    myDisplay->invertDisplay(prefs.invertSetting.get().value());
+    myDisplay.setup();
+    myDisplay.setFocusSize(15, 15);
+    myDisplay.localXOffset = prefs.localXOffset.get().value();
+    myDisplay.localYOffset = prefs.localYOffset.get().value();
+    myDisplay.setFocusOffset(prefs.displayBoxWidthOffsetMm.get().value(),
+                             prefs.displayBoxHeightOffsetMm.get().value());
+    myDisplay.invertDisplay(prefs.invertSetting.get().value());
 #endif
 
 #if SIMULATOR
-    myDisplay = new DisplaySDLSimulator();
-    myDisplay->localXOffset = 0;
-    myDisplay->localYOffset = 0;
-    myDisplay->setFocusSize(15, 15);
-    myDisplay->setFocusOffset(0, 0);
+    myDisplay.setup();
+    myDisplay.localXOffset = 0;
+    myDisplay.localYOffset = 0;
+    myDisplay.setFocusSize(15, 15);
+    myDisplay.setFocusOffset(0, 0);
 #endif
 
-    SIZE_OF(*myDisplay);
+    SIZE_OF(myDisplay);
 
 #if USE_IR_REMOTE
     ir_remote_input = new IRRemoteInput();
@@ -178,9 +179,11 @@ void setup() {
 
     power.setup();
 
-    rootUi.setup(myDisplay, *readables, inputDeviceConnected, fileSystem);
+    rootUi.setup(&myDisplay, *readables, inputDeviceConnected, fileSystem);
 
     SHOW_HEAP();
+
+    SetCpuSpeedMhz(CPU_FREQ_MHZ_LOW);
 
     log_i("Setup done");
 }
@@ -236,7 +239,7 @@ void loop() {
         digitalWrite(RED_LED, HIGH);
     }
 
-    rootUi.loop(*myDisplay, codeFromRelease);
+    rootUi.loop(myDisplay, codeFromRelease);
 
     digitalWrite(RED_LED, LOW);
 

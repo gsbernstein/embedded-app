@@ -12,7 +12,6 @@ void ReadableScreen::render(DisplaySystem &display) {
         return;
     }
     if (!inPopup_) {
-        log_d("Rendering some text in READ MODE");
         newPlace_ = fileRenderer_->renderPageWithBox(readable_.place);
         log_d("%lu is the new place in the text", newPlace_);
         needsRerender = false;

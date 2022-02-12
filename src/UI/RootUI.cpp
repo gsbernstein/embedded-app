@@ -20,6 +20,7 @@
 #include "UI/ReadableScreen.hpp"
 #include "UI/ResizeBoxScreen.hpp"
 #include "UI/StreamRendererScreen.hpp"
+#include "config.h"
 #include "sindarin-debug.h"
 
 #if !DISABLE_WIFI

@@ -1,5 +1,6 @@
 #if !SIMULATOR
 
+#include <driver/uart.h>
 #include <esp_adc_cal.h>
 
 #include "Platform.hpp"
@@ -57,6 +58,20 @@ auto GetBatteryVoltageRight() -> float {
     mv = esp_adc_cal_raw_to_voltage(raw, &chars) * (LOWER_DIVIDER + UPPER_DIVIDER) / LOWER_DIVIDER;
 
     return (float)mv / 1000.0;
+}
+
+void SetCpuSpeedMhz(int speedMhz) {
+    if (speedMhz == esp_clk_cpu_freq() / 1000000) {
+        return;
+    }
+    // Wait for the Serial buffer to flush otherwise we may get corruption
+    esp_err_t err = uart_wait_tx_done(0, 100);
+    if (err != ESP_OK) {
+        log_e("uart_wait_tx_done failed with code %d", err);
+    }
+    if (setCpuFrequencyMhz(speedMhz) != true) {
+        log_e("Failed to setCpuFrequencyMhz(%d)", speedMhz);
+    }
 }
 
 #endif
