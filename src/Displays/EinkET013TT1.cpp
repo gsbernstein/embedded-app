@@ -215,7 +215,7 @@ void EinkET013TT1::update(const EinkET013TT1Waveform &waveform, const uint8_t *b
             uint8_t gb = gate >> 4;
             *gateBlockLow = gateBlockL(gb);
             *gateSelectLow = gateSelectL(gs);
-            *gateSelectHigh = gateSelectH(gb);
+            *gateSelectHigh = gateSelectH(gs);
             *gateBlockHigh = gateBlockH(gb);
 
             // Gate indices represent half-lines in this order (with connector down):
