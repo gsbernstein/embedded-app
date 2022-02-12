@@ -14,7 +14,8 @@
 
 class PreferencesStore {
 public:
-    template <typename T> class PrefsItemBase {
+    template <typename T>
+    class PrefsItemBase {
     public:
         PrefsItemBase(Preferences &prefs) : prefs(prefs) {}
 
@@ -34,7 +35,8 @@ public:
         Preferences &prefs;
     };
 
-    template <typename T> class PrefsItem : public PrefsItemBase<T> {
+    template <typename T>
+    class PrefsItem : public PrefsItemBase<T> {
     public:
         PrefsItem(Preferences &prefs, const char *key) : PrefsItemBase<T>(prefs) {
             strncpy(this->key_, key, sizeof(this->key_));
@@ -99,7 +101,8 @@ public:
     };
 #endif
 
-    template <typename T> class KeyedPrefsItem : PrefsItemBase<T> {
+    template <typename T>
+    class KeyedPrefsItem : PrefsItemBase<T> {
     public:
         KeyedPrefsItem(Preferences &prefs, const char *suffix)
             : PrefsItemBase<T>(prefs), suffix_(suffix) {}
