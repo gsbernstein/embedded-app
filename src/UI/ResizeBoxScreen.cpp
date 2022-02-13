@@ -30,7 +30,7 @@ void ResizeBoxScreen::render(DisplaySystem &display) {
         return;
     }
 
-    this->renderer_.renderPageWithBox(0);
+    this->renderer_.renderPage(0);
 
     needsRerender = false;
 }
