@@ -1,1 +1,3 @@
 void ConnectWiFiIfCredentialsExist();
+
+void DisconnectWifi();

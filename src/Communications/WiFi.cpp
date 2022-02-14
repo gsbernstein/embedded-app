@@ -21,7 +21,15 @@ void ConnectWiFiIfCredentialsExist() {
         WiFi.setHostname(HOSTNAME);
         WiFi.begin();
         WiFi.setAutoReconnect(true);
+        // WiFi.setSleep(true);
     }
+}
+
+void DisconnectWifi() {
+    log_i("Disconnecting WiFi");
+    WiFi.setAutoReconnect(false);
+    WiFi.disconnect();
+    WiFi.mode(WIFI_OFF);
 }
 
 #endif

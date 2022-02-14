@@ -3,6 +3,7 @@
 #include <nvs_flash.h>
 
 #include "Bitmaps/Logo.hpp"
+#include "Communications/WiFi.hpp"
 #include "Contents/Readable.hpp"
 #include "Inputs/RemoteInput.hpp"
 #include "Inputs/TTRemoteInput.hpp"
@@ -47,6 +48,9 @@ void RootUI::setup(DisplaySystem *display, std::vector<Readable> &readables, boo
 
     auto createReadableScreen = [this, display, mainMenu,
                                  &fileSystem](Readable *readable) -> ReadableScreen * {
+#if !DISABLE_WIFI
+        DisconnectWifi();
+#endif
         // TODO: Would be better to not allocate / delete these all the time
         auto *bookRenderer = new FileRenderer(*display, *readable, fileSystem);
         this->prefs_.lastReadableId.set(readable->id);
@@ -56,6 +60,9 @@ void RootUI::setup(DisplaySystem *display, std::vector<Readable> &readables, boo
         // to make the whites really white and the blacks really black.
         bookRenderer->getDisplay()->clearDisplay();
         readableScreen->backCallback = [this, bookRenderer, readableScreen, mainMenu]() {
+#if !DISABLE_WIFI
+            ConnectWiFiIfCredentialsExist();
+#endif
             // When leaving a readable to go back to the main menu, do a full clear
             // of the display.
             bookRenderer->getDisplay()->clearDisplay();
