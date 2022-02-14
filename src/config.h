@@ -30,6 +30,10 @@
 #ifndef USE_BLE_SERVER_IMPROV
 #define USE_BLE_SERVER_IMPROV 1
 #endif
+#define USE_BLE                                                                                    \
+    (USE_TURN_TOUCH_REMOTE || USE_BLE_SERVER_REMOTE || USE_BLE_SERVER_SETTINGS ||                  \
+     USE_BLE_SERVER_IMPROV)
+
 // #define USE_IR_REMOTE
 
 #define IR_REMOTE_INPUT_PIN 12

@@ -6,7 +6,6 @@
 #include "Communications/WiFi.hpp"
 #include "Contents/Readable.hpp"
 #include "Inputs/RemoteInput.hpp"
-#include "Inputs/TTRemoteInput.hpp"
 #include "Misc/Platform.hpp"
 #include "Misc/StringUtil.hpp"
 #include "Renderers/FileRenderer.hpp"
@@ -30,6 +29,10 @@
 
 #if ENABLE_POCKET
 #include "Communications/PocketAPI.hpp"
+#endif
+
+#if USE_TURN_TOUCH_REMOTE
+#include "Inputs/TTRemoteInput.hpp"
 #endif
 
 #define LAST_READABLE_ID "rui-readable"

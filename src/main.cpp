@@ -122,6 +122,10 @@ void setup() {
     ir_remote_input->start_remote(IR_REMOTE_INPUT_PIN);
 #endif
 
+#if USE_BLE
+    BLEDevice::init("Sindarin");
+#endif
+
 #if USE_BLE_SERVER_REMOTE || USE_BLE_SERVER_SETTINGS || USE_BLE_SERVER_IMPROV
     BLEManager *bleManager = BLEManager::getInstance();
 #endif
