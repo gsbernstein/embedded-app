@@ -85,7 +85,9 @@ static uint8_t const BORDER_NONE[4] = {0x00, 0x00, 0x00, 0x03};
 // According to the EinkET013TT1 datasheet, the min clock time is 50ns which equates to 20MHz
 // though experimentally 30MHz seems to be fine (but doesnt seem to have much benefit)
 // at 20Mhz it should take 20us to send a 50 byte scanline (50*8*(1/20000000))
+// NOLINTNEXTLINE(cert-err58-cpp)
 static SPISettings spiSettingsHigh(20000000, SPI_MSBFIRST, SPI_MODE0);
+// NOLINTNEXTLINE(cert-err58-cpp)
 static SPISettings spiSettingsLow(8000000, SPI_MSBFIRST, SPI_MODE0);
 
 void EinkET013TT1::init() {
@@ -127,7 +129,7 @@ void EinkET013TT1::setVcom(int mV) {
 
 void EinkET013TT1::setFramerate(int frameRate) {
     frameRate = std::clamp(frameRate, 0, 100);
-    timerDelayNs_ = 1000000000 / frameRate / EinkET013TT1_GATE_COUNT;
+    timerDelayNs_ = 1000000000.0f / frameRate / EinkET013TT1_GATE_COUNT;
 }
 
 void EinkET013TT1::setBorder(BorderSetting border) {
@@ -171,7 +173,7 @@ void EinkET013TT1::update(const EinkET013TT1Waveform &waveform, const uint8_t *b
     auto *gateSelectHigh = (uint16_t *)&(scanLine[42]);
     auto *gateBlockHigh = (uint32_t *)&(scanLine[44]);
 
-    log_d("Updating dispay with waveform \"%s\"", waveform.name.c_str());
+    log_d("Updating dispay with waveform \"%s\"", waveform.name);
 
     powerOn();
 
