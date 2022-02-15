@@ -12,6 +12,9 @@ void ConnectWiFiIfCredentialsExist() {
     if (!WiFi.enableSTA(true)) {
         log_e("STA enable failed!");
     }
+    if (!WiFi.setSleep(true)) {
+        log_e("Failed to enable WiFi sleep");
+    }
     wifi_config_t conf;
     esp_wifi_get_config(WIFI_IF_STA, &conf);
     const char *ssid = (const char *)conf.sta.ssid;
@@ -21,7 +24,6 @@ void ConnectWiFiIfCredentialsExist() {
         WiFi.setHostname(HOSTNAME);
         WiFi.begin();
         WiFi.setAutoReconnect(true);
-        // WiFi.setSleep(true);
     }
 }
 
