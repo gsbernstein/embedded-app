@@ -2,6 +2,8 @@
 
 #include "BLEManager.hpp"
 
+#include "config.h"
+
 BLEManager *BLEManager::instance = nullptr;
 
 auto BLEManager::getInstance() -> BLEManager * {
@@ -11,7 +13,7 @@ auto BLEManager::getInstance() -> BLEManager * {
     return instance;
 }
 
-BLEManager::BLEManager() { BLEDevice::init("Sindarin"); }
+BLEManager::BLEManager() {}
 
 auto BLEManager::server() -> BLEServer * {
     if (server_ == nullptr) {
