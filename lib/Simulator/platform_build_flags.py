@@ -4,6 +4,8 @@ import os
 import pathlib
 import subprocess
 import sys
+import shutil
+
 
 parser = argparse.ArgumentParser(description="Generate build flags for simulator.")
 parser.add_argument(
@@ -41,7 +43,7 @@ flags = [
     "-DUSE_BLE_SERVER_IMPROV=0",
     "-DDISABLE_WIFI=1",
     "-DENABLE_OTA=0",
-    "-DENABLE_POCKET=0",
+    "-DENABLE_POCKET=1",
     "-DEINKET013TT1=0",
     lib_includes,
 ]
@@ -84,6 +86,34 @@ else:
         sdl_flags,
         f"-I{prefix}/include",
         "--debug",
+    ]
+
+    # Ubuntu defaults
+    openssl_flags = "-I/usr/include/openssl"
+
+    # Try with macOS Homebrew to find OpenSSL
+    if sys.platform == "darwin" and shutil.which("brew") is not None:
+        # TODO: Handle error
+        openssl_prefix = (
+            subprocess.check_output("brew --prefix openssl", shell=True)
+            .decode("utf-8")
+            .strip()
+        )
+        try:
+            subprocess.check_output(f"ls {openssl_prefix}", shell=True)
+        except subprocess.CalledProcessError:
+            print(
+                "Could not find openssl. Maybe install it? (brew install openssl)",
+                file=sys.stderr,
+            )
+            exit(1)
+
+        openssl_flags = f"-L{openssl_prefix}/lib -I{openssl_prefix}/include"
+
+    flags += [
+        "-DCPPHTTPLIB_OPENSSL_SUPPORT",
+        openssl_flags,
+        "-lssl -lcrypto",
     ]
 
 print(" ".join(flags))

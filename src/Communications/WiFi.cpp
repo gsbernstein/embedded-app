@@ -34,4 +34,14 @@ void DisconnectWifi() {
     WiFi.mode(WIFI_OFF);
 }
 
+auto NetworkConnected() -> bool { return WiFi.isConnected(); }
+
+#elif SIMULATOR
+
+bool NetworkConnected() { return true; }
+
+#else
+
+bool NetworkConnected() { return false; }
+
 #endif

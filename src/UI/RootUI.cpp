@@ -23,10 +23,6 @@
 #include "config.h"
 #include "sindarin-debug.h"
 
-#if !DISABLE_WIFI
-#include <WiFi.h>
-#endif
-
 #if ENABLE_POCKET
 #include "Communications/PocketAPI.hpp"
 #endif
@@ -92,9 +88,9 @@ void RootUI::setup(DisplaySystem *display, std::vector<Readable> &readables, boo
     SHOW_HEAP();
 
     // Set up pocket article menu
-#if !DISABLE_WIFI && ENABLE_POCKET
+#if ENABLE_POCKET
     mainMenu->addMenuItem(MenuItem("Pocket Articles", [this, mainMenu, display]() {
-        if (!WiFi.isConnected()) {
+        if (!NetworkConnected()) {
             log_w("Tried to load Pocket articles but WiFi not connected");
             display->renderMaxBoxWithText("WiFi Disconnected");
             delay(2000);

@@ -2,6 +2,12 @@
 
 #include <ArduinoJson.h>
 
+#if SIMULATOR
+
+using SpiRamJsonDocument = DynamicJsonDocument;
+
+#else
+
 // Allocator to use the SPI RAM for JSON document
 // See: https://arduinojson.org/v6/api/basicjsondocument/
 struct SpiRamAllocator {
@@ -15,3 +21,5 @@ struct SpiRamAllocator {
 };
 
 using SpiRamJsonDocument = BasicJsonDocument<SpiRamAllocator>;
+
+#endif

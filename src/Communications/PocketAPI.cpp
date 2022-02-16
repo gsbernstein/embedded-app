@@ -98,8 +98,11 @@ auto PocketAPI::get(SpiRamJsonDocument **response) -> int {
         }
         log_d("Parsing Pocket response with size=%d", size);
         auto *resp = new SpiRamJsonDocument(size);
-        ArduinoJson::deserializeJson(*resp, http_.getStream(),
-                                     DeserializationOption::Filter(filter));
+        auto err = ArduinoJson::deserializeJson(*resp, http_.getStream(),
+                                                DeserializationOption::Filter(filter));
+        if (err != DeserializationError::Code::Ok) {
+            log_e("JSON error %s", err.c_str());
+        }
         log_i("Pocket request succeeded");
         *response = resp;
     } else {
