@@ -2,6 +2,8 @@
 
 #include "PocketAPI.hpp"
 
+#include <utility>
+
 #include "Contents/Json.hpp"
 #include "UrlEncode.hpp"
 #include "sindarin-debug.h"
@@ -15,7 +17,7 @@ auto PocketAPI::getInstance() -> PocketAPI * {
     return instance;
 }
 
-void PocketAPI::setAccessToken(const char *token) { accessToken_ = token; }
+void PocketAPI::setAccessToken(std::string token) { accessToken_ = std::move(token); }
 
 auto PocketAPI::text(const char *url, SpiRamJsonDocument **response) -> int {
     SHOW_HEAP();
@@ -75,8 +77,8 @@ auto PocketAPI::get(SpiRamJsonDocument **response) -> int {
         https://getpocket.com/v3/get | jq
     */
     char request[100];
-    int requestLen =
-        sprintf(request, "state=all&access_token=%s&consumer_key=%s", accessToken_, consumerKey_);
+    int requestLen = sprintf(request, "state=all&access_token=%s&consumer_key=%s",
+                             accessToken_.c_str(), consumerKey_);
     if (requestLen < -1) {
         log_e("Failed to construct Pocket request body");
         http_.end();
