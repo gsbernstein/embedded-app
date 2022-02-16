@@ -8,3 +8,5 @@
 data
 __pycache__
 .temp
+# Simulator prefs
+simprefs.ini

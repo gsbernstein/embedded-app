@@ -23,10 +23,6 @@
 #include "config.h"
 #include "sindarin-debug.h"
 
-#if !DISABLE_WIFI
-#include <WiFi.h>
-#endif
-
 #if ENABLE_POCKET
 #include "Communications/PocketAPI.hpp"
 #endif
@@ -92,11 +88,19 @@ void RootUI::setup(DisplaySystem *display, std::vector<Readable> &readables, boo
     SHOW_HEAP();
 
     // Set up pocket article menu
-#if !DISABLE_WIFI && ENABLE_POCKET
+#if ENABLE_POCKET
     mainMenu->addMenuItem(MenuItem("Pocket Articles", [this, mainMenu, display]() {
-        if (!WiFi.isConnected()) {
+        if (!NetworkConnected()) {
             log_w("Tried to load Pocket articles but WiFi not connected");
             display->renderMaxBoxWithText("WiFi Disconnected");
+            delay(2000);
+            needsRerender = true;
+            return;
+        }
+
+        if (!prefs_.pocketApiToken.get().has_value()) {
+            log_w("No Pocket API token found");
+            display->renderMaxBoxWithText("No Pocket API token found");
             delay(2000);
             needsRerender = true;
             return;
@@ -107,7 +111,7 @@ void RootUI::setup(DisplaySystem *display, std::vector<Readable> &readables, boo
         // need to add threading / tasks since the HTTP code is synchronous right now.
         display->renderMaxBoxWithText("Downloading...");
         PocketAPI *pocket = PocketAPI::getInstance();
-        pocket->setAccessToken(prefs_.pocketApiToken.get().value().c_str());
+        pocket->setAccessToken(prefs_.pocketApiToken.get().value());
 
         // Since we're reading this directly out of this from the closures, this needs to exist
         // until the closures no longer exist. That or we need to copy some strings.

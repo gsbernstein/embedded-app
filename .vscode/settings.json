@@ -77,7 +77,12 @@
         "ratio": "cpp",
         "stack": "cpp",
         "string.h": "c",
-        "version": "cpp"
+        "version": "cpp",
+        "condition_variable": "cpp",
+        "csignal": "cpp",
+        "regex": "cpp",
+        "set": "cpp",
+        "thread": "cpp"
     },
     "editor.formatOnSave": true,
     "editor.defaultFormatter": "xaver.clang-format",

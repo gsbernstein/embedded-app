@@ -28,6 +28,7 @@ void DisplaySystem::invertDisplay(bool newInvert) {
         bg = 0xFFFF;
         fg = 0x0000;
     }
+    fillScreen(bg);
 }
 
 void DisplaySystem::flipInversion() {
