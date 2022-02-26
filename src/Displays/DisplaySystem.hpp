@@ -26,7 +26,7 @@
 #define INVERTED_DISPLAY true
 // #define INVERTED_DISPLAY false
 
-class DisplaySystem : public GFXcanvas1 {
+class DisplaySystem : GFXcanvas1 {
 public:
     DisplaySystem(int16_t w, int16_t h);
     ~DisplaySystem() override = default;
@@ -36,6 +36,35 @@ public:
     // MARK: - Required virtual methods that subclasses must implement
 
     virtual void updateDisplay() = 0;
+
+    // Use `gfxClass` when you need to get direct access to draw to the whole screen (potentially
+    // outside of focus areas)
+    [[nodiscard]] auto gfxClass() const -> GFXcanvas1 * { return (GFXcanvas1 *)this; }
+
+    // MARK: - Brought in from Adafruit_GFX
+    // Use these methods for normal drawing as they'll take into account the offsets and focus area
+    // automatically. Any methods we need from Adafruit_GFX that need to respect the focus area
+    // should be copied in here.
+    [[nodiscard]] auto width() const -> int16_t { return maxPixelsX_; };
+    [[nodiscard]] auto height() const -> int16_t { return maxPixelsY_; };
+    void fillScreen(uint16_t color) override { GFXcanvas1::fillScreen(color); }
+    void fillTriangle(int16_t x0, int16_t y0, int16_t x1, int16_t y1, int16_t x2, int16_t y2,
+                      uint16_t color) {
+        GFXcanvas1::fillTriangle(xOffset(x0), yOffset(y0), xOffset(x1), yOffset(y1), xOffset(x2),
+                                 yOffset(y2), color);
+    }
+    void setFont(const GFXfont *f) { GFXcanvas1::setFont(f); }
+    void fillRect(int16_t x, int16_t y, int16_t w, int16_t h, uint16_t color) override {
+        GFXcanvas1::fillRect(xOffset(x), yOffset(y), w, h, color);
+    }
+    void drawCircle(int16_t x0, int16_t y0, int16_t r, uint16_t color) {
+        GFXcanvas1::drawCircle(xOffset(x0), yOffset(y0), r, color);
+    }
+    void setCursor(int16_t x, int16_t y) { GFXcanvas1::setCursor(xOffset(x), yOffset(y)); }
+    template <typename T>
+    auto println(T in) -> size_t {
+        return GFXcanvas1::println(in);
+    }
 
     // MARK: - Potentially overridable methods for configuring partial refresh
 
@@ -106,18 +135,15 @@ public:
     // TODO: Just use `textcolor` and `textbgcolor` for these?
     uint16_t bg, fg;
 
-    // TODO: Eventually we'll probably want our draw commands to handle the offsets
-    // internally without ever needing to expose them.
-    int localXOffset = 0;
-    int localYOffset = 0;
-    int xMin = 0;
-    int xMax = 0;
-    int yMin = 0;
-    int yMax = 0;
-    int maxPixelsX = 0;
-    int maxPixelsY = 0;
+    void setOffset(uint16_t xOffset, uint16_t yOffset) {
+        localXOffset_ = xOffset;
+        localYOffset_ = yOffset;
+    }
 
 protected:
+    inline auto xOffset(int16_t value) -> int16_t { return value + localXOffset_ + xMin_; }
+    inline auto yOffset(int16_t value) -> int16_t { return value + localYOffset_ + yMin_; }
+
     void drawTextCmdsOnly(const std::string &newText, int x, int y, int lineHeight);
     void drawBoxCmdsOnly(int xStart, int yStart, int xEnd, int yEnd);
     void splitStringToLines(const std::string &stringToSplit,
@@ -137,6 +163,16 @@ protected:
     float focusWidthOffsetInMm_ = 0;
     float focusHeightOffsetInMm_ = 0;
     bool invertedDisplay_ = false;
+
+    // TODO: We can probably simplify these
+    int localXOffset_ = 0;
+    int localYOffset_ = 0;
+    int xMin_ = 0;
+    int xMax_ = 0;
+    int yMin_ = 0;
+    int yMax_ = 0;
+    int maxPixelsX_ = 0;
+    int maxPixelsY_ = 0;
 };
 
 #endif

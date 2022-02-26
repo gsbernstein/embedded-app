@@ -16,9 +16,9 @@ DisplaySDLSimulator::DisplaySDLSimulator()
 void DisplaySDLSimulator::setup() { setFullWindow(); }
 
 void DisplaySDLSimulator::updateDisplay() {
-    for (int x = 0; x < width(); x++) {
-        for (int y = 0; y < height(); y++) {
-            auto pixel = getPixel(x, y);
+    for (int x = 0; x < gfxClass()->width(); x++) {
+        for (int y = 0; y < gfxClass()->height(); y++) {
+            auto pixel = gfxClass()->getPixel(x, y);
             uint8_t color = pixel ? 0xFF : 0x00;
             SDL_SetRenderDrawColor(renderer, color, color, color, 255);
             SDL_RenderDrawPoint(renderer, x, y);

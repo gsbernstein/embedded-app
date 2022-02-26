@@ -247,23 +247,19 @@ auto DisplaySystem::getTextWidth(const char *buffer) -> int {
 }
 
 void DisplaySystem::renderTextWithoutBox(const std::string &text) {
-    drawText(text, xMin + localXOffset, yMin + localYOffset + getTextHeight(), xMax + localXOffset,
-             yMax + localYOffset);
+    drawText(text, 0, getTextHeight(), width(), height());
 }
 
 void DisplaySystem::renderMaxBoxWithText(const std::string &text) {
-    drawTextInBox(text, xMin + localXOffset, yMin + localYOffset, xMax + localXOffset,
-                  yMax + localYOffset);
+    drawTextInBox(text, 0, 0, width(), height());
 }
 
 void DisplaySystem::renderBox(int xStart, int yStart, int xEnd, int yEnd) {
-    int startX = xMin + localXOffset;
-    int startY = yMin + localYOffset;
-    drawBox(startX + xStart, startY + yStart, startX + xEnd, startY + yEnd);
+    drawBox(xStart, yStart, xEnd, yEnd);
 }
 
 void DisplaySystem::drawBoxCmdsOnly(int startX, int startY, int endX, int endY) {
-    drawRect(startX, startY, endX - startX, endY - startY, fg);
+    drawRect(xOffset(startX), yOffset(startY), endX - startX, endY - startY, fg);
 }
 
 void DisplaySystem::drawBox(int startX, int startY, int endX, int endY) {
@@ -285,7 +281,7 @@ void DisplaySystem::drawXBitmap(int16_t x, int16_t y, const uint8_t bitmap[], in
     if (getPartialRefresh()) {
         setPartialWindow(x, y, w, h);
     }
-    Adafruit_GFX::drawXBitmap(x, y, bitmap, w, h, color);
+    Adafruit_GFX::drawXBitmap(xOffset(x), yOffset(y), bitmap, w, h, color);
     log_d("Bitmap drawn, updating display!");
     if (autoUpdate_) {
         // DO WRITE AND REFRESH
@@ -309,26 +305,26 @@ void DisplaySystem::computeMinMax() {
 
     log_d("Computing Min and Max pixels for Renderer");
 
-    midpointX = this->width() / 2;
-    midpointY = this->height() / 2;
+    midpointX = this->gfxClass()->width() / 2;
+    midpointY = this->gfxClass()->height() / 2;
 
     log_d("midpoint = (%d, %d)", midpointX, midpointY);
 
-    pixelPitchX = ((float)this->width()) / this->getWidthInMm();
-    pixelPitchY = ((float)this->height()) / this->getHeightInMm();
+    pixelPitchX = ((float)this->gfxClass()->width()) / this->getWidthInMm();
+    pixelPitchY = ((float)this->gfxClass()->height()) / this->getHeightInMm();
 
     log_d("pixel pitch = (%.0f, %.0f)", pixelPitchX, pixelPitchY);
 
     // rounding down is ok here and what we want.
-    maxPixelsX = (int)((this->getFocusWidth() + this->getFocusOffsetWidth()) * pixelPitchX);
-    maxPixelsY = (int)((this->getFocusHeight() + this->getFocusOffsetHeight()) * pixelPitchY);
+    maxPixelsX_ = (int)((this->getFocusWidth() + this->getFocusOffsetWidth()) * pixelPitchX);
+    maxPixelsY_ = (int)((this->getFocusHeight() + this->getFocusOffsetHeight()) * pixelPitchY);
 
-    log_d("max pixels = (%d, %d)", maxPixelsX, maxPixelsY);
+    log_d("max pixels = (%d, %d)", maxPixelsX_, maxPixelsY_);
 
-    xMin = midpointX - maxPixelsX / 2;
-    xMax = midpointX + maxPixelsX / 2;
-    yMin = midpointY - maxPixelsY / 2;
-    yMax = midpointY + maxPixelsY / 2;
+    xMin_ = midpointX - maxPixelsX_ / 2;
+    xMax_ = midpointX + maxPixelsX_ / 2;
+    yMin_ = midpointY - maxPixelsY_ / 2;
+    yMax_ = midpointY + maxPixelsY_ / 2;
 
-    log_d("min = (%d, %d) max = (%d, %d)", xMin, yMin, xMax, yMax);
+    log_d("min = (%d, %d) max = (%d, %d)", xMin_, yMin_, xMax_, yMax_);
 }

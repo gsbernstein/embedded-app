@@ -21,27 +21,26 @@ void PopupMenuScreen::render(DisplaySystem &display) {
     // Blank out screen
     display.fillScreen(display.bg);
     // Draw menu surroundings
-    display.drawXBitmap(
-        (int16_t)(display.localXOffset + (display.width() - POPUP_MENU_BLANK_WIDTH) / 2),
-        (int16_t)(display.localYOffset + (display.height() - POPUP_MENU_BLANK_HEIGHT) / 2),
-        popupMenuBlankBits, POPUP_MENU_BLANK_WIDTH, POPUP_MENU_BLANK_HEIGHT, display.fg);
+    display.drawXBitmap((int16_t)((display.width() - POPUP_MENU_BLANK_WIDTH) / 2),
+                        (int16_t)((display.height() - POPUP_MENU_BLANK_HEIGHT) / 2),
+                        popupMenuBlankBits, POPUP_MENU_BLANK_WIDTH, POPUP_MENU_BLANK_HEIGHT,
+                        display.fg);
 
     display.setFont(&LUCIDA_GRANDE6PT7B);
 
     // Now draw!
-    uint16_t width = 0, height = 0;
+    uint16_t textWidth = 0, textHeight = 0;
     auto batteryStatus = this->power_.getBatteryPercentageOnlyString();
 
-    display.getTextBounds(batteryStatus.c_str(), &width, &height);
+    display.getTextBounds(batteryStatus.c_str(), &textWidth, &textHeight);
     uint16_t screenWidth = display.width();
     uint16_t screenHeight = display.height();
 
     display.setFont(&LUCIDA_GRANDE5PT7B);
-    display.getTextBounds(batteryStatus.c_str(), &width, &height);
+    display.getTextBounds(batteryStatus.c_str(), &textWidth, &textHeight);
 
-    display.drawText(batteryStatus.c_str(), display.localXOffset + (screenWidth / 2) - (width / 2),
-                     display.localYOffset + (screenHeight / 2) + (height / 2) + 10, screenWidth,
-                     screenHeight);
+    display.drawText(batteryStatus.c_str(), (screenWidth / 2) - (textWidth / 2),
+                     (screenHeight / 2) + (textHeight / 2) + 10, screenWidth, screenHeight);
 
     size_t place = fileRenderer_->getCurrentPlace();
     size_t lengthOfFile = fileRenderer_->size();
@@ -49,34 +48,29 @@ void PopupMenuScreen::render(DisplaySystem &display) {
     float placeInTextPercentage = (float)place / (float)lengthOfFile * 100;
     std::string placeString = StringFormat("%.0f%%", placeInTextPercentage);
 
-    display.getTextBounds(placeString.c_str(), &width, &height);
-    display.drawText(placeString.c_str(), display.localXOffset + (screenWidth / 2) - (width / 2),
-                     display.localYOffset + (screenHeight / 2) + (height / 2) - 10, screenWidth,
-                     screenHeight);
+    display.getTextBounds(placeString.c_str(), &textWidth, &textHeight);
+    display.drawText(placeString.c_str(), (screenWidth / 2) - (textWidth / 2),
+                     (screenHeight / 2) + (textHeight / 2) - 10, screenWidth, screenHeight);
 
-    display.getTextBounds("Settings", &width, &height);
-    display.drawText("Settings", display.localXOffset + (screenWidth / 2) - (width / 2),
-                     display.localYOffset + (screenHeight / 2) + (height / 2) +
-                         POPUP_MENU_BLANK_HEIGHT / 3,
+    display.getTextBounds("Settings", &textWidth, &textHeight);
+    display.drawText("Settings", (screenWidth / 2) - (textWidth / 2),
+                     (screenHeight / 2) + (textHeight / 2) + POPUP_MENU_BLANK_HEIGHT / 3,
                      screenWidth, screenHeight);
 
-    display.getTextBounds("Text", &width, &height);
-    display.drawText("Text", display.localXOffset + (screenWidth / 2) - (width / 2),
-                     display.localYOffset + (screenHeight / 2) - POPUP_MENU_BLANK_HEIGHT / 3,
-                     screenWidth, screenHeight);
+    display.getTextBounds("Text", &textWidth, &textHeight);
+    display.drawText("Text", (screenWidth / 2) - (textWidth / 2),
+                     (screenHeight / 2) - POPUP_MENU_BLANK_HEIGHT / 3, screenWidth, screenHeight);
 
-    display.getTextBounds(leftButtonTitle_.c_str(), &width, &height);
+    display.getTextBounds(leftButtonTitle_.c_str(), &textWidth, &textHeight);
     display.drawText(leftButtonTitle_.c_str(),
-                     display.localXOffset + (display.width() - POPUP_MENU_BLANK_WIDTH) / 2 -
-                         width / 2,
-                     display.localYOffset + (screenHeight / 2) + 1, screenWidth, screenHeight);
+                     (display.width() - POPUP_MENU_BLANK_WIDTH) / 2 - textWidth / 2,
+                     (screenHeight / 2) + 1, screenWidth, screenHeight);
 
-    display.getTextBounds("Invert", &width, &height);
+    display.getTextBounds("Invert", &textWidth, &textHeight);
     display.drawText("Invert",
-                     display.localXOffset +
-                         (display.width() - ((display.width() - POPUP_MENU_BLANK_WIDTH) / 2)) -
-                         width / 2,
-                     display.localYOffset + (screenHeight / 2) + 1, screenWidth, screenHeight);
+                     (display.width() - ((display.width() - POPUP_MENU_BLANK_WIDTH) / 2)) -
+                         textWidth / 2,
+                     (screenHeight / 2) + 1, screenWidth, screenHeight);
 
     display.updateDisplay();
     display.setAutoUpdate(autoUpdate);
