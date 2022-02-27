@@ -34,20 +34,12 @@ void CalibrationScreen::render(DisplaySystem &display) {
     }
 
     if (!opticsTest) {
-        // TODO: DisplaySystem should just handle this stuff
-        int xMin = display.localXOffset + display.xMin;
-        int yMin = display.localYOffset + display.yMin;
-        int xMax = display.localXOffset + display.xMax;
-        int yMax = display.localYOffset + display.yMax;
-
         const int edgeOffset = 5;
-        int midpointX = ((xMax - xMin) / 2) + xMin;
-        int midpointY = ((yMax - yMin) / 2) + yMin;
-        int boxWidth = xMax - xMin;
-        int boxHeight = yMax - yMin;
+        int midpointX = display.width() / 2;
+        int midpointY = display.height() / 2;
 
-        display.fillRect(xMin, yMin, boxWidth, boxHeight, display.fg);
-        display.fillRect(xMin + 2, yMin + 2, boxWidth - 4, boxHeight - 4, display.bg);
+        display.fillRect(0, 0, display.width(), display.height(), display.fg);
+        display.fillRect(2, 2, display.width() - 4, display.height() - 4, display.bg);
         display.setFont(&LUCIDA_GRANDE5PT7B);
 
         int letsWidth = display.getTextWidth("let's");
@@ -63,16 +55,16 @@ void CalibrationScreen::render(DisplaySystem &display) {
         display.setCursor(midpointX - focusWidth / 2, midpointY + focusHeight - 6);
         display.println("focus");
 
-        display.setCursor(xMax - display.getTextWidth("lower right") - edgeOffset,
-                          yMax - edgeOffset - 2);
+        display.setCursor(display.width() - display.getTextWidth("lower right") - edgeOffset,
+                          display.height() - edgeOffset - 2);
         display.println("lower right");
-        display.setCursor(xMin + edgeOffset, yMax - edgeOffset - 2); // lower left
+        display.setCursor(edgeOffset, display.height() - edgeOffset - 2); // lower left
         display.println("lower left");
-        display.setCursor(xMin + edgeOffset,
-                          yMin + display.getTextHeight() - 2); // upper left
+        display.setCursor(edgeOffset,
+                          display.getTextHeight() - 2); // upper left
         display.println("upper left");
-        display.setCursor(xMax - display.getTextWidth("upper right") - edgeOffset,
-                          yMin + display.getTextHeight() - 2);
+        display.setCursor(display.width() - display.getTextWidth("upper right") - edgeOffset,
+                          display.getTextHeight() - 2);
         display.println("upper right");
 
         display.updateDisplay();
@@ -85,18 +77,17 @@ void CalibrationScreen::render(DisplaySystem &display) {
         int i, l = 0;
 
         for (l = 0; l < 32; l++) {
-            for (i = 0; i < (display.xMax) / 4; i++) {
+            for (i = 0; i < display.width() / 4; i++) {
                 // only every other
                 if (i % 2 == 0) {
-                    display.fillRect(display.xMin + i * 4, display.yMin + l * 8, 4, 4, display.fg);
+                    display.fillRect(i * 4, l * 8, 4, 4, display.fg);
                 }
             }
 
-            for (i = 0; i < (display.xMax) / 4; i++) {
+            for (i = 0; i < display.width() / 4; i++) {
                 // only every other
                 if (i % 2 == 1) {
-                    display.fillRect(display.xMin + i * 4, display.yMin + 4 + l * 8, 4, 4,
-                                     display.fg);
+                    display.fillRect(i * 4, 4 + l * 8, 4, 4, display.fg);
                 }
             }
         }

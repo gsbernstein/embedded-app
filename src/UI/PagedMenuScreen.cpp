@@ -43,9 +43,9 @@ void PagedMenuScreen::render(DisplaySystem &display) {
         menuHeight = MENU_BLANK_BIDIRECTIONAL_HEIGHT;
     }
 
-    display.drawXBitmap((int16_t)(display.localXOffset + (display.width() - menuWidth) / 2),
-                        (int16_t)(display.localYOffset + (display.height() - menuHeight) / 2),
-                        menuBits, (int16_t)menuWidth, (int16_t)menuHeight, display.fg);
+    display.drawXBitmap((int16_t)((display.width() - menuWidth) / 2),
+                        (int16_t)((display.height() - menuHeight) / 2), menuBits,
+                        (int16_t)menuWidth, (int16_t)menuHeight, display.fg);
 
     auto itemTitle = getCurrItem().title;
     // Cache / replace old font; then try descending size fonts until we find one that fits our
@@ -89,17 +89,20 @@ void PagedMenuScreen::render(DisplaySystem &display) {
     display.getTextBounds(itemTitle.c_str(), &width, &height);
     uint16_t screenWidth = display.width();
     uint16_t screenHeight = display.height();
-    display.drawText(itemTitle.c_str(), display.localXOffset + (screenWidth / 2) - (width / 2),
-                     display.localYOffset + (screenHeight / 2) + (maxHeightForThisFont_ / 2) - 4,
-                     screenWidth, screenHeight);
+    display.drawText(itemTitle.c_str(), (screenWidth / 2) - (width / 2),
+                     (screenHeight / 2) + (maxHeightForThisFont_ / 2) - 4, screenWidth,
+                     screenHeight);
     display.setFont(&LUCIDA_GRANDE5PT7B);
+
     display.getTextBounds(batteryStatus.c_str(), &width, &height);
     // Arbitrarily put the battery text off of the bottom of the screen 20 pixels
     // This is just so we always have it in our prototype, not that it'll be
     // the right place (or icon) long term
     // Not taking into account the rednerer x and y offsets here on purpose
-    display.drawText(batteryStatus.c_str(), (screenWidth / 2) - (width / 2), screenHeight - 20,
-                     screenWidth, screenHeight);
+    display.gfxClass()->setCursor((display.gfxClass()->width() / 2) - (width / 2),
+                                  display.gfxClass()->height() - 20);
+    display.println(batteryStatus.c_str());
+
     display.updateDisplay();
     display.setFont(prevFont);
     display.setAutoUpdate(autoUpdate);

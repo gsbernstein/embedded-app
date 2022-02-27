@@ -62,6 +62,5 @@ void OffsetAdjustScreen::processCommand(RemoteCommand command) {
     default:
         break;
     }
-    display_.localXOffset = xOffset;
-    display_.localYOffset = yOffset;
+    display_.setOffset(xOffset, yOffset);
 }

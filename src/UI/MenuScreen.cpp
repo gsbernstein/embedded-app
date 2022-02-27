@@ -103,9 +103,7 @@ void MenuScreen::render(DisplaySystem &display) {
     // For example, it would be nice to have menu items take up multiple lines (e.g. Pocket articles
     // with long names)
     std::string totalToDisplay = menuString + std::string("\n\n") + batLife;
-    display.drawTextInBox(totalToDisplay, display.xMin + display.localXOffset,
-                          display.yMin + display.localYOffset, display.xMax + display.localXOffset,
-                          display.yMax + display.localYOffset);
+    display.drawTextInBox(totalToDisplay, 0, 0, display.width(), display.height());
     needsRerender = false;
 }
 
