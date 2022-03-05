@@ -99,6 +99,11 @@ void setup() {
     // Turn on power to the screen
     digitalWrite(DISPLAY_POWER, HIGH);
     myDisplay.setup();
+
+    // If the saved prefs indicated a vcom, set it here.
+    if (prefs.vcom.get().value() != 0) {
+        myDisplay.getDriver()->setVcom(prefs.vcom.get().value());
+    }
 #endif
 
 #if SIMULATOR
