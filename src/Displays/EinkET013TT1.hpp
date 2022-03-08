@@ -9,6 +9,13 @@
 #define EinkET013TT1_GATE_COUNT 512
 #define MAX_FRAMES_PER_WAVEFORM 31
 
+enum WaveformInternalCheckErrors {
+    WAVEFORM_OK = 0,
+    WAVEFORM_BB_FAIL = 1 << 0,
+    WAVEFORM_BWWB_FAIL = 1 << 1,
+    WAVEFORM_WW_FAIL = 1 << 2,
+};
+
 // The possible per-column TFT FET source settings.
 enum PixelSetting {
     // NOCHG sets no voltage (possibly VCOM) (As per datasheet, same as 0b01)
@@ -166,6 +173,8 @@ public:
     void clear(const EinkET013TT1Waveform &waveform);
 
     void update(const EinkET013TT1Waveform &waveform, const uint8_t *buffer);
+
+    auto checkWaveform(const EinkET013TT1Waveform &waveform) -> uint8_t;
 
     auto readTemperature() -> int16_t;
 
