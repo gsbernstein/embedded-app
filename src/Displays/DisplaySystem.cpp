@@ -9,6 +9,7 @@
 DisplaySystem::DisplaySystem() { autoUpdate_ = true; }
 
 void DisplaySystem::setup() {
+    // Default to original font
     setFont(&LUCIDA_GRANDE5PT7B);
     gfxClass_->setTextColor(fg, bg);
 
