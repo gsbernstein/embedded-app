@@ -1,6 +1,5 @@
 #include "DisplaySystem.hpp"
 
-#include <UI/Fonts/LucidaGrande5pt7b.h>
 #include <utility>
 
 #include "Misc/StringUtil.hpp"
@@ -10,7 +9,7 @@ DisplaySystem::DisplaySystem() { autoUpdate_ = true; }
 
 void DisplaySystem::setup() {
     // Default to original font
-    setFont(&LUCIDA_GRANDE5PT7B);
+    setFont(style.getFontFamily().mainMenuFont);
     gfxClass_->setTextColor(fg, bg);
 
 #ifdef DISPLAY_ROTATION
@@ -232,7 +231,7 @@ void DisplaySystem::getTextBounds(const char *buffer, uint16_t *w, uint16_t *h) 
     gfxClass_->getTextBounds(buffer, 0, 0, &x, &y, w, h);
 }
 
-auto DisplaySystem::getTextHeight() -> int { return font_->yAdvance + 1; }
+auto DisplaySystem::getTextHeight() -> int { return font_->yAdvance; }
 
 auto DisplaySystem::getTextHeight(const char *buffer) -> int {
     int16_t x, y;

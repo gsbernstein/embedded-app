@@ -1,6 +1,5 @@
 #include "RootUI.hpp"
 
-#include <UI/Fonts/LucidaGrande5pt7b.h>
 #include <nvs_flash.h>
 
 #include "Bitmaps/Logo.hpp"
@@ -10,6 +9,7 @@
 #include "Inputs/RemoteInput.hpp"
 #include "Misc/Platform.hpp"
 #include "Misc/StringUtil.hpp"
+#include "Misc/Style.hpp"
 #include "Renderers/Renderer.hpp"
 #include "UI/CalibrationScreen.hpp"
 #include "UI/LoadingScreen.hpp"
@@ -306,25 +306,39 @@ void RootUI::setup(DisplaySystem *display, std::vector<Readable> &readables, boo
     }));
 #endif
 
-    settingsMenu->addMenuItem(MenuItem("Set Font Size", [this, display, settingsMenu]() {
+    settingsMenu->addMenuItem(MenuItem("Set Font", [this, display, settingsMenu]() {
         auto fontMenu = new MenuScreen(this->power_);
 
-        fontMenu->addMenuItem(MenuItem("Skinny", [this, fontMenu]() {
-            this->display_->setFont(&LUCIDA_GRANDE5PT7B_SKINNY);
+        fontMenu->addMenuItem(MenuItem("Lucida 1px space", [this, fontMenu]() {
+            this->display_->style.setFontFamily(this->display_->style.lucidaSkinny);
             this->display_->clearDisplay();
-            prefs_.font.set(PREFS_SKINNY_FONT);
+            prefs_.font.set(PREFS_LUCIDA_SKINNY);
             fontMenu->needsRerender = true;
         }));
-        fontMenu->addMenuItem(MenuItem("Fat", [this, fontMenu]() {
-            this->display_->setFont(&LUCIDA_GRANDE5PT7B_FAT);
+        fontMenu->addMenuItem(MenuItem("Lucida 2px space", [this, fontMenu]() {
+            this->display_->style.setFontFamily(this->display_->style.lucidaFat);
             this->display_->clearDisplay();
-            prefs_.font.set(PREFS_FAT_FONT);
+            prefs_.font.set(PREFS_LUCIDA_FAT);
             fontMenu->needsRerender = true;
         }));
-        fontMenu->addMenuItem(MenuItem("Original", [this, fontMenu]() {
-            this->display_->setFont(&LUCIDA_GRANDE5PT7B);
+        fontMenu->addMenuItem(MenuItem("Lucida original", [this, fontMenu]() {
+            this->display_->style.setFontFamily(this->display_->style.lucidaRegular);
             this->display_->clearDisplay();
             prefs_.font.set(PREFS_DEFAULT_FONT);
+            fontMenu->needsRerender = true;
+        }));
+
+        fontMenu->addMenuItem(MenuItem("Tahoma 5pt", [this, fontMenu]() {
+            this->display_->style.setFontFamily(this->display_->style.tahomaRegular);
+            this->display_->clearDisplay();
+            prefs_.font.set(PREFS_TAHOMA_REGULAR);
+            fontMenu->needsRerender = true;
+        }));
+
+        fontMenu->addMenuItem(MenuItem("Tahoma 6pt", [this, fontMenu]() {
+            this->display_->style.setFontFamily(this->display_->style.tahomaLarge);
+            this->display_->clearDisplay();
+            prefs_.font.set(PREFS_TAHOMA_LARGE);
             fontMenu->needsRerender = true;
         }));
         setCurrentScreen(*fontMenu);
@@ -411,6 +425,7 @@ void RootUI::setup(DisplaySystem *display, std::vector<Readable> &readables, boo
                          [&currentReadable](const Readable &x) { return currentReadable == x.id; });
         if (it != readables.end()) {
             auto readableScreen = createReadableScreen(&(*it));
+            this->display_->setFont(this->display_->style.getFontFamily().readableFont);
             this->setCurrentScreen(*readableScreen);
             log_i("Resuming readable from last session: %s", (*it).name.c_str());
         } else {

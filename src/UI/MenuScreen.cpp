@@ -2,6 +2,8 @@
 
 #include <utility>
 
+#include "Misc/Style.hpp"
+
 #define NUM_LINES_PER_MENU_PAGE 12
 
 void MenuScreen::addMenuItem(const MenuItem &newItem) {
@@ -103,6 +105,9 @@ void MenuScreen::render(DisplaySystem &display) {
     // For example, it would be nice to have menu items take up multiple lines (e.g. Pocket articles
     // with long names)
     std::string totalToDisplay = menuString + std::string("\n\n") + batLife;
+
+    display.setFont(display.style.getFontFamily().settingsFont);
+
     display.drawTextInBox(totalToDisplay, 0, 0, display.width(), display.height());
     needsRerender = false;
 }

@@ -5,11 +5,8 @@
 
 #include "Bitmaps/Menu_Blank.hpp"
 #include "Bitmaps/Menu_Blank_Bidirectional.hpp"
-#include "Fonts/LucidaGrande10pt7b.h"
-#include "Fonts/LucidaGrande14pt7b.h"
-#include "Fonts/LucidaGrande5pt7b.h"
-#include "Fonts/LucidaGrande6pt7b.h"
 #include "Misc/StringUtil.hpp"
+#include "Misc/Style.hpp"
 #if !SIMULATOR
 #include "Displays/DisplayEinkET013TT1.hpp"
 #endif
@@ -52,7 +49,7 @@ void PagedMenuScreen::render(DisplaySystem &display) {
     // string in the desired space.
     auto prevFont = display.getFont();
 
-    display.setFont(&LUCIDA_GRANDE10PT7B);
+    display.setFont(display.style.getFontFamily().mainMenuFont);
 
     // If we still don't fit, shrink the string until we do.
     while (display.getTextWidth(itemTitle.c_str()) > MAX_WIDTH) {
@@ -89,7 +86,7 @@ void PagedMenuScreen::render(DisplaySystem &display) {
     display.drawText(itemTitle.c_str(), (screenWidth / 2) - (width / 2),
                      (screenHeight / 2) + (maxHeightForThisFont_ / 2) - 4, screenWidth,
                      screenHeight);
-    display.setFont(&LUCIDA_GRANDE5PT7B_SKINNY);
+    display.setFont(display.style.getFontFamily().readableFont);
 
     display.getTextBounds(batteryStatus.c_str(), &width, &height);
     // Arbitrarily put the battery text off of the bottom of the screen 20 pixels
@@ -101,7 +98,7 @@ void PagedMenuScreen::render(DisplaySystem &display) {
     display.println(batteryStatus.c_str());
 
     display.updateDisplay();
-    display.setFont(prevFont);
+    display.setFont(display.style.getFontFamily().readableFont);
     display.setAutoUpdate(autoUpdate);
     needsRerender = false;
 }

@@ -16,8 +16,8 @@
 #include "Misc/Platform.hpp"
 #include "Misc/Power.hpp"
 #include "Misc/StringUtil.hpp"
+#include "Misc/Style.hpp"
 #include "Storage/PreferencesStore.hpp"
-#include "UI/Fonts/LucidaGrande5pt7b.h"
 #include "UI/RootUI.hpp"
 #include "config.h"
 #include "sindarin-debug.h"
@@ -121,13 +121,19 @@ void setup() {
 
     switch (prefs.font.get().value()) {
     case PREFS_DEFAULT_FONT:
-        myDisplay.setFont(&LUCIDA_GRANDE5PT7B);
+        myDisplay.style.setFontFamily(myDisplay.style.lucidaRegular);
         break;
-    case PREFS_SKINNY_FONT:
-        myDisplay.setFont(&LUCIDA_GRANDE5PT7B_SKINNY);
+    case PREFS_LUCIDA_SKINNY:
+        myDisplay.style.setFontFamily(myDisplay.style.lucidaSkinny);
         break;
-    case PREFS_FAT_FONT:
-        myDisplay.setFont(&LUCIDA_GRANDE5PT7B_FAT);
+    case PREFS_LUCIDA_FAT:
+        myDisplay.style.setFontFamily(myDisplay.style.lucidaFat);
+        break;
+    case PREFS_TAHOMA_REGULAR:
+        myDisplay.style.setFontFamily(myDisplay.style.tahomaRegular);
+        break;
+    case PREFS_TAHOMA_LARGE:
+        myDisplay.style.setFontFamily(myDisplay.style.tahomaLarge);
         break;
     }
 
