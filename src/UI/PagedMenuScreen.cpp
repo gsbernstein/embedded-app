@@ -68,7 +68,7 @@ void PagedMenuScreen::render(DisplaySystem &display) {
     uint16_t width = 0, height = 0;
     auto batteryStatus = this->power_.getBatteryLifeString();
     uint16_t temp;
-#if !SIMULATOR
+#if EINKET013TT1
     auto *driver = ((DisplayEinkET013TT1 *)&display)->getDriver();
     temp = driver->readTemperature();
 #else

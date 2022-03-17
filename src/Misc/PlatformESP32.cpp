@@ -22,6 +22,7 @@ void InitializePlatform() {
     pinMode(RED_LED, OUTPUT);
     pinMode(GREEN_LED, OUTPUT);
 
+#if EINKET013TT1
 #if REVISION < 7
     pinMode(DISPLAY_POWER, OUTPUT);
 #else
@@ -34,6 +35,7 @@ void InitializePlatform() {
     ledcAttachPin(BACKLIGHT_LEFT, BACKLIGHT_PWM_CHANNEL);
     ledcAttachPin(BACKLIGHT_RIGHT, BACKLIGHT_PWM_CHANNEL);
 #endif
+#endif // EINKET013TT1
 }
 
 // Forked from TinyPico's GetBatteryVoltage() method:

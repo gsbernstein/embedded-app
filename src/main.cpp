@@ -30,6 +30,11 @@ DisplayEinkET013TT1 myDisplay(DISPLAY_CS, DISPLAY_OEI, DISPLAY_RST, DISPLAY_BUSY
 DisplaySDLSimulator myDisplay;
 #endif
 
+#if WROVER_KIT
+#include "Displays/DisplayWroverLcd.hpp"
+DisplayWroverLcd myDisplay;
+#endif
+
 PreferencesStore prefs;
 
 #if USE_IR_REMOTE
@@ -155,13 +160,10 @@ void setup() {
 #if REVISION < 7
     digitalWrite(DISPLAY_POWER, HIGH);
 #endif
-    myDisplay.setup();
-
     // If the saved prefs indicated a vcom, set it here.
     if (prefs.vcom.get().value() != 0) {
         myDisplay.getDriver()->setVcom(prefs.vcom.get().value());
     }
-#endif
 
     // If the saved prefs have a backlight of zero, turn on the lights anyways
     if (prefs.backlight.get().value() == 0) {
@@ -169,8 +171,8 @@ void setup() {
     }
     SetBacklight(prefs.backlight.get().value());
 
-#if SIMULATOR
-    myDisplay.setup();
+#elif WROVER_KIT
+    myDisplay.begin();
 #endif
 
     switch (prefs.font.get().value()) {
@@ -191,6 +193,7 @@ void setup() {
         break;
     }
 
+    myDisplay.setup();
     myDisplay.setFocusSize(15, 15);
     myDisplay.setOffset(prefs.localXOffset.get().value(), prefs.localYOffset.get().value());
     myDisplay.setFocusOffset((float)prefs.displayBoxWidthOffsetMm.get().value(),
