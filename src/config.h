@@ -54,8 +54,13 @@
 #define ENABLE_POCKET 1
 #endif
 
+#ifdef WROVER_KIT
+#define RED_LED 0
+#define GREEN_LED 2
+#else
 #define RED_LED 22
 #define GREEN_LED 25
+#endif
 
 #define BACKLIGHT_RIGHT 26
 #define BACKLIGHT_LEFT 9

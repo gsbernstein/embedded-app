@@ -16,6 +16,7 @@ jobs:
           - gilpico
           - glasses
           - optopax-poc4
+          - esp-wrover-kit
           - simulator
 
     steps:

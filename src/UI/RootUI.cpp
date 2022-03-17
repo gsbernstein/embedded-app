@@ -369,6 +369,14 @@ void RootUI::setup(DisplaySystem *display, std::vector<Readable> &readables, boo
         };
     }));
 
+    settingsMenu->addMenuItem(MenuItem("Deep sleep", [this, display]() {
+        log_w("Deep sleeping. Goodnight.");
+
+        display->renderMaxBoxWithText("Deep sleeping. Goodnight.");
+        delay(2000);
+        esp_deep_sleep_start();
+    }));
+
     settingsMenu->addMenuItem(MenuItem("Reset Prefs", [this, display]() {
         prefs_.clear();
         log_w("Preferences cleared. Rebooting...");
