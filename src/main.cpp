@@ -22,6 +22,11 @@
 #include "config.h"
 #include "sindarin-debug.h"
 
+#if !DISABLE_POWER_MANAGEMENT
+#include <esp_err.h>
+#include <esp_pm.h>
+#endif
+
 #if EINKET013TT1
 DisplayEinkET013TT1 myDisplay(DISPLAY_CS, DISPLAY_OEI, DISPLAY_RST, DISPLAY_BUSY);
 #endif
@@ -141,6 +146,19 @@ void RemoteLoop(void *parameter) {
     vTaskDelete(nullptr);
 }
 #endif
+
+void StatsLoop(void *parameter) {
+#if !SIMULATOR
+    for (;;) {
+        // Spit out data on locks every 10s
+        vTaskDelay(10000 / portTICK_PERIOD_MS);
+#if !DISABLE_POWER_MANAGEMENT
+        esp_pm_dump_locks(stdout);
+#endif
+    }
+    vTaskDelete(nullptr);
+#endif
+}
 
 void setup() {
     bool inputDeviceConnected = false;
@@ -279,6 +297,15 @@ void setup() {
 #endif
 #endif
 
+#if !DISABLE_POWER_MANAGEMENT
+    esp_pm_config_esp32_t pmConfig = {
+        .max_freq_mhz = CPU_FREQ_MHZ_HIGH,
+        .min_freq_mhz = CPU_FREQ_MHZ_LOW,
+        .light_sleep_enable = true,
+    };
+    ESP_ERROR_CHECK(esp_pm_configure(&pmConfig));
+#endif
+
     auto readables = new std::vector<Readable>();
     fileSystem.begin();
     fileSystem.getReadables(readables);
@@ -332,4 +359,6 @@ void loop() {
 #endif
 
     power.loop();
+
+    vTaskDelay(pdMS_TO_TICKS(100));
 }

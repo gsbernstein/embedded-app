@@ -80,4 +80,8 @@
 #define DISPLAY_BUSY 33
 
 #define CPU_FREQ_MHZ_HIGH 240
+#if !DISABLE_POWER_MANAGEMENT
+#define CPU_FREQ_MHZ_LOW 40
+#else
 #define CPU_FREQ_MHZ_LOW 80
+#endif

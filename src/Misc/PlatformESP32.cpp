@@ -76,6 +76,8 @@ auto GetBatteryVoltageRight() -> float {
 }
 
 void SetCpuSpeedMhz(int speedMhz) {
+    // This is a no-op if we're using automatic power management
+#if DISABLE_POWER_MANAGEMENT
     if (speedMhz == esp_clk_cpu_freq() / 1000000) {
         return;
     }
@@ -87,6 +89,7 @@ void SetCpuSpeedMhz(int speedMhz) {
     if (setCpuFrequencyMhz(speedMhz) != true) {
         log_e("Failed to setCpuFrequencyMhz(%d)", speedMhz);
     }
+#endif
 }
 
 void SetBacklight(int percent) {
