@@ -17,7 +17,7 @@ for image in extra_images:
     # Strip out everything but the last path component
     images.append(basename(env.subst(image[1])))
     # If this file is a platform one (not something exported to BUILD_DIR) copy it
-    if str(build_dir) not in image[1]:
+    if str(build_dir) not in env.subst(image[1]):
         copy(env.subst(image[1]), str(build_dir))
 
 command = f'esptool.py {" ".join(env.subst(upload_flags))} {" ".join(images)} {env.subst("$ESP32_APP_OFFSET")} {env.subst("${PROGNAME}.bin")}\n'

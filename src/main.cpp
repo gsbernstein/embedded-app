@@ -326,6 +326,8 @@ void setup() {
     // Run our Bluetooth task on core 0 since it's pretty simple anyways and the rest of the
     // bluetooth stuff already runs there
     xTaskCreatePinnedToCore(RemoteLoop, "Remote", 5000, nullptr, 1, nullptr, 0);
+
+    xTaskCreatePinnedToCore(StatsLoop, "Stats", 5000, nullptr, 0, nullptr, 0);
 #endif
 
     log_i("Setup done");
@@ -360,5 +362,5 @@ void loop() {
 
     power.loop();
 
-    vTaskDelay(pdMS_TO_TICKS(100));
+    delay(100);
 }
