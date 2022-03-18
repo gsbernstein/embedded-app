@@ -28,7 +28,6 @@ void ReadableScreen::processCommand(RemoteCommand command) {
             needsRerender = true;
             backCallback();
         }
-        needsRerender = true;
     };
 
     switch (command) {
