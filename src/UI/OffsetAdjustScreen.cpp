@@ -6,11 +6,11 @@
 
 OffsetAdjustScreen::OffsetAdjustScreen(DisplaySystem &display, PreferencesStore &prefs,
                                        Power &power)
-    : display_(display), prefs_(prefs), power_(power), xOffset(prefs.localXOffset.get().value()),
-      yOffset(prefs.localYOffset.get().value()), renderer_(display) {
+    : display_(display), prefs_(prefs), power_(power), renderer_(display) {
 
     std::string message;
-    for (int i = 0; i < 15; i++) {
+    // This needs to be pretty big for smaller fonts
+    for (int i = 0; i < 30; i++) {
         message += "Press arrows to move box around to your liking. Then "
                    "long-press the left button when done! Message repeats. ";
     }
@@ -29,21 +29,22 @@ void OffsetAdjustScreen::render(DisplaySystem &display) {
 }
 
 void OffsetAdjustScreen::processCommand(RemoteCommand command) {
+    DisplayRect oldRect = display_.getBoundingBox();
     switch (command) {
     case RemoteCommand::CHANNEL_MINUS:
-        xOffset -= OFFSET_ADJUST_AMOUNT;
+        oldRect.x -= OFFSET_ADJUST_AMOUNT;
         needsRerender = true;
         break;
     case RemoteCommand::CHANNEL_PLUS:
-        xOffset += OFFSET_ADJUST_AMOUNT;
+        oldRect.x += OFFSET_ADJUST_AMOUNT;
         needsRerender = true;
         break;
     case RemoteCommand::PREV:
-        yOffset -= OFFSET_ADJUST_AMOUNT;
+        oldRect.y -= OFFSET_ADJUST_AMOUNT;
         needsRerender = true;
         break;
     case RemoteCommand::NEXT:
-        yOffset += OFFSET_ADJUST_AMOUNT;
+        oldRect.y += OFFSET_ADJUST_AMOUNT;
         needsRerender = true;
         break;
     case RemoteCommand::BACK:
@@ -53,15 +54,20 @@ void OffsetAdjustScreen::processCommand(RemoteCommand command) {
         // app but since we're using TurnTouch for demos, I think it's ok for now. In the future, it
         // might be good to pass more data to `process_command` including which remote is being used
         // so that we can have remote-specific workarounds if needed.
-        xOffset += OFFSET_ADJUST_AMOUNT;
+        oldRect.x += OFFSET_ADJUST_AMOUNT;
+        display_.setBoundingBox(oldRect);
     case RemoteCommand::ENTER:
-        prefs_.localXOffset.set(xOffset);
-        prefs_.localYOffset.set(yOffset);
-        log_d("Saving x and y offset to preferences: (%d, %d)", xOffset, yOffset);
+        prefs_.rectX.set(display_.getBoundingBox().x);
+        prefs_.rectY.set(display_.getBoundingBox().y);
+        prefs_.rectW.set(display_.getBoundingBox().width);
+        prefs_.rectH.set(display_.getBoundingBox().height);
+        log_d("Saving bounding box to preferences: (%s)",
+              display_.getBoundingBox().toString().c_str());
         backCallback();
         break;
     default:
         break;
     }
-    display_.setOffset(xOffset, yOffset);
+
+    display_.setBoundingBox(oldRect);
 }

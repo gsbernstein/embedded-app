@@ -72,11 +72,6 @@ void CalibrationScreen::render(DisplaySystem &display) {
 
         display.updateDisplay();
     } else {
-        float oldX = display.getFocusWidth();
-        float oldY = display.getFocusHeight();
-
-        display.setFocusSize(23.4, 23.4);
-
         int i, l = 0;
 
         for (l = 0; l < 32; l++) {
@@ -102,7 +97,6 @@ void CalibrationScreen::render(DisplaySystem &display) {
         drawSiemensStar(display, 32, 256 - 32, 32);
 
         display.updateDisplay();
-        display.setFocusSize(oldX, oldY);
     }
 
     needsRerender = false;

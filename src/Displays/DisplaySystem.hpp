@@ -19,6 +19,7 @@
 #include <array>
 #include <string>
 
+#include "Misc/StringUtil.hpp"
 #include "Misc/Style.hpp"
 
 // This isn't the best -- we may want to make this dynamically
@@ -27,6 +28,18 @@
 
 #define INVERTED_DISPLAY true
 // #define INVERTED_DISPLAY false
+// We allow x & y to be negative so the bounds checking code is more
+// legible
+struct DisplayRect {
+    int32_t x;
+    int32_t y;
+    uint32_t width;
+    uint32_t height;
+
+    auto toString() -> std::string {
+        return StringFormat("x:%d, y:%d, w:%d, h:%d", x, y, width, height);
+    }
+};
 
 class DisplaySystem {
 public:
@@ -54,8 +67,8 @@ public:
     // Use these methods for normal drawing as they'll take into account the offsets and focus area
     // automatically. Any methods we need from Adafruit_GFX that need to respect the focus area
     // should be copied in here.
-    [[nodiscard]] auto width() const -> int16_t { return maxPixelsX_; };
-    [[nodiscard]] auto height() const -> int16_t { return maxPixelsY_; };
+    [[nodiscard]] auto width() const -> int16_t { return boundingBox_.width; };
+    [[nodiscard]] auto height() const -> int16_t { return boundingBox_.height; };
     void fillScreen(uint16_t color) { gfxClass_->fillScreen(color); }
     void fillTriangle(int16_t x0, int16_t y0, int16_t x1, int16_t y1, int16_t x2, int16_t y2,
                       uint16_t color) {
@@ -110,20 +123,10 @@ public:
     void setAutoUpdate(bool update);
     auto getAutoUpdate() -> bool;
 
-    // MARK: - Physical optics stuff
+    auto setBoundingBox(DisplayRect newBox) -> DisplayRect;
+    auto getBoundingBox() -> DisplayRect { return boundingBox_; }
 
-    // Physical size of the display in mm
-    auto getWidthInMm() -> float;
-    auto getHeightInMm() -> float;
-
-    // Size of the focused area in the optics in mm
-    void setFocusSize(float width, float height);
-    auto getFocusWidth() -> float { return focusWidthInMm_; }
-    auto getFocusHeight() -> float { return focusHeightInMm_; }
-
-    void setFocusOffset(float width, float height);
-    auto getFocusOffsetWidth() -> float { return focusWidthOffsetInMm_; }
-    auto getFocusOffsetHeight() -> float { return focusHeightOffsetInMm_; }
+    void ensureBoundaries();
 
     // MARK: - Text rendering code
 
@@ -156,18 +159,13 @@ public:
     // TODO: Just use `textcolor` and `textbgcolor` for these?
     uint16_t bg, fg;
 
-    void setOffset(uint16_t xOffset, uint16_t yOffset) {
-        localXOffset_ = xOffset;
-        localYOffset_ = yOffset;
-    }
-
 protected:
     // Must be set in the constructor of subclasses
     Adafruit_GFX *gfxClass_;
     const GFXfont *font_;
 
-    inline auto xOffset(int16_t value) -> int16_t { return value + localXOffset_ + xMin_; }
-    inline auto yOffset(int16_t value) -> int16_t { return value + localYOffset_ + yMin_; }
+    inline auto xOffset(int16_t value) -> int16_t { return value + boundingBox_.x; }
+    inline auto yOffset(int16_t value) -> int16_t { return value + boundingBox_.y; }
 
     void drawTextCmdsOnly(const std::string &newText, int x, int y, int lineHeight);
     void drawBoxCmdsOnly(int xStart, int yStart, int xEnd, int yEnd);
@@ -181,23 +179,10 @@ protected:
 
     bool autoUpdate_;
 
-    float widthInMm_ = 0;
-    float heightInMm_ = 0;
-    float focusWidthInMm_;
-    float focusHeightInMm_;
-    float focusWidthOffsetInMm_ = 0;
-    float focusHeightOffsetInMm_ = 0;
     bool invertedDisplay_ = false;
 
-    // TODO: We can probably simplify these
-    int localXOffset_ = 0;
-    int localYOffset_ = 0;
-    int xMin_ = 0;
-    int xMax_ = 0;
-    int yMin_ = 0;
-    int yMax_ = 0;
-    int maxPixelsX_ = 0;
-    int maxPixelsY_ = 0;
+    // This is the default value from before of 15mmx15mm
+    DisplayRect boundingBox_ = {33, 33, 190, 190};
     int lineSpacing_ = 0;
 };
 

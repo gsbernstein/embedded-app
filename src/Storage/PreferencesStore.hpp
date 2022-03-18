@@ -141,9 +141,7 @@ public:
     };
 
     PreferencesStore() noexcept
-        : localXOffset(this->prefs_, "x-offset"), localYOffset(this->prefs_, "y-offset"),
-          displayBoxWidthOffsetMm(this->prefs_, "box-w-off-mm"),
-          displayBoxHeightOffsetMm(this->prefs_, "box-h-off-mm"),
+        :
 #if USE_TURN_TOUCH_REMOTE
           pairedTurnTouchAddress(this->prefs_, "paired-tt"),
 #endif
@@ -151,15 +149,12 @@ public:
           lastReadableId(this->prefs_, "rui-readable"), readablePlace(this->prefs_, "-p"),
           invertSetting(this->prefs_, "invert"), vcom(this->prefs_, "vcom"),
           backlight(this->prefs_, "backlight"), font(this->prefs_, "font"),
-          lineSpacing(this->prefs_, "line-space"){};
+          rectX(this->prefs_, "rectX"), rectY(this->prefs_, "rectY"), rectW(this->prefs_, "rectW"),
+          rectH(this->prefs_, "rectH"), lineSpacing(this->prefs_, "line-space"){};
 
     void begin();
     void clear() { prefs_.clear(); }
 
-    PrefsItem<int> localXOffset;
-    PrefsItem<int> localYOffset;
-    PrefsItem<int> displayBoxWidthOffsetMm;
-    PrefsItem<int> displayBoxHeightOffsetMm;
     PrefsItem<std::string> pocketApiToken;
 #if USE_TURN_TOUCH_REMOTE
     BLEAddressPrefsItem pairedTurnTouchAddress;
@@ -170,6 +165,10 @@ public:
     PrefsItem<int> vcom;
     PrefsItem<int> backlight;
     PrefsItem<int> font;
+    PrefsItem<int> rectX;
+    PrefsItem<int> rectY;
+    PrefsItem<int> rectW;
+    PrefsItem<int> rectH;
     PrefsItem<int> lineSpacing;
 
 protected:
