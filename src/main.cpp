@@ -23,6 +23,7 @@
 #include "sindarin-debug.h"
 
 #if !DISABLE_POWER_MANAGEMENT
+#include <driver/uart.h>
 #include <esp_err.h>
 #include <esp_pm.h>
 #endif
@@ -147,13 +148,25 @@ void RemoteLoop(void *parameter) {
 }
 #endif
 
+#if !DISABLE_POWER_MANAGEMENT
+static DRAM_ATTR esp_pm_lock_handle_t StatsLock;
+#endif
+
 void StatsLoop(void *parameter) {
 #if !SIMULATOR
+
+#if !DISABLE_POWER_MANAGEMENT
+    ESP_ERROR_CHECK(esp_pm_lock_create(ESP_PM_CPU_FREQ_MAX, 0, "stats", &StatsLock));
+#endif
+
     for (;;) {
         // Spit out data on locks every 10s
         vTaskDelay(10000 / portTICK_PERIOD_MS);
 #if !DISABLE_POWER_MANAGEMENT
+        esp_pm_lock_acquire(StatsLock);
         esp_pm_dump_locks(stdout);
+        uart_wait_tx_done(0, 100 / portTICK_PERIOD_MS);
+        esp_pm_lock_release(StatsLock);
 #endif
     }
     vTaskDelete(nullptr);
