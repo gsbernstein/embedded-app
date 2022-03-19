@@ -16,6 +16,7 @@ jobs:
           - gilpico
           - gilpico-idf
           - glasses
+          - glasses-idf
           - optopax-poc4
           - esp-wrover-kit
           - esp-wrover-kit-idf
