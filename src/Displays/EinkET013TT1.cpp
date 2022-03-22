@@ -95,7 +95,9 @@ void EinkET013TT1::init() {
     pinMode(cs_, OUTPUT);
     pinMode(oei_, OUTPUT);
     pinMode(rst_, OUTPUT);
+#if !DISABLE_BUSY
     pinMode(busy_, INPUT);
+#endif
 
     digitalWrite(cs_, HIGH);
 
@@ -537,11 +539,13 @@ inline void EinkET013TT1::waitForTimer() {
 }
 
 inline void EinkET013TT1::waitForNotBusy() {
+#if !DISABLE_BUSY
     if (digitalRead(busy_) == HIGH) {
         busyWaits_ += 1;
     }
     while (digitalRead(busy_) == HIGH) {
     }
+#endif
 }
 
 #endif

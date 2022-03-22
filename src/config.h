@@ -76,8 +76,14 @@
 #endif
 #define DISPLAY_CS 5
 #define DISPLAY_OEI 21
+#ifndef DISPLAY_RST
 #define DISPLAY_RST 32
+#endif
 #define DISPLAY_BUSY 33
+
+#ifndef DISABLE_BUSY
+#define DISABLE_BUSY 0
+#endif
 
 #define CPU_FREQ_MHZ_HIGH 240
 #if !DISABLE_POWER_MANAGEMENT
