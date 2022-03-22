@@ -25,7 +25,7 @@ void SpiffsFileSystem::begin() {
 #endif
 
     // Launch SPIFFS file system
-    if (!SPIFFS.begin(false, "/spiffs", 255, partitionLabel)) {
+    if (!SPIFFS.begin(false, "/spiffs", 255)) {
         log_e("An Error has occurred while mounting SPIFFS");
     }
 
@@ -34,7 +34,10 @@ void SpiffsFileSystem::begin() {
 
 auto SpiffsFileSystem::open(const std::string &path, const char *mode, const bool create) const
     -> File {
-    return SPIFFS.open(path.c_str(), mode, create);
+    // Note(john): The version of framework-arduinoespressif32
+    // (https://github.com/marcovannoord/arduino-esp32.git#idf-release/v4.0) has a slightly
+    // different API here.
+    return SPIFFS.open(path.c_str(), mode);
 }
 
 auto SpiffsFileSystem::exists(const std::string &path) const -> bool {

@@ -14,14 +14,19 @@ jobs:
       matrix:
         pioenv:
           - gilpico
+          - gilpico-idf
           - glasses
+          - glasses-idf
           - optopax-poc4
           - esp-wrover-kit
+          - esp-wrover-kit-idf
           - simulator
 
     steps:
     - name: Check out code
       uses: actions/checkout@v2
+      with:
+        submodules: 'recursive'
 
     - name: Set up Python
       uses: actions/setup-python@v2

@@ -1,7 +1,9 @@
 #if !SIMULATOR
 
+#include <driver/ledc.h>
 #include <driver/uart.h>
 #include <esp_adc_cal.h>
+#include <soc/rtc.h>
 
 #include "Platform.hpp"
 #include "config.h"
@@ -26,14 +28,29 @@ void InitializePlatform() {
 #if REVISION < 7
     pinMode(DISPLAY_POWER, OUTPUT);
 #else
-    // Backlight
-    const int pwmFreq = 5000;
-    const int pwmResolution = 8;
-    ledcSetup(BACKLIGHT_PWM_CHANNEL, pwmFreq, pwmResolution);
+    // Backlight configs
+    ledc_timer_config_t ledcTimer = {
+        .speed_mode = LEDC_LOW_SPEED_MODE,
+        .duty_resolution = LEDC_TIMER_8_BIT,
+        .timer_num = LEDC_TIMER_0,
+        .freq_hz = 1000,
+        .clk_cfg = LEDC_USE_RTC8M_CLK //
+    };
+    ledc_timer_config(&ledcTimer);
 
-    // Attach the LED PWM Channel to the GPIO Pins
-    ledcAttachPin(BACKLIGHT_LEFT, BACKLIGHT_PWM_CHANNEL);
-    ledcAttachPin(BACKLIGHT_RIGHT, BACKLIGHT_PWM_CHANNEL);
+    ledc_channel_config_t ledcChannel = {
+        .gpio_num = BACKLIGHT_LEFT,
+        .speed_mode = LEDC_LOW_SPEED_MODE,
+        .channel = LEDC_CHANNEL_0,
+        .intr_type = LEDC_INTR_DISABLE,
+        .timer_sel = LEDC_TIMER_0,
+        .duty = 0,
+        .hpoint = 0 //
+    };
+
+    ledc_channel_config(&ledcChannel);
+    ledcChannel.gpio_num = BACKLIGHT_RIGHT;
+    ledc_channel_config(&ledcChannel);
 #endif
 #endif // EINKET013TT1
 }
@@ -76,6 +93,8 @@ auto GetBatteryVoltageRight() -> float {
 }
 
 void SetCpuSpeedMhz(int speedMhz) {
+    // This is a no-op if we're using automatic power management
+#if DISABLE_POWER_MANAGEMENT
     if (speedMhz == esp_clk_cpu_freq() / 1000000) {
         return;
     }
@@ -87,13 +106,15 @@ void SetCpuSpeedMhz(int speedMhz) {
     if (setCpuFrequencyMhz(speedMhz) != true) {
         log_e("Failed to setCpuFrequencyMhz(%d)", speedMhz);
     }
+#endif
 }
 
 void SetBacklight(int percent) {
     auto dutyCycle = percent * 255 / 100;
     log_d("Setting backlight to %d%% (%d)", percent, dutyCycle);
 #if REVISION >= 7
-    ledcWrite(BACKLIGHT_PWM_CHANNEL, dutyCycle);
+    ledc_set_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_0, dutyCycle);
+    ledc_update_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_0);
 #endif
 }
 

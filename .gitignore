@@ -10,3 +10,5 @@ __pycache__
 .temp
 # Simulator prefs
 simprefs.ini
+*.old
+build

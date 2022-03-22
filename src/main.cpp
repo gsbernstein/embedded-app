@@ -22,6 +22,12 @@
 #include "config.h"
 #include "sindarin-debug.h"
 
+#if !DISABLE_POWER_MANAGEMENT
+#include <driver/uart.h>
+#include <esp_err.h>
+#include <esp_pm.h>
+#endif
+
 #if EINKET013TT1
 DisplayEinkET013TT1 myDisplay(DISPLAY_CS, DISPLAY_OEI, DISPLAY_RST, DISPLAY_BUSY);
 #endif
@@ -141,6 +147,31 @@ void RemoteLoop(void *parameter) {
     vTaskDelete(nullptr);
 }
 #endif
+
+#if !DISABLE_POWER_MANAGEMENT
+static DRAM_ATTR esp_pm_lock_handle_t StatsLock;
+#endif
+
+void StatsLoop(void *parameter) {
+#if !SIMULATOR
+
+#if !DISABLE_POWER_MANAGEMENT
+    ESP_ERROR_CHECK(esp_pm_lock_create(ESP_PM_CPU_FREQ_MAX, 0, "stats", &StatsLock));
+#endif
+
+    for (;;) {
+        // Spit out data on locks every 10s
+        vTaskDelay(10000 / portTICK_PERIOD_MS);
+#if !DISABLE_POWER_MANAGEMENT
+        esp_pm_lock_acquire(StatsLock);
+        esp_pm_dump_locks(stdout);
+        uart_wait_tx_done(0, 100 / portTICK_PERIOD_MS);
+        esp_pm_lock_release(StatsLock);
+#endif
+    }
+    vTaskDelete(nullptr);
+#endif
+}
 
 void setup() {
     bool inputDeviceConnected = false;
@@ -279,6 +310,15 @@ void setup() {
 #endif
 #endif
 
+#if !DISABLE_POWER_MANAGEMENT
+    esp_pm_config_esp32_t pmConfig = {
+        .max_freq_mhz = CPU_FREQ_MHZ_HIGH,
+        .min_freq_mhz = CPU_FREQ_MHZ_LOW,
+        .light_sleep_enable = true,
+    };
+    ESP_ERROR_CHECK(esp_pm_configure(&pmConfig));
+#endif
+
     auto readables = new std::vector<Readable>();
     fileSystem.begin();
     fileSystem.getReadables(readables);
@@ -299,6 +339,8 @@ void setup() {
     // Run our Bluetooth task on core 0 since it's pretty simple anyways and the rest of the
     // bluetooth stuff already runs there
     xTaskCreatePinnedToCore(RemoteLoop, "Remote", 5000, nullptr, 1, nullptr, 0);
+
+    xTaskCreatePinnedToCore(StatsLoop, "Stats", 5000, nullptr, 0, nullptr, 0);
 #endif
 
     log_i("Setup done");
@@ -332,4 +374,6 @@ void loop() {
 #endif
 
     power.loop();
+
+    delay(100);
 }

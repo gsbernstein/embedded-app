@@ -82,10 +82,15 @@ void RootUI::setup(DisplaySystem *display, std::vector<Readable> &readables, boo
             // When leaving a readable to go back to the main menu, do a full clear
             // of the display.
             display->clearDisplay();
-            delete stream;
-            delete readableScreen;
             prefs_.lastReadableId.remove();
             setCurrentScreen(*mainMenu);
+
+            // TODO: Probably not the most kosher practice to delete the `ReadableScreen` from
+            // _inside_ ReadableScreen.backCallback. I suppose we could either mark these for
+            // deletion on the next loop by adding them to a vector, OR we could rearrange things
+            // so that the `backCallback` is copied by the parent screen, and then executed there.
+            delete readableScreen;
+            delete stream;
         };
         return readableScreen;
     };
