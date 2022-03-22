@@ -4,3 +4,6 @@
 [submodule "components/arduino"]
 	path = components/arduino
 	url = https://github.com/espressif/arduino-esp32.git
+[submodule "components/HULP"]
+	path = components/HULP
+	url = https://github.com/boarchuz/HULP.git

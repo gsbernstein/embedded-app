@@ -188,7 +188,7 @@ void setup() {
 
 #if EINKET013TT1
     // Turn on power to the screen
-#if REVISION < 7
+#ifdef DISPLAY_POWER
     digitalWrite(DISPLAY_POWER, HIGH);
 #endif
     // If the saved prefs indicated a vcom, set it here.
