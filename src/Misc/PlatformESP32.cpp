@@ -5,10 +5,13 @@
 #include <esp_adc_cal.h>
 #include <soc/rtc.h>
 
-#include "Misc/ULP.hpp"
 #include "Platform.hpp"
 #include "config.h"
 #include "sindarin-debug.h"
+
+#if ULP_BACKLIGHT
+#include "Misc/ULP.hpp"
+#endif
 
 #define UPPER_DIVIDER 442
 #define LOWER_DIVIDER 160

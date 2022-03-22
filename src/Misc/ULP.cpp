@@ -1,3 +1,5 @@
+#if ULP_BACKLIGHT
+
 #include <cstring>
 #include <driver/rtc_io.h>
 #include <esp32/ulp.h>
@@ -78,3 +80,5 @@ void UlpSetBrightness(uint8_t brightness) {
     LcdBrightnessDelayOff.val = 255 - brightness;
     log_d("Set ULP brightness to %d", LcdBrightnessDelayOn.val);
 }
+
+#endif
