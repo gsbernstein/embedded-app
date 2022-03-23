@@ -188,7 +188,7 @@ void setup() {
 
 #if EINKET013TT1
     // Turn on power to the screen
-#if REVISION < 7
+#ifdef DISPLAY_POWER
     digitalWrite(DISPLAY_POWER, HIGH);
 #endif
     // If the saved prefs indicated a vcom, set it here.
@@ -336,11 +336,9 @@ void setup() {
 
 #if !SIMULATOR
     remoteQueue = xQueueCreate(10, sizeof(RemoteCommand));
-    // Run our Bluetooth task on core 0 since it's pretty simple anyways and the rest of the
-    // bluetooth stuff already runs there
-    xTaskCreatePinnedToCore(RemoteLoop, "Remote", 5000, nullptr, 1, nullptr, 0);
+    xTaskCreatePinnedToCore(RemoteLoop, "Remote", 5000, nullptr, 1, nullptr, 1);
 
-    xTaskCreatePinnedToCore(StatsLoop, "Stats", 5000, nullptr, 0, nullptr, 0);
+    xTaskCreatePinnedToCore(StatsLoop, "Stats", 5000, nullptr, 0, nullptr, 1);
 #endif
 
     log_i("Setup done");

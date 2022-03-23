@@ -9,6 +9,10 @@
 #include "config.h"
 #include "sindarin-debug.h"
 
+#if ULP_BACKLIGHT
+#include "Misc/ULP.hpp"
+#endif
+
 #define UPPER_DIVIDER 442
 #define LOWER_DIVIDER 160
 #define DEFAULT_VREF 1100 // Default referance voltage in mv
@@ -25,9 +29,10 @@ void InitializePlatform() {
     pinMode(GREEN_LED, OUTPUT);
 
 #if EINKET013TT1
-#if REVISION < 7
+#ifdef DISPLAY_POWER
     pinMode(DISPLAY_POWER, OUTPUT);
-#else
+#endif
+#if LEDC_BACKLIGHT
     // Backlight configs
     ledc_timer_config_t ledcTimer = {
         .speed_mode = LEDC_LOW_SPEED_MODE,
@@ -51,6 +56,9 @@ void InitializePlatform() {
     ledc_channel_config(&ledcChannel);
     ledcChannel.gpio_num = BACKLIGHT_RIGHT;
     ledc_channel_config(&ledcChannel);
+#endif
+#if ULP_BACKLIGHT
+    UlpStart();
 #endif
 #endif // EINKET013TT1
 }
@@ -112,9 +120,12 @@ void SetCpuSpeedMhz(int speedMhz) {
 void SetBacklight(int percent) {
     auto dutyCycle = percent * 255 / 100;
     log_d("Setting backlight to %d%% (%d)", percent, dutyCycle);
-#if REVISION >= 7
+#if LEDC_BACKLIGHT
     ledc_set_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_0, dutyCycle);
     ledc_update_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_0);
+#endif
+#if ULP_BACKLIGHT
+    UlpSetBrightness(dutyCycle);
 #endif
 }
 

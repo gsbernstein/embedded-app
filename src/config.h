@@ -62,22 +62,36 @@
 #define GREEN_LED 25
 #endif
 
-#define BACKLIGHT_RIGHT 26
-#define BACKLIGHT_LEFT 9
-
 #define BAT_VOLTAGE_RIGHT 37
 #define BAT_VOLTAGE_LEFT 38
 #define BATT_CHANNEL_RIGHT ADC1_CHANNEL_1
 #define BATT_CHANNEL_LEFT ADC1_CHANNEL_2
 
-// On revisions prior to 7, the screen's power was tied to pin 26 along with the backlight
-#if REVISION < 7
+#if defined(REVSION) && REVISION < 7
+// On revisions prior to 7, the screen's power was tied to pin 26 along with the backlight, so
+// define the power pin to turn on display and keep it on.
 #define DISPLAY_POWER 26
+#else // Revision 7 and above defaults
+#ifndef LEDC_BACKLIGHT
+#define LEDC_BACKLIGHT 1
 #endif
+#ifndef ULP_BACKLIGHT
+#define ULP_BACKLIGHT 0
+#endif
+#define BACKLIGHT_RIGHT 26
+#define BACKLIGHT_LEFT 9
+#endif
+
 #define DISPLAY_CS 5
 #define DISPLAY_OEI 21
+#ifndef DISPLAY_RST
 #define DISPLAY_RST 32
+#endif
 #define DISPLAY_BUSY 33
+
+#ifndef DISABLE_BUSY
+#define DISABLE_BUSY 0
+#endif
 
 #define CPU_FREQ_MHZ_HIGH 240
 #if !DISABLE_POWER_MANAGEMENT
