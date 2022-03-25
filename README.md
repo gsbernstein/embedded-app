@@ -8,6 +8,12 @@ Install platformio
 brew install platformio
 ```
 
+After cloning this project from GitHub you'll need to pull the most recent submodules if you want to build the IDF builds.
+
+```bash
+git submodule update --init --recursive
+```
+
 VSCode provides a nice platformio IDE. Download VSCode and get the PlatformIO IDE extension.
 
 ## Upload and Monitor
@@ -82,3 +88,17 @@ Issues that will be fixed automatically will be fixed by clang-tidy, warnings wi
 The simulator compiles in <3s from a clean build, and even less on an incremental build. Thsi makes it super fast for us to iterate on anything that doesn't need the physical hardware.
 
 You'll need SDL2 & openssl for it to work: `brew install sdl2 sdl2_image openssl`. But then you can just hit the upload button in VSCode+PlatformIO and it should build and run! We haven't figured out how to get VSCode to properly debug the binary yet, but for now you can use the command line: `pio run -e simulator && lldb .pio/build/simulator/program`. Enjoy!
+
+## Erasing / Resetting Non-Volatile Storage (NVS)
+
+You can erase NVS from the command line using esptool. You can either erase the entire internal flash with:
+
+```bash
+esptool.py erase_flash
+```
+
+Or you can erase a region. The appropriate flash region comes from [`externalflash.csv`](https://github.com/sindarin-inc/embedded-app/blob/main/externalflash.csv), and it may be worth a check there to confirm this documentation is still up to date.
+
+```bash
+esptool.py erase_region 0x9000 0x5000
+```
