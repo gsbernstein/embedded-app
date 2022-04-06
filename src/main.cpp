@@ -1,13 +1,3 @@
-// Obvious BUGS
-// (1) Prev doesn't work at all
-// (2) When you turn it off and back on, if you hadn't gone forward before,
-// it goes to the screen you were on, but if you had gone forward, it goes
-// to the next screen
-// (3) When you go back to the main menu from the text, and then go back
-// to the text, it returns you to the NEXT page instead of the page you were
-// on (similar to the above).
-//
-
 #include "Communications/OTA.hpp"
 #include "Communications/WiFi.hpp"
 #include "Contents/Readable.hpp"
@@ -111,6 +101,7 @@ void RemoteLoop(void *parameter) {
 #endif
 
 #if USE_TURN_TOUCH_REMOTE
+        // This will start a scan if one is not already in progress.
         ttRemoteInput.checkPress();
 #endif
 
@@ -314,7 +305,6 @@ void setup() {
 
 #if USE_TURN_TOUCH_REMOTE
     ttRemoteInput.startRemote();
-    inputDeviceConnected = ttRemoteInput.attemptConnect();
 #endif
 
 #if !DISABLE_WIFI
@@ -357,14 +347,14 @@ void setup() {
 
     SetCpuSpeedMhz(CPU_FREQ_MHZ_LOW);
 
+    BlinkBootErrors(bootErrors);
+
 #if !SIMULATOR
     remoteQueue = xQueueCreate(10, sizeof(RemoteCommand));
-    xTaskCreatePinnedToCore(RemoteLoop, "Remote", 5000, nullptr, 1, nullptr, 1);
+    xTaskCreatePinnedToCore(RemoteLoop, "Remote", 5000, nullptr, 1, nullptr, 0);
 
     xTaskCreatePinnedToCore(StatsLoop, "Stats", 5000, nullptr, 0, nullptr, 1);
 #endif
-
-    BlinkBootErrors(bootErrors);
 }
 
 void loop() {
@@ -382,19 +372,11 @@ void loop() {
     }
 #endif
 
-    if (command != RemoteCommand::NONE) {
-        digitalWrite(RED_LED, HIGH);
-    }
-
     rootUi.loop(myDisplay, command);
-
-    digitalWrite(RED_LED, LOW);
 
 #if ENABLE_OTA
     ota.loop();
 #endif
 
     power.loop();
-
-    delay(100);
 }

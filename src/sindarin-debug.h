@@ -23,6 +23,20 @@ extern "C" {
 #include <esp32/clk.h>
 }
 
+// For IDF builds, use the ESP_LOGD macros since they work with power management.
+#ifdef IDF_LOG
+#undef log_v
+#undef log_d
+#undef log_i
+#undef log_w
+#undef log_e
+#define log_v(format, ...) ESP_LOGV("Sindarin", format, ##__VA_ARGS__);
+#define log_d(format, ...) ESP_LOGD("Sindarin", format, ##__VA_ARGS__);
+#define log_i(format, ...) ESP_LOGI("Sindarin", format, ##__VA_ARGS__);
+#define log_w(format, ...) ESP_LOGW("Sindarin", format, ##__VA_ARGS__);
+#define log_e(format, ...) ESP_LOGE("Sindarin", format, ##__VA_ARGS__);
+#endif
+
 #define SHOW_HEAP()                                                                                \
     log_d("Free heap: %dk/%dk Free PSRAM: %dk/%dk", ESP.getFreeHeap() / 1000,                      \
           ESP.getHeapSize() / 1000, ESP.getFreePsram() / 1000, ESP.getPsramSize() / 1000)

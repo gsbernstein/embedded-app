@@ -44,7 +44,6 @@ public:
     void buttonNotificationCallback(BLERemoteCharacteristic *remoteCharacteristic, uint8_t *data,
                                     size_t length, bool isNotify);
     auto isDeviceConnected() -> bool { return deviceConnected_; }
-    auto attemptConnect() -> bool;
 
 protected:
     void doneScanning(const NimBLEScanResults &results);
