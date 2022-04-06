@@ -347,14 +347,14 @@ void setup() {
 
     SetCpuSpeedMhz(CPU_FREQ_MHZ_LOW);
 
+    BlinkBootErrors(bootErrors);
+
 #if !SIMULATOR
     remoteQueue = xQueueCreate(10, sizeof(RemoteCommand));
     xTaskCreatePinnedToCore(RemoteLoop, "Remote", 5000, nullptr, 1, nullptr, 0);
 
     xTaskCreatePinnedToCore(StatsLoop, "Stats", 5000, nullptr, 0, nullptr, 1);
 #endif
-
-    BlinkBootErrors(bootErrors);
 }
 
 void loop() {
@@ -372,13 +372,7 @@ void loop() {
     }
 #endif
 
-    if (command != RemoteCommand::NONE) {
-        digitalWrite(RED_LED, HIGH);
-    }
-
     rootUi.loop(myDisplay, command);
-
-    digitalWrite(RED_LED, LOW);
 
 #if ENABLE_OTA
     ota.loop();

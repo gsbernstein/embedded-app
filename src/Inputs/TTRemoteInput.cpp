@@ -79,6 +79,8 @@ void TTRemoteInput::doneScanning(const NimBLEScanResults &results) {
 }
 
 void TTRemoteInput::scanForDevice() {
+    digitalWrite(RED_LED, HIGH);
+
     // Run a scan for 1 second
     auto address = this->prefs_.pairedTurnTouchAddress.get();
     if (address.has_value()) {
@@ -94,8 +96,8 @@ void TTRemoteInput::scanForDevice() {
     // TODO: It'd be nice to use the non-blocking call here, but that doesn't take a std::function
     // so passing in a callback with access to `this` is a little clunky
     scan->start(10, nullptr, false);
-    log_d("BLE scan completed.");
     lastScanMs_ = millis();
+    digitalWrite(RED_LED, LOW);
 }
 
 void TTRemoteInput::buttonNotificationCallback(BLERemoteCharacteristic *remoteCharacteristic,
