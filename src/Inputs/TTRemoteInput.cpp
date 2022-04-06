@@ -88,12 +88,12 @@ void TTRemoteInput::scanForDevice() {
     }
     BLEScan *scan = BLEDevice::getScan();
     scan->setAdvertisedDeviceCallbacks(new AdvertisedDeviceCallbacks(this));
-    scan->setInterval(100);
-    scan->setWindow(99);
+    scan->setInterval(1349);
+    scan->setWindow(449);
     scan->setActiveScan(true);
     // TODO: It'd be nice to use the non-blocking call here, but that doesn't take a std::function
     // so passing in a callback with access to `this` is a little clunky
-    scan->start(1, false);
+    scan->start(10, nullptr, false);
     log_d("BLE scan completed.");
     lastScanMs_ = millis();
 }
@@ -159,35 +159,14 @@ void TTRemoteInput::buttonNotificationCallback(BLERemoteCharacteristic *remoteCh
     wasCodeProcessed_ = 0;
 }
 
-// Start to make this a bit cleaner. Expect main to call
-// this up front and then pass the result to RootUI to
-// display the right thing when the initial connect
-// attempt works.
-auto TTRemoteInput::attemptConnect() -> bool {
-    log_d("Atempting Connect");
-    if (!deviceConnected_) {
-        log_d("about to attempt scan");
-        scanForDevice();
-    }
-    // Clunky but the above seems to be in interrupt mode so we need to wait
-    // before we try to connect.
-    delay(1000);
-    if (turntouchDevice_ != nullptr) {
-        log_d("About to attempt connectToDevice");
-        // TurnTouch has been found during scanning, attempt connection
-        deviceConnected_ = connectToDevice(turntouchDevice_);
-    }
-    log_d("End attempting connect");
-    return deviceConnected_;
-}
-
 auto TTRemoteInput::checkPress() -> int {
     // This isn't the best place for all of this, but since we have a contract with clients
     // that they have to check_presses, this is a reasonable spot to do this work.
     if (!deviceConnected_ && turntouchDevice_ != nullptr) {
         // TurnTouch has been found during scanning, attempt connection
         deviceConnected_ = connectToDevice(turntouchDevice_);
-    } else if (!deviceConnected_ && millis() > (lastScanMs_ + RESCAN_INTERVAL_MS)) {
+    } else if (!deviceConnected_ && !BLEDevice::getScan()->isScanning() &&
+               millis() > (lastScanMs_ + RESCAN_INTERVAL_MS)) {
         scanForDevice();
     }
     return 0;
