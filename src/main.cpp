@@ -180,6 +180,7 @@ void setup() {
 
 #if !SIMULATOR
     Serial.begin(115200);
+    esp_log_level_set("Sindarin", ESP_LOG_DEBUG);
 #endif
 
     if (!prefs.begin()) {
