@@ -12,6 +12,7 @@
 #include "Misc/Style.hpp"
 #include "Renderers/Renderer.hpp"
 #include "UI/CalibrationScreen.hpp"
+#include "UI/DemoScreen.hpp"
 #include "UI/LineSpacingScreen.hpp"
 #include "UI/LoadingScreen.hpp"
 #include "UI/LogoScreen.hpp"
@@ -260,6 +261,26 @@ void RootUI::setup(DisplaySystem *display, std::vector<Readable> &readables, boo
         log_d("set up callback");
     }));
 
+    int inDemo = prefs_.demoMode.get().value();
+
+    if (inDemo) {
+        settingsMenu->addMenuItem(MenuItem("Turn off Demo Mode", [this, settingsMenu, display]() {
+            log_d("Exiting demo");
+            prefs_.demoMode.set(0);
+            display->renderMaxBoxWithText("Demo mode off! Resetting...");
+            delay(2000);
+            esp_restart();
+        }));
+    } else {
+        settingsMenu->addMenuItem(MenuItem("Turn on Demo Mode", [this, settingsMenu, display]() {
+            log_d("Entering demo");
+            prefs_.demoMode.set(1);
+            display->renderMaxBoxWithText("Demo mode on! Resetting...");
+            delay(2000);
+            esp_restart();
+        }));
+    }
+
 #if EINKET013TT1
     settingsMenu->addMenuItem(MenuItem("Set Vcom", [this, display, settingsMenu]() {
         auto vcomMenu = new MenuScreen(this->power_);
@@ -400,6 +421,7 @@ void RootUI::setup(DisplaySystem *display, std::vector<Readable> &readables, boo
         delay(2000);
         esp_restart();
     }));
+
     settingsMenu->addMenuItem(
         MenuItem("Factory Defaults", [this, settingsMenu]() { this->restoreFactoryDefaults(); }));
     settingsMenu->addMenuItem(MenuItem("Loading Test", [this, display, settingsMenu]() {
@@ -410,6 +432,16 @@ void RootUI::setup(DisplaySystem *display, std::vector<Readable> &readables, boo
             delete loadingScreen;
         };
     }));
+
+    settingsMenu->addMenuItem(MenuItem("Demo Screen", [this, settingsMenu, display]() {
+        auto demoScreen = new DemoScreen(*display, prefs_, this->power_);
+        this->setCurrentScreen(*demoScreen);
+        demoScreen->backCallback = [this, demoScreen, settingsMenu]() {
+            setCurrentScreen(*settingsMenu);
+            delete demoScreen;
+        };
+    }));
+
     settingsMenu->addMenuItem(MenuItem("Test Bitmap Screen", [this, display, settingsMenu]() {
         auto bitmapScreen = new BitmapScreen(LOGO_BITS, LOGO_WIDTH, LOGO_HEIGHT);
         setCurrentScreen(*bitmapScreen);
@@ -439,8 +471,17 @@ void RootUI::setup(DisplaySystem *display, std::vector<Readable> &readables, boo
         setCurrentScreen(*settingsMenu);
     }));
 
-    // Check if we left-off on a readable and if so, reload that readable by default
-    if (currentReadable.has_value()) {
+    inDemo = prefs_.demoMode.get().value();
+
+    if (inDemo) {
+        auto demoScreen = new DemoScreen(*display, prefs_, this->power_);
+        demoScreen->backCallback = [this, demoScreen, mainMenu]() {
+            setCurrentScreen(*mainMenu);
+            delete demoScreen;
+        };
+        this->setCurrentScreen(*demoScreen);
+    } else if (currentReadable.has_value()) {
+        // Check if we left-off on a readable and if so, reload that readable by default
         log_d("Attempting to find readable: %s", currentReadable.value().c_str());
         // If we previously had a readable loaded, show that same readable by default
         auto it =
@@ -457,28 +498,34 @@ void RootUI::setup(DisplaySystem *display, std::vector<Readable> &readables, boo
         }
     }
 
-    // By default, if we don't already have a different first screen ready, show the calibration
-    // screen
+    // This still has to be this way rather than else if because the currentReadable.has_value()
+    // Could return true but if we don't find that readable, no screen will be set. I asssume this
+    // would happen if the FS is updated underneath us to remove that readable.
     if (this->currentScreen_ == nullptr) {
-        auto calibrationScreen = new LogoScreen();
-        calibrationScreen->backCallback = [this, calibrationScreen, display, mainMenu]() {
-            display->clearScreen();
-            delay(100);
-
-            setCurrentScreen(*mainMenu);
-            delete calibrationScreen;
-        };
-
         // If we've already connected to an input device, go straight
         // to the main menu. We will clean this up a bit moving forward
         // but for now it makes it clear when it's connected and when it
         // hasn't on boot.
         if (!inputConnected) {
+            // By default, if we don't already have a different first screen ready, show the
+            // calibration
+            // screen
+            auto calibrationScreen = new LogoScreen();
+            calibrationScreen->backCallback = [this, calibrationScreen, display, mainMenu]() {
+                display->clearScreen();
+                delay(100);
+
+                setCurrentScreen(*mainMenu);
+                delete calibrationScreen;
+            };
             setCurrentScreen(*calibrationScreen);
         } else {
             setCurrentScreen(*mainMenu);
         }
     }
+
+    // If we are in demo mode, overright whatever the current screen would have been
+    // with the demo code and set the back callback to mainMenu.
 
     SHOW_HEAP();
 }
