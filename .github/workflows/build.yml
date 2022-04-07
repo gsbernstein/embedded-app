@@ -18,6 +18,7 @@ jobs:
           - gilpico-frankenoscillator
           - glasses
           - glasses-idf
+          - rev7-vanilla
           - optopax-poc4
           - esp-wrover-kit
           - esp-wrover-kit-idf
