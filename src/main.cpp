@@ -182,7 +182,9 @@ void setup() {
     Serial.begin(115200);
 #endif
 
-    prefs.begin();
+    if (!prefs.begin()) {
+        bootErrors.push_back({.type = BootError::Type::Preferences});
+    }
 
     SHOW_HEAP();
 
@@ -284,7 +286,9 @@ void setup() {
     bleSettings->configureCharacteristics(sindarinService);
 #endif
 
-    bleSindarinService.start();
+    if (!bleSindarinService.start()) {
+        bootErrors.push_back({.type = BootError::Type::BLESindarin});
+    }
 #endif
 
 #if USE_BLE_SERVER_IMPROV
@@ -296,19 +300,21 @@ void setup() {
     // ble_wifi->configureCharacteristics(sindarinService)
     bleWifi = new BLEImprov();
     bleWifi->configureService(bleManager->server());
-    bleWifi->start();
+    if (!bleWifi->start()) {
+        bootErrors.push_back({.type = BootError::Type::BLEWifi});
+    }
 #endif
 
 #if USE_BLE_SERVER_REMOTE || USE_BLE_SERVER_SETTINGS || USE_BLE_SERVER_IMPROV
-    bleManager->startAdvertisingIfNecessary();
-#endif
-
-#if USE_TURN_TOUCH_REMOTE
-    ttRemoteInput.startRemote();
+    if (!bleManager->startAdvertisingIfNecessary()) {
+        bootErrors.push_back({.type = BootError::Type::BLEManagerAdvertising});
+    }
 #endif
 
 #if !DISABLE_WIFI
-    ConnectWiFiIfCredentialsExist();
+    if (!ConnectWiFiIfCredentialsExist()) {
+        bootErrors.push_back({.type = BootError::Type::WiFi});
+    }
 
 #if ENABLE_OTA
     ota.setup();

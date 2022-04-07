@@ -1,4 +1,4 @@
-void ConnectWiFiIfCredentialsExist();
+auto ConnectWiFiIfCredentialsExist() -> bool;
 
 void DisconnectWifi();
 

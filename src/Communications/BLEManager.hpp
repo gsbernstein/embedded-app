@@ -9,7 +9,7 @@
 class BLEManager {
 public:
     static auto getInstance() -> BLEManager *;
-    void startAdvertisingIfNecessary();
+    auto startAdvertisingIfNecessary() -> bool;
     auto server() -> BLEServer *;
 
 protected:

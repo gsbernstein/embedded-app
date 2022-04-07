@@ -7,18 +7,23 @@
 
 #include "config.h"
 
-void ConnectWiFiIfCredentialsExist() {
+auto ConnectWiFiIfCredentialsExist() -> bool {
     // If credentials are available, go ahead and attempt WiFi connection
     if (!WiFi.enableSTA(true)) {
         log_e("STA enable failed!");
+        return false;
     }
     // I'm not sure, but it might be that WiFi sleep before connecting to an AP could
     // be problematic.
     // if (!WiFi.setSleep(true)) {
     //     log_e("Failed to enable WiFi sleep");
+    //     return false;
     // }
     wifi_config_t conf;
-    esp_wifi_get_config(WIFI_IF_STA, &conf);
+    if (esp_wifi_get_config(WIFI_IF_STA, &conf) != ESP_OK) {
+        log_e("Failed to get WiFi config");
+        return false;
+    }
     const char *ssid = (const char *)conf.sta.ssid;
     const char *password = (const char *)conf.sta.password;
     if (strlen(ssid) > 0 && strlen(password) > 0) {
@@ -27,6 +32,7 @@ void ConnectWiFiIfCredentialsExist() {
         WiFi.begin();
         WiFi.setAutoReconnect(true);
     }
+    return true;
 }
 
 void DisconnectWifi() {

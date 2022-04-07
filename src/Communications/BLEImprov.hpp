@@ -26,7 +26,7 @@ public:
 
     void configureCharacteristics(BLEService *service) override;
     auto configureService(BLEServer *server) -> BLEService * override;
-    void start() override;
+    auto start() -> bool override;
 
 protected:
     uint32_t lastStateChangeMillis_;

@@ -153,7 +153,7 @@ public:
           rectH(this->prefs_, "rectH"), lineSpacing(this->prefs_, "line-space"),
           demoMode(this->prefs_, "demo"){};
 
-    void begin();
+    auto begin() -> bool;
     void clear() { prefs_.clear(); }
 
 #if USE_TURN_TOUCH_REMOTE

@@ -10,6 +10,11 @@ struct BootError {
         ExternalRam = 5,
         Display = 6,
         BLE = 7,
+        BLEWifi = 8,
+        BLESindarin = 9,
+        BLEManagerAdvertising = 10,
+        WiFi = 11,
+        Preferences = 12,
     };
     Type type;
 
@@ -27,6 +32,16 @@ struct BootError {
             return "Display";
         case BLE:
             return "BLE";
+        case BLEWifi:
+            return "BLE/Wifi";
+        case BLESindarin:
+            return "BLE/Sindarin";
+        case BLEManagerAdvertising:
+            return "BLE/ManagerAdvertising";
+        case WiFi:
+            return "Wifi";
+        case Preferences:
+            return "Preferences";
         };
         return "Unhandled";
     }

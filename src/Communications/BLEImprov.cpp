@@ -40,10 +40,7 @@ auto BLEImprov::configureService(BLEServer *server) -> BLEService * {
     return service_;
 }
 
-void BLEImprov::start() {
-    service_->start();
-    SHOW_HEAP();
-}
+auto BLEImprov::start() -> bool { return service_->start(); }
 
 void BLEImprov::setState(BLEImprovState state) {
     if (this->state_ == state) {

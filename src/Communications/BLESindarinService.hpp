@@ -10,7 +10,7 @@ class BLESindarinService : public BLEServiceProvider {
 
 public:
     auto configureService(BLEServer *server) -> BLEService * override;
-    void start() override;
+    auto start() -> bool override;
 };
 
 #endif
