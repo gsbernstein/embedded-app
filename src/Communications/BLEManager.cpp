@@ -23,11 +23,12 @@ auto BLEManager::server() -> BLEServer * {
     return server_;
 }
 
-void BLEManager::startAdvertisingIfNecessary() {
+auto BLEManager::startAdvertisingIfNecessary() -> bool {
     if (server_ != nullptr) {
         auto advertising = server_->getAdvertising();
-        advertising->start();
+        return advertising->start();
     }
+    return false;
 }
 
 #endif

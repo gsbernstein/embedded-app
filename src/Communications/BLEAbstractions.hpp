@@ -15,5 +15,5 @@ protected:
 
 public:
     virtual auto configureService(BLEServer *server) -> BLEService * = 0;
-    virtual void start() = 0;
+    virtual auto start() -> bool = 0;
 };

@@ -10,6 +10,6 @@ auto BLESindarinService::configureService(BLEServer *server) -> BLEService * {
     return service_;
 };
 
-void BLESindarinService::start() { service_->start(); }
+auto BLESindarinService::start() -> bool { return service_->start(); }
 
 #endif
