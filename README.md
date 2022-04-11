@@ -102,3 +102,13 @@ Or you can erase a region. The appropriate flash region comes from [`externalfla
 ```bash
 esptool.py erase_region 0x9000 0x5000
 ```
+
+## Core dumps
+
+You can save the most recent core dump when connected over serial. This probably only works if you still have the `.elf` from the crashing version, though more experimentation is needed. Use the following command:
+
+```bash
+espcoredump.py -p /dev/tty.usb* info_corefile .pio/build/gilpico-frankenoscillator/firmware.elf
+```
+
+See also the [Core Dump docs](https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-guides/core_dump.html).
