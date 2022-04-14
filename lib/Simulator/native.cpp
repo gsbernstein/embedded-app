@@ -151,6 +151,7 @@ auto main(int argc, char *argv[]) -> int {
             SDL_RenderCopy(renderer, deviceScreen, NULL, NULL);
             drawOverlay(remoteCode);
             SDL_RenderPresent(renderer);
+            needsRedraw = false;
         }
 
         // Limit to ~60fps so we don't murder battery unnecessarily
