@@ -7,6 +7,9 @@
 #include <iostream>
 #include <unistd.h>
 
+#if SIMULATOR_BLE
+#include "ble.hpp"
+#endif
 #include "Inputs/RemoteInput.hpp"
 
 // It will be cleaner to adopt the FreeRTOS POSIX port since then we don't have to work around
@@ -80,6 +83,11 @@ void drawOverlay(RemoteCommand command) {
     }
 }
 
+#if SIMULATOR_BLE
+// BLE command from the TurnTouch remote
+RemoteCommand ttCommand;
+#endif
+
 // Returns false if the program should quit
 auto mainLoop() -> bool {
     SDL_Event e;
@@ -119,6 +127,15 @@ auto mainLoop() -> bool {
         }
     }
 
+#if SIMULATOR_BLE
+    if (ttCommand != RemoteCommand::NONE) {
+        remoteCode = ttCommand;
+        UIInnerLoop(ttCommand);
+        needsRedraw = true;
+        ttCommand = RemoteCommand::NONE;
+    }
+#endif
+
     if (needsRedraw || arrowOpacity > 0) {
         SDL_SetRenderTarget(renderer, NULL);
         SDL_RenderCopy(renderer, deviceScreen, NULL, NULL);
@@ -133,6 +150,11 @@ auto mainLoop() -> bool {
 void emscriptemLoop() { mainLoop(); }
 
 auto main(int argc, char *argv[]) -> int {
+#if SIMULATOR_BLE
+    auto callback = [](RemoteCommand command) { ttCommand = command; };
+    BleFindTurnTouch(TT_ADDRESS, callback);
+#endif
+
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {
         std::cout << "Failed SDL_Init " << SDL_GetError() << std::endl;
         return 1;

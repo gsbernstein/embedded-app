@@ -4,6 +4,7 @@
 
 #include <functional>
 
+#include "TurnTouch.hpp"
 #include "sindarin-debug.h"
 
 using namespace std::placeholders;
@@ -144,52 +145,11 @@ void TTRemoteInput::buttonNotificationCallback(BLERemoteCharacteristic *remoteCh
         log_v("Turntouch sent code NONE, bailing early");
         return;
     }
-    RemoteCommand command = RemoteCommand::NONE;
-    switch (processed) {
-    case TT_N_PRESS:
-    case TT_N_DOUBLE:
-    case TT_N_HOLD:
-        command = PREV;
-        break;
-    case TT_S_PRESS:
-    case TT_S_DOUBLE:
-        command = NEXT;
-        break;
-    case TT_S_HOLD:
-        command = STOP;
-        break;
-    case TT_W_PRESS:
-        command = CHANNEL_MINUS;
-        break;
-    case TT_W_HOLD:
-        command = BACK;
-        break;
-    case TT_E_PRESS:
-        command = CHANNEL_PLUS;
-        break;
-    case TT_MULTI_N_S:
-        command = SETUP;
-        break;
-    case TT_MULTI_E_W:
-        command = ENTER;
-        break;
-    case TT_MULTI_E_N_W:
-        command = FACTORY_DEFAULTS;
-        break;
-    // Be careful with the double press codes, since you also get two single press commands
-    // immediately before
-    case TT_W_DOUBLE:
-    case TT_E_DOUBLE:
-    case TT_E_HOLD:
-        command = NONE;
-        break;
-    default:
-        log_w("Invalid code processed from Turntouch: %X", processed);
-        break;
-    }
-
+    RemoteCommand command = DecodeTurntouch(processed);
     if (command != RemoteCommand::NONE) {
         this->callback_(command);
+    } else {
+        log_w("Invalid code processed from Turntouch: %X", processed);
     }
 }
 
