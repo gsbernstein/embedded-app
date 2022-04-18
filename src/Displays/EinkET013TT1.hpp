@@ -2,6 +2,9 @@
 
 #include <array>
 #include <cstdint>
+#if !DISABLE_POWER_MANAGEMENT
+#include <esp_pm.h>
+#endif
 #include <string>
 
 #define EinkET013TT1_PIXEL_WIDTH 256
@@ -215,4 +218,8 @@ protected:
     float timerDelayNs_ = 0;
     uint32_t timerDurationCycles_ = 0;
     volatile uint32_t cycleCountStart_ = 0;
+
+#if !DISABLE_POWER_MANAGEMENT
+    esp_pm_lock_handle_t freqLock_;
+#endif
 };

@@ -4,6 +4,7 @@
 
 #include <SPI.h>
 #include <algorithm>
+#include <esp_err.h>
 
 #include "sindarin-debug.h"
 
@@ -120,6 +121,10 @@ void EinkET013TT1::init() {
     for (unsigned char &i : previousBuffer_) {
         i = 0xFF;
     }
+
+#if !DISABLE_POWER_MANAGEMENT
+    ESP_ERROR_CHECK(esp_pm_lock_create(ESP_PM_CPU_FREQ_MAX, 0, "eink", &freqLock_));
+#endif
 
     log_d("Initialized EinkET013TT1");
 }
@@ -256,6 +261,10 @@ void EinkET013TT1::update(const EinkET013TT1Waveform &waveform, const uint8_t *b
 
     powerOn();
 
+#if !DISABLE_POWER_MANAGEMENT
+    esp_pm_lock_acquire(freqLock_);
+#endif
+
     auto pumpStatus = readPumpStatus();
     auto temp = readTemperature();
     if (!pumpStatus.bits.vcpok) {
@@ -288,7 +297,6 @@ void EinkET013TT1::update(const EinkET013TT1Waveform &waveform, const uint8_t *b
             // the original driver for now.
             borderSettings[1] = borderBits | borderBits << 2 | borderBits << 4 | borderBits << 6;
         }
-        portDISABLE_INTERRUPTS();
 
         // For each horizontal half-line
         for (int gate = 0; gate < EinkET013TT1_GATE_COUNT; gate++) {
@@ -345,11 +353,13 @@ void EinkET013TT1::update(const EinkET013TT1Waveform &waveform, const uint8_t *b
         waitForTimer();
         waitForNotBusy();
         writeRegister(MYSTERY_SETTING_1, 0x10);
-
-        portENABLE_INTERRUPTS();
     }
 
     PROFILE_END(sendFrames);
+
+#if !DISABLE_POWER_MANAGEMENT
+    esp_pm_lock_release(freqLock_);
+#endif
 
     powerOff();
 
