@@ -57,7 +57,7 @@ void BLEImprov::setState(BLEImprovState state) {
     } else if (state == STATE_READY_TO_CONNECT || state == STATE_CONNECTING) {
         this->setError(improv::ERROR_NONE, false);
         improvState = improv::STATE_PROVISIONING;
-    } else if (state == STATE_CONNECTED) {
+    } else {
         this->setError(improv::ERROR_NONE, false);
         improvState = improv::STATE_PROVISIONED;
     }

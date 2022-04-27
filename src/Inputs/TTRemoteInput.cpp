@@ -130,14 +130,14 @@ void TTRemoteInput::scanForDevice() {
 void TTRemoteInput::buttonNotificationCallback(BLERemoteCharacteristic *remoteCharacteristic,
                                                uint8_t *data, size_t length, bool isNotify) {
     if (length != 2) {
-        log_w("WARNING: Expected 2 byte notification from Turntouch; got %u; bailing early",
+        log_w("WARNING: Expected 2 byte notification from Turntouch; got %zu; bailing early",
               length);
         return;
     }
     log_v("0 - %02x; 1 - %02x", data[0], data[1]);
     uint16_t processed = (data[0] << 8) | (data[1]);
     log_v("processed: %u", processed);
-    log_v("Notify callback for characteristic %s of data length %u content: %u",
+    log_v("Notify callback for characteristic %s of data length %zu content: %u",
           remoteCharacteristic->getUUID().toString().c_str(), length, processed);
     if (processed == TT_NONE) {
         log_v("Turntouch sent code NONE, bailing early");
