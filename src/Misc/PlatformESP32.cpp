@@ -33,9 +33,6 @@ void InitializePlatform() {
     pinMode(DISPLAY_POWER, OUTPUT);
 #endif
 #if LEDC_BACKLIGHT
-    // Ignore warnings for -Wmissing-field-initializers here
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wmissing-field-initializers"
     // Backlight configs
     ledc_timer_config_t ledcTimer = {
         .speed_mode = LEDC_LOW_SPEED_MODE,
@@ -55,7 +52,6 @@ void InitializePlatform() {
         .duty = 0,
         .hpoint = 0 //
     };
-#pragma GCC diagnostic pop
 
     ledc_channel_config(&ledcChannel);
     ledcChannel.gpio_num = BACKLIGHT_RIGHT;
