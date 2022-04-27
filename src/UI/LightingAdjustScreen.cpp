@@ -1,6 +1,5 @@
 #include "LightingAdjustScreen.hpp"
 
-#include "Displays/DisplayEinkET013TT1.hpp"
 #include "Misc/Platform.hpp"
 #include "Misc/StringUtil.hpp"
 #include "UI/Bitmaps/Lightbulb.hpp"

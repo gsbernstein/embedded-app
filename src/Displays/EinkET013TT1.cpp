@@ -2,7 +2,6 @@
 
 #include "EinkET013TT1.hpp"
 
-#include <SPI.h>
 #include <algorithm>
 #include <esp_err.h>
 
@@ -83,14 +82,6 @@ static uint8_t const BORDER_TEMPLATE[4] = {0x00, 0x00, 0x00, 0x0C};
 
 static uint8_t const BORDER_NONE[4] = {0x00, 0x00, 0x00, 0x03};
 
-// According to the EinkET013TT1 datasheet, the min clock time is 50ns which equates to 20MHz
-// though experimentally 30MHz seems to be fine (but doesnt seem to have much benefit)
-// at 20Mhz it should take 20us to send a 50 byte scanline (50*8*(1/20000000))
-// NOLINTNEXTLINE(cert-err58-cpp)
-static SPISettings spiSettingsHigh(20000000, SPI_MSBFIRST, SPI_MODE0);
-// NOLINTNEXTLINE(cert-err58-cpp)
-static SPISettings spiSettingsLow(8000000, SPI_MSBFIRST, SPI_MODE0);
-
 void EinkET013TT1::init() {
     log_d("Initializing EinkET013TT1");
     pinMode(cs_, OUTPUT);
@@ -110,7 +101,37 @@ void EinkET013TT1::init() {
     digitalWrite(rst_, HIGH);
     delay(5);
 
-    SPI.begin();
+    // Initialize the SPI bus
+    spi_bus_config_t buscfg = {
+        .mosi_io_num = VSPI_IOMUX_PIN_NUM_MOSI,
+        .miso_io_num = VSPI_IOMUX_PIN_NUM_MISO,
+        .sclk_io_num = VSPI_IOMUX_PIN_NUM_CLK,
+        .quadwp_io_num = -1,
+        .quadhd_io_num = -1,
+    };
+    // TODO: Why don't we have any available DMA channels? Maybe they are used by Flash and RAM?
+    ESP_ERROR_CHECK(spi_bus_initialize(VSPI_HOST, &buscfg, SPI_DMA_DISABLED));
+
+    spi_device_interface_config_t devcfg = {
+        .command_bits = 16,
+        .mode = 0,
+        // According to the EinkET013TT1 datasheet, the min clock time is 50ns which equates to
+        // 20MHz though experimentally 30MHz seems to be fine (but doesnt seem to have much benefit)
+        // at 20Mhz it should take 20us to send a 50 byte scanline (50*8*(1/20000000))
+        .clock_speed_hz = 20 * 1000 * 1000, // Clock out at 20 MHz
+        // TODO: The SPI driver _should_ handle the CS pin automatically, but this isn't working for
+        // some reason
+        // .spics_io_num = cs_,
+        .queue_size = 5,
+    };
+
+    ESP_ERROR_CHECK(spi_bus_add_device(VSPI_HOST, &devcfg, &spiHigh_));
+
+    // For reading, the EinkET013TT1 datasheet specifies 8MHz
+    devcfg.clock_speed_hz = 8 * 1000 * 1000;
+    devcfg.command_bits = 8;
+
+    ESP_ERROR_CHECK(spi_bus_add_device(VSPI_HOST, &devcfg, &spiLow_));
 
     if (vcom_ == 0) {
         setVcom(VCOM_DEFAULT);
@@ -262,7 +283,7 @@ void EinkET013TT1::update(const EinkET013TT1Waveform &waveform, const uint8_t *b
     powerOn();
 
 #if !DISABLE_POWER_MANAGEMENT
-    esp_pm_lock_acquire(freqLock_);
+    ESP_ERROR_CHECK(esp_pm_lock_acquire(freqLock_));
 #endif
 
     auto pumpStatus = readPumpStatus();
@@ -274,6 +295,8 @@ void EinkET013TT1::update(const EinkET013TT1Waveform &waveform, const uint8_t *b
     } else {
         log_d("LVDS=%d VCPOK=%d temp=%dºC", pumpStatus.bits.lvds, pumpStatus.bits.vcpok, temp);
     }
+
+    ESP_ERROR_CHECK(spi_device_acquire_bus(spiHigh_, portMAX_DELAY));
 
     PROFILE_START(sendFrames);
 
@@ -356,6 +379,7 @@ void EinkET013TT1::update(const EinkET013TT1Waveform &waveform, const uint8_t *b
     }
 
     PROFILE_END(sendFrames);
+    spi_device_release_bus(spiHigh_);
 
 #if !DISABLE_POWER_MANAGEMENT
     esp_pm_lock_release(freqLock_);
@@ -380,18 +404,14 @@ void EinkET013TT1::update(const EinkET013TT1Waveform &waveform, const uint8_t *b
 }
 
 void EinkET013TT1::writeRegister(Register index, const uint8_t *data, size_t len) {
-    uint8_t buf[2];
-    buf[0] = 0x70; // Start byte
-    buf[1] = index & 0x0F;
+    spi_transaction_t t = {
+        .cmd = (uint16_t)((0x70 << 8) | (index & 0x0F)), // 0x70 is the command prefix
+        .length = len * 8,
+        .tx_buffer = data};
 
-    SPI.beginTransaction(spiSettingsHigh);
     digitalWrite(cs_, LOW);
-
-    SPI.writeBytes(buf, 2);
-    SPI.writeBytes(data, len);
-
+    ESP_ERROR_CHECK(spi_device_polling_transmit(spiHigh_, &t));
     digitalWrite(cs_, HIGH);
-    SPI.endTransaction();
 }
 
 inline void EinkET013TT1::writeRegister(Register index, uint8_t data) {
@@ -399,27 +419,23 @@ inline void EinkET013TT1::writeRegister(Register index, uint8_t data) {
 }
 
 auto EinkET013TT1::readRegister(uint8_t index) -> uint8_t {
-    uint8_t buf[3];
-    buf[0] = 0x70;
-    buf[1] = index & 0x0F;
-
-    SPI.beginTransaction(spiSettingsLow);
+    ESP_ERROR_CHECK(spi_device_acquire_bus(spiHigh_, portMAX_DELAY));
+    spi_transaction_t t = {.cmd = (uint16_t)((0x70 << 8) | (index & 0x0F))};
     digitalWrite(cs_, LOW);
-    SPI.writeBytes(buf, 2);
+    ESP_ERROR_CHECK(spi_device_polling_transmit(spiHigh_, &t));
     digitalWrite(cs_, HIGH);
-    SPI.endTransaction();
+    spi_device_release_bus(spiHigh_);
 
-    buf[0] = 0x73;
-    SPI.beginTransaction(spiSettingsLow);
+    ESP_ERROR_CHECK(spi_device_acquire_bus(spiLow_, portMAX_DELAY));
+    spi_transaction_t t2 = {.flags = SPI_TRANS_USE_RXDATA | SPI_TRANS_USE_TXDATA,
+                            .cmd = 0x73,
+                            .length = 8,
+                            .tx_data = {0xFF}};
     digitalWrite(cs_, LOW);
-    SPI.writeBytes(buf, 1);
-    SPI.write(0xFF); // necessary?
-    // Prefix
-    SPI.transfer(0xFF);
-    SPI.write(0xFF); // necessary?
-    auto result = SPI.transfer(0xFF);
+    ESP_ERROR_CHECK(spi_device_polling_transmit(spiLow_, &t2));
     digitalWrite(cs_, HIGH);
-    SPI.endTransaction();
+    uint8_t result = t2.rx_data[0];
+    spi_device_release_bus(spiLow_);
 
     return result;
 }
@@ -441,19 +457,26 @@ auto EinkET013TT1::readTemperature() -> int16_t {
 }
 
 auto EinkET013TT1::readDeviceIdReg() -> uint8_t {
-    SPI.beginTransaction(spiSettingsLow);
+    ESP_ERROR_CHECK(spi_device_acquire_bus(spiLow_, portMAX_DELAY));
+    spi_transaction_t t2 = {.flags = SPI_TRANS_USE_RXDATA | SPI_TRANS_USE_TXDATA,
+                            .cmd = 0x71,
+                            .length = 8,
+                            .tx_data = {0xFF}};
     digitalWrite(cs_, LOW);
-    SPI.write(0x71);
-    SPI.write(0xFF);
-    auto deviceId = SPI.transfer(0xFF);
+    ESP_ERROR_CHECK(spi_device_polling_transmit(spiLow_, &t2));
     digitalWrite(cs_, HIGH);
-    SPI.endTransaction();
-    return deviceId;
+
+    uint8_t result = t2.rx_data[0];
+    spi_device_release_bus(spiLow_);
+
+    return result;
 }
 
 void EinkET013TT1::powerOn() {
     log_d("Powering on EinkET013TT1");
     digitalWrite(rst_, HIGH);
+
+    ESP_ERROR_CHECK(spi_device_acquire_bus(spiHigh_, portMAX_DELAY));
 
     // Set the system clock speed
     // It's unclear what the 0x10 does. It's not in the datasheet.
@@ -493,6 +516,8 @@ void EinkET013TT1::powerOn() {
 
     // This is not in the datasheet and its function is a mystery
     writeRegister(MYSTERY_SETTING_1, 0x10);
+
+    spi_device_release_bus(spiHigh_);
 }
 
 void EinkET013TT1::powerOff() {
