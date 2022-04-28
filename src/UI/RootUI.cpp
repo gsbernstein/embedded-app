@@ -63,7 +63,7 @@ void RootUI::setup(DisplaySystem *display, std::vector<Readable> &readables,
         auto *readableScreen =
             new ReadableScreen(stream, *display, *readable, this->prefs_, this->power_);
         if (readable->id.rfind("pkt-", 0) == 0) {
-            readableScreen->setLeftPopupButton("Delete", [this, readable, &fileSystem]() {
+            readableScreen->setLeftPopupButton("Delete", [readable, &fileSystem]() {
                 log_i("Deleting Pocket readable %s", readable->path.c_str());
                 if (!fileSystem.remove(readable->path)) {
                     log_e("Failed to delete Pocket readable %s", readable->path.c_str());
@@ -264,7 +264,7 @@ void RootUI::setup(DisplaySystem *display, std::vector<Readable> &readables,
     int inDemo = prefs_.demoMode.get().value();
 
     if (inDemo) {
-        settingsMenu->addMenuItem(MenuItem("Turn off Demo Mode", [this, settingsMenu, display]() {
+        settingsMenu->addMenuItem(MenuItem("Turn off Demo Mode", [this, display]() {
             log_d("Exiting demo");
             prefs_.demoMode.set(0);
             display->renderMaxBoxWithText("Demo mode off! Resetting...");
@@ -272,7 +272,7 @@ void RootUI::setup(DisplaySystem *display, std::vector<Readable> &readables,
             esp_restart();
         }));
     } else {
-        settingsMenu->addMenuItem(MenuItem("Turn on Demo Mode", [this, settingsMenu, display]() {
+        settingsMenu->addMenuItem(MenuItem("Turn on Demo Mode", [this, display]() {
             log_d("Entering demo");
             prefs_.demoMode.set(1);
             display->renderMaxBoxWithText("Demo mode on! Resetting...");
@@ -285,31 +285,31 @@ void RootUI::setup(DisplaySystem *display, std::vector<Readable> &readables,
     settingsMenu->addMenuItem(MenuItem("Set Vcom", [this, display, settingsMenu]() {
         auto vcomMenu = new MenuScreen(this->power_);
         auto *driver = (static_cast<DisplayEinkET013TT1 *>(display))->getDriver();
-        vcomMenu->addMenuItem(MenuItem("0V", [this, vcomMenu, driver]() {
+        vcomMenu->addMenuItem(MenuItem("0V", [vcomMenu, driver]() {
             driver->setVcom(0);
             vcomMenu->needsRerender = true;
         }));
-        vcomMenu->addMenuItem(MenuItem("-1V", [this, vcomMenu, driver]() {
+        vcomMenu->addMenuItem(MenuItem("-1V", [vcomMenu, driver]() {
             driver->setVcom(-1000);
             vcomMenu->needsRerender = true;
         }));
-        vcomMenu->addMenuItem(MenuItem("-2V", [this, vcomMenu, driver]() {
+        vcomMenu->addMenuItem(MenuItem("-2V", [vcomMenu, driver]() {
             driver->setVcom(-2000);
             vcomMenu->needsRerender = true;
         }));
-        vcomMenu->addMenuItem(MenuItem("-3V", [this, vcomMenu, driver]() {
+        vcomMenu->addMenuItem(MenuItem("-3V", [vcomMenu, driver]() {
             driver->setVcom(-3000);
             vcomMenu->needsRerender = true;
         }));
-        vcomMenu->addMenuItem(MenuItem("-4V", [this, vcomMenu, driver]() {
+        vcomMenu->addMenuItem(MenuItem("-4V", [vcomMenu, driver]() {
             driver->setVcom(-4000);
             vcomMenu->needsRerender = true;
         }));
-        vcomMenu->addMenuItem(MenuItem("-5V", [this, vcomMenu, driver]() {
+        vcomMenu->addMenuItem(MenuItem("-5V", [vcomMenu, driver]() {
             driver->setVcom(-5000);
             vcomMenu->needsRerender = true;
         }));
-        vcomMenu->addMenuItem(MenuItem("-5.6V", [this, vcomMenu, driver]() {
+        vcomMenu->addMenuItem(MenuItem("-5.6V", [vcomMenu, driver]() {
             driver->setVcom(-5600);
             vcomMenu->needsRerender = true;
         }));
@@ -333,7 +333,7 @@ void RootUI::setup(DisplaySystem *display, std::vector<Readable> &readables,
     }));
 #endif
 
-    settingsMenu->addMenuItem(MenuItem("Set Font", [this, display, settingsMenu]() {
+    settingsMenu->addMenuItem(MenuItem("Set Font", [this, settingsMenu]() {
         auto fontMenu = new MenuScreen(this->power_);
 
         fontMenu->addMenuItem(MenuItem("Lucida 1px space", [this, fontMenu]() {
@@ -384,7 +384,7 @@ void RootUI::setup(DisplaySystem *display, std::vector<Readable> &readables,
         };
     }));
 
-    settingsMenu->addMenuItem(MenuItem("Calibration Screen", [this, settingsMenu, display]() {
+    settingsMenu->addMenuItem(MenuItem("Calibration Screen", [this, settingsMenu]() {
         auto calibrationScreen = new CalibrationScreen();
         this->display_->clearDisplay();
         this->setCurrentScreen(*calibrationScreen);
@@ -394,7 +394,7 @@ void RootUI::setup(DisplaySystem *display, std::vector<Readable> &readables,
         };
     }));
 
-    settingsMenu->addMenuItem(MenuItem("Optics Test", [this, settingsMenu, display]() {
+    settingsMenu->addMenuItem(MenuItem("Optics Test", [this, settingsMenu]() {
         auto opticsTestScreen = new CalibrationScreen();
         opticsTestScreen->setOpticsTest();
         this->display_->clearDisplay();
@@ -405,7 +405,7 @@ void RootUI::setup(DisplaySystem *display, std::vector<Readable> &readables,
         };
     }));
 
-    settingsMenu->addMenuItem(MenuItem("Deep sleep", [this, display]() {
+    settingsMenu->addMenuItem(MenuItem("Deep sleep", [display]() {
         log_w("Deep sleeping. Goodnight.");
 
         display->renderMaxBoxWithText("Deep sleeping. Goodnight.");
@@ -423,8 +423,8 @@ void RootUI::setup(DisplaySystem *display, std::vector<Readable> &readables,
     }));
 
     settingsMenu->addMenuItem(
-        MenuItem("Factory Defaults", [this, settingsMenu]() { this->restoreFactoryDefaults(); }));
-    settingsMenu->addMenuItem(MenuItem("Loading Test", [this, display, settingsMenu]() {
+        MenuItem("Factory Defaults", [this]() { this->restoreFactoryDefaults(); }));
+    settingsMenu->addMenuItem(MenuItem("Loading Test", [this, settingsMenu]() {
         auto loadingScreen = new LoadingScreen();
         setCurrentScreen(*loadingScreen);
         loadingScreen->backCallback = [this, loadingScreen, settingsMenu]() {
@@ -442,7 +442,7 @@ void RootUI::setup(DisplaySystem *display, std::vector<Readable> &readables,
         };
     }));
 
-    settingsMenu->addMenuItem(MenuItem("Test Bitmap Screen", [this, display, settingsMenu]() {
+    settingsMenu->addMenuItem(MenuItem("Test Bitmap Screen", [this, settingsMenu]() {
         auto bitmapScreen = new BitmapScreen(LOGO_BITS, LOGO_WIDTH, LOGO_HEIGHT);
         setCurrentScreen(*bitmapScreen);
         bitmapScreen->backCallback = [this, bitmapScreen, settingsMenu]() {

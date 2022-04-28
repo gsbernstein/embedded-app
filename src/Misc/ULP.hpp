@@ -1,5 +1,5 @@
 #include <cinttypes>
 
-void UlpStart(void);
+void UlpStart();
 
 void UlpSetBrightness(uint8_t brightness);

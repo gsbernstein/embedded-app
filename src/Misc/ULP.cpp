@@ -7,10 +7,10 @@
 
 #include "sindarin-debug.h"
 
-static RTC_DATA_ATTR ulp_var_t LcdBrightnessDelayOn;
-static RTC_DATA_ATTR ulp_var_t LcdBrightnessDelayOff;
+static RTC_DATA_ATTR ulp_var_t lcdBrightnessDelayOn;
+static RTC_DATA_ATTR ulp_var_t lcdBrightnessDelayOff;
 
-void UlpStart(void) {
+void UlpStart() {
     // Slow memory initialization
     memset(RTC_SLOW_MEM, 0, 512);
     // RTCGPIO7 / GPIO26 is the backlight
@@ -33,7 +33,7 @@ void UlpStart(void) {
     // that we could make our own macros, but probably worth moving to the more standardized format
     // at some point. See also the macro reference:
     // https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-reference/system/ulp_macros.html
-    const ulp_insn_t ulp_prog[] = {
+    const ulp_insn_t ulpProg[] = {
         M_LABEL(LBL_LOOP),
 
         // Write 1 to the GPIO_OUT register's appropriate bit (turn on)
@@ -41,14 +41,17 @@ void UlpStart(void) {
 
         // Load the on delay value from memory into R3
         I_MOVI(R3, 0),
-        I_GET(R0, R3, LcdBrightnessDelayOff),
+        I_GET(R0, R3, lcdBrightnessDelayOff),
 
         // Delay for R0 # of loops
         M_LABEL(LBL_WAIT_HIGH),
         I_SUBI(R0, R0, 1),
         I_DELAY(10),
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wnarrowing"
         // If we're >= 1, then keep looping
         M_BGE(LBL_WAIT_HIGH, 1),
+#pragma clang diagnostic pop
 
         // Write 0 to the GPIO_OUT register's appropriate bit (turn off)
         // TODO: I_WR_REG_BIT is probably more right here
@@ -56,29 +59,32 @@ void UlpStart(void) {
 
         // Load the off delay value from memory into R3
         I_MOVI(R3, 0),
-        I_GET(R0, R3, LcdBrightnessDelayOn),
+        I_GET(R0, R3, lcdBrightnessDelayOn),
 
         // Delay for R0 # of loops
         M_LABEL(LBL_WAIT_LOW),
         I_SUBI(R0, R0, 1),
         I_DELAY(10),
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wnarrowing"
         // If we're >= 1, then keep looping
         M_BGE(LBL_WAIT_LOW, 1),
+#pragma clang diagnostic pop
 
         // Branch back to the top of the loop
         M_BX(LBL_LOOP),
     };
 
     ESP_ERROR_CHECK(hulp_configure_pin(ledPWMPin, RTC_GPIO_MODE_OUTPUT_ONLY, GPIO_FLOATING, 0));
-    ESP_ERROR_CHECK(hulp_ulp_load(ulp_prog, sizeof(ulp_prog), 1000UL * 5, 0));
+    ESP_ERROR_CHECK(hulp_ulp_load(ulpProg, sizeof(ulpProg), 1000UL * 5, 0));
     ESP_ERROR_CHECK(hulp_ulp_run(0));
     log_d("ULP started");
 }
 
 void UlpSetBrightness(uint8_t brightness) {
-    LcdBrightnessDelayOn.val = brightness;
-    LcdBrightnessDelayOff.val = 255 - brightness;
-    log_d("Set ULP brightness to %d", LcdBrightnessDelayOn.val);
+    lcdBrightnessDelayOn.val = brightness;
+    lcdBrightnessDelayOff.val = 255 - brightness;
+    log_d("Set ULP brightness to %d", lcdBrightnessDelayOn.val);
 }
 
 #endif

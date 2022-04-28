@@ -77,6 +77,7 @@ def clang_options(idedata):
             "-D__ESP_ATTR_H__",
             "-DIRAM_ATTR=",
             "-DDRAM_ATTR=",
+            "-DRTC_DATA_ATTR=",
             "-DFLAG_ATTR(x)=",
             "-DIDF_DEPRECATED(REASON)=__attribute__((deprecated(REASON)))",
             "-D__block=",
@@ -191,7 +192,7 @@ def main():
     parser.add_argument(
         "-e",
         "--environment",
-        default="gilpico",
+        default="gilpico-idf",
         help="the PlatformIO environment to use (as defined in platformio.ini)",
     )
     parser.add_argument(

@@ -100,14 +100,14 @@ void RadioTask(void *parameter) {
 #endif
 
 #if !DISABLE_POWER_MANAGEMENT
-static DRAM_ATTR esp_pm_lock_handle_t StatsLock;
+static DRAM_ATTR esp_pm_lock_handle_t statsLock;
 #endif
 
 void StatsTask(void *parameter) {
 #if !SIMULATOR
 
 #if !DISABLE_POWER_MANAGEMENT
-    ESP_ERROR_CHECK(esp_pm_lock_create(ESP_PM_CPU_FREQ_MAX, 0, "stats", &StatsLock));
+    ESP_ERROR_CHECK(esp_pm_lock_create(ESP_PM_CPU_FREQ_MAX, 0, "stats", &statsLock));
 #endif
 
     for (;;) {
@@ -116,10 +116,10 @@ void StatsTask(void *parameter) {
         // Spit out data on locks every 30s
         vTaskDelay(30000 / portTICK_PERIOD_MS);
 #if !DISABLE_POWER_MANAGEMENT
-        esp_pm_lock_acquire(StatsLock);
+        esp_pm_lock_acquire(statsLock);
         esp_pm_dump_locks(stdout);
         uart_wait_tx_done(0, 100 / portTICK_PERIOD_MS);
-        esp_pm_lock_release(StatsLock);
+        esp_pm_lock_release(statsLock);
 #endif
     }
     vTaskDelete(nullptr);
