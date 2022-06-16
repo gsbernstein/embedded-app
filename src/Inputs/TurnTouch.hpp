@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include "RemoteInput.hpp"
 
 // See also: https://shop.turntouch.com/pages/open-source
