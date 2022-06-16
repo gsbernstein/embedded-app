@@ -99,27 +99,15 @@ void RadioTask(void *parameter) {
 }
 #endif
 
-#if !DISABLE_POWER_MANAGEMENT
-static DRAM_ATTR esp_pm_lock_handle_t statsLock;
-#endif
-
 void StatsTask(void *parameter) {
 #if !SIMULATOR
-
-#if !DISABLE_POWER_MANAGEMENT
-    ESP_ERROR_CHECK(esp_pm_lock_create(ESP_PM_CPU_FREQ_MAX, 0, "stats", &statsLock));
-#endif
-
     for (;;) {
         // Run the power loop first so that we don't show a 0% battery reading
         power.loop();
         // Spit out data on locks every 30s
         vTaskDelay(30000 / portTICK_PERIOD_MS);
 #if !DISABLE_POWER_MANAGEMENT
-        esp_pm_lock_acquire(statsLock);
         esp_pm_dump_locks(stdout);
-        uart_wait_tx_done(0, 100 / portTICK_PERIOD_MS);
-        esp_pm_lock_release(statsLock);
 #endif
     }
     vTaskDelete(nullptr);
@@ -170,8 +158,22 @@ extern "C" void app_main(void) { // NOLINT(readability-identifier-naming)
     InitializePlatform();
 
 #if !SIMULATOR
-    Serial.begin(115200);
     esp_log_level_set("Sindarin", ESP_LOG_DEBUG);
+    // Arduino breaks the UART with sleep. So we manually initialize the UART using IDF functions.
+    // There's unfortunately no way currently to customize the source clock in Arduino:
+    // https://github.com/espressif/arduino-esp32/blob/548412952ba58e299ad83d932cea417a2490fd78/cores/esp32/esp32-hal-uart.c#L163
+    uart_config_t uartConfig;
+    uartConfig.baud_rate = 115200;
+    uartConfig.data_bits = UART_DATA_8_BITS;
+    uartConfig.parity = UART_PARITY_DISABLE;
+    uartConfig.stop_bits = UART_STOP_BITS_1;
+    uartConfig.flow_ctrl = UART_HW_FLOWCTRL_DISABLE;
+    uartConfig.rx_flow_ctrl_thresh = 0;
+    // This is the part Arduino gets wrong. The ref tick clock is stable even amidst light sleep.
+    uartConfig.source_clk = UART_SCLK_REF_TICK;
+    ESP_ERROR_CHECK(uart_driver_install(0, 256, 0, 20, nullptr, 0));
+    ESP_ERROR_CHECK(uart_param_config(0, &uartConfig));
+    ESP_ERROR_CHECK(uart_set_pin(0, 1, 3, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE));
 #endif
 
     if (!prefs.begin()) {
