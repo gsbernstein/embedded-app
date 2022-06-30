@@ -2,6 +2,7 @@
 
 #include <utility>
 
+#include "Misc/Platform.hpp"
 #include "sindarin-debug.h"
 
 void ReadableScreen::render(DisplaySystem &display) {
@@ -19,7 +20,20 @@ void ReadableScreen::render(DisplaySystem &display) {
     wc = wc + renderer_.getCurrentPageWordCount();
     prefs_.wordCount.set(wc);
 
+    // remember the time this page was rendered
+    readingStartTime_ = GetRunTimeMs();
+
     needsRerender = false;
+}
+
+void ReadableScreen::incrementReadingTime() {
+    // increment total reading time
+    auto endMillis = GetRunTimeMs();
+    auto thisPageReadingTimeSeconds =
+        (endMillis > readingStartTime_) ? (endMillis - readingStartTime_) / 1000 : 0;
+    auto totalReadingTimeSeconds = prefs_.totalReadingTimeSeconds.get().value();
+    totalReadingTimeSeconds += thisPageReadingTimeSeconds;
+    prefs_.totalReadingTimeSeconds.set(totalReadingTimeSeconds);
 }
 
 void ReadableScreen::processCommand(RemoteCommand command) {
@@ -61,5 +75,9 @@ void ReadableScreen::processCommand(RemoteCommand command) {
         break;
     default:
         break;
+    }
+
+    if (needsRerender) {
+        incrementReadingTime();
     }
 }

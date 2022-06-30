@@ -22,6 +22,7 @@
 #include "UI/PowerDepletedScreen.hpp"
 #include "UI/ReadableScreen.hpp"
 #include "UI/ResizeBoxScreen.hpp"
+#include "UI/StatsScreen.hpp"
 #include "config.h"
 #include "sindarin-debug.h"
 
@@ -440,6 +441,21 @@ void RootUI::setup(DisplaySystem *display, std::vector<Readable> &readables,
             setCurrentScreen(*settingsMenu);
             delete demoScreen;
         };
+    }));
+
+    settingsMenu->addMenuItem(MenuItem("Statistics", [this, settingsMenu, display]() {
+        auto statsScreen = new StatsScreen(*display, prefs_);
+        this->setCurrentScreen(*statsScreen);
+        statsScreen->backCallback = [this, statsScreen, settingsMenu]() {
+            setCurrentScreen(*settingsMenu);
+            delete statsScreen;
+        };
+    }));
+
+    settingsMenu->addMenuItem(MenuItem("Reset Statistics", [this, display]() {
+        prefs_.wordCount.set(0);
+        prefs_.totalReadingTimeSeconds.set(0);
+        display->renderMaxBoxWithText("Statistics reset.");
     }));
 
     settingsMenu->addMenuItem(MenuItem("Test Bitmap Screen", [this, settingsMenu]() {

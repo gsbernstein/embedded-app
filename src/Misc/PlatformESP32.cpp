@@ -6,6 +6,7 @@
 #include <soc/rtc.h>
 
 #include "Platform.hpp"
+#include "RTOS.h"
 #include "config.h"
 #include "sindarin-debug.h"
 
@@ -123,5 +124,7 @@ void SetBacklight(int percent) {
     UlpSetBrightness(dutyCycle);
 #endif
 }
+
+auto GetRunTimeMs() -> uint32_t { return FreeRTOS::getTimeSinceStart(); }
 
 #endif

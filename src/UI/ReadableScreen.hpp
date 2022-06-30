@@ -37,4 +37,8 @@ protected:
     PopupMenuScreen popup_;
 
     unsigned long newPlace_ = 0;
+
+private:
+    void incrementReadingTime();
+    uint32_t readingStartTime_;
 };

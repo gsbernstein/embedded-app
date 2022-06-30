@@ -152,7 +152,8 @@ public:
           backlight(this->prefs_, "backlight"), font(this->prefs_, "font"),
           rectX(this->prefs_, "rectX"), rectY(this->prefs_, "rectY"), rectW(this->prefs_, "rectW"),
           rectH(this->prefs_, "rectH"), lineSpacing(this->prefs_, "line-space"),
-          demoMode(this->prefs_, "demo"), wordCount(this->prefs_, "word-count"){};
+          demoMode(this->prefs_, "demo"), wordCount(this->prefs_, "word-count"),
+          totalReadingTimeSeconds(this->prefs_, "tot-rd-time"){};
 
     auto begin() -> bool;
     void clear() {
@@ -185,6 +186,7 @@ public:
     PrefsItem<int> lineSpacing;
     PrefsItem<int> demoMode;
     PrefsItem<uint32_t> wordCount;
+    PrefsItem<uint32_t> totalReadingTimeSeconds;
 
 protected:
     Preferences prefs_;
