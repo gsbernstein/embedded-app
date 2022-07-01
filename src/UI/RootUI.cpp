@@ -467,6 +467,15 @@ void RootUI::setup(DisplaySystem *display, std::vector<Readable> &readables,
         };
     }));
 
+    settingsMenu->addMenuItem(MenuItem("Build Info", [display]() {
+#ifdef GITHASH
+        std::string buildString = "Build " + std::string(GITHASH);
+#else
+        std::string buildString = "No Build Info";
+#endif
+        display->renderMaxBoxWithText(buildString);
+    }));
+
 #if USE_TURN_TOUCH_REMOTE
     settingsMenu->addMenuItem(MenuItem("Unpair TurnTouch", [this, display]() {
         prefs_.pairedTurnTouchAddress.remove();
