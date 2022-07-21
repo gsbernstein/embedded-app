@@ -27,8 +27,14 @@ void InitializePlatform() {
     pinMode(BAT_VOLTAGE_RIGHT, ANALOG);
     analogSetPinAttenuation(BAT_VOLTAGE_RIGHT, ADC_6db);
 
+    digitalWrite(RED_LED, LED_OFF);
+    digitalWrite(GREEN_LED, LED_OFF);
     pinMode(RED_LED, OUTPUT);
     pinMode(GREEN_LED, OUTPUT);
+#ifdef BLUE_LED
+    digitalWrite(BLUE_LED, LED_OFF);
+    pinMode(BLUE_LED, OUTPUT);
+#endif
 
 #if USE_I2C
     // Initialize I2C port 0
