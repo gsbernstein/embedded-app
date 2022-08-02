@@ -174,7 +174,7 @@ public:
     void setVcom(int mV);
 
     // For the settings menu to display current value.
-    auto getVcom() -> int { return (vcom_ * 5600) / 255 - 5600; }
+    auto getVcom() -> int { return vcomInMV_; }
 
     void setFramerate(int frameRate);
 
@@ -213,7 +213,11 @@ protected:
     uint8_t oei_;
     uint8_t rst_;
     uint8_t busy_;
-    uint8_t vcom_;
+    // Keep track of both the vcom in the MV value (that is on the
+    // sticker on the back of the display).
+    // The 8-bit register value is calculated when it is set in the
+    // register: ((5600 + vcomInMV_) * 255) / 5600.
+    uint32_t vcomInMV_;
 
     uint16_t timerOverruns_;
     uint16_t busyWaits_;
