@@ -28,7 +28,9 @@ DisplayEinkET013TT1 myDisplay(DISPLAY_CS_LEFT, DISPLAY_CS_RIGHT, DISPLAY_OEI, DI
 #endif
 
 #if SIMULATOR
+#include <thread>
 DisplaySDLSimulator myDisplay;
+std::thread *simPowerThread;
 #endif
 
 #if WROVER_KIT
@@ -77,10 +79,6 @@ Mmc5603 magSensor(0);
 OTA ota;
 #endif
 
-Power power;
-
-RootUI rootUi(prefs, power);
-
 #if SIMULATOR
 #include "Storage/PosixFileSystem.hpp"
 PosixFileSystem fileSystem;
@@ -88,6 +86,9 @@ PosixFileSystem fileSystem;
 #include "Storage/SpiffsFileSystem.hpp"
 SpiffsFileSystem fileSystem;
 #endif
+
+Power power(fileSystem, prefs);
+RootUI rootUi(prefs, power);
 
 #if !SIMULATOR
 QueueHandle_t remoteQueue = nullptr;
@@ -110,6 +111,15 @@ void RadioTask(void *parameter) {
         vTaskDelay(1000 / portTICK_PERIOD_MS);
     }
     vTaskDelete(nullptr);
+}
+#endif
+
+#if SIMULATOR
+void simStatsTask(int intervalMs) {
+    for (;;) {
+        power.loop();
+        std::this_thread::sleep_for(std::chrono::milliseconds(intervalMs));
+    }
 }
 #endif
 
@@ -426,10 +436,17 @@ extern "C" void app_main(void) { // NOLINT(readability-identifier-naming)
 
     BlinkBootErrors(bootErrors);
 
+    // set current boot id
+    auto bootCount = prefs.bootCount.get().value();
+    bootCount++;
+    prefs.bootCount.set(bootCount);
+
 #if !SIMULATOR
     remoteQueue = xQueueCreate(10, sizeof(RemoteCommand));
     xTaskCreatePinnedToCore(RadioTask, "Radio", 5000, nullptr, 1, nullptr, 0);
     xTaskCreatePinnedToCore(UITask, "UI", 10000, nullptr, 10, &uiTaskHandle, 1);
     xTaskCreatePinnedToCore(StatsTask, "Stats", 5000, nullptr, 0, nullptr, 1);
+#else
+    simPowerThread = new std::thread(simStatsTask, 5000);
 #endif
 }

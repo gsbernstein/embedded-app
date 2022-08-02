@@ -18,6 +18,8 @@ void Power::loop() {
         this->leftConnected_ = left > BATTERY_DISCONNECT_THRESHOLD;
         this->rightConnected_ = right > BATTERY_DISCONNECT_THRESHOLD;
 
+        logVoltages(left, right);
+
         // Save into the array as a circular buffer of up to BATTERY_MEASUREMENTS_COUNT most recent
         // values, but only if the battery is connected. We don't want to mess up the averages if
         // the battery is disconnected temporarily.
@@ -118,4 +120,26 @@ auto Power::getDepleted() -> bool {
 #else
     return this->depleted_;
 #endif
+}
+
+void Power::logVoltages(float lVoltage, float rVoltage) {
+    // create log directory in filesystem if it doesn't exist
+    if (!fileSystem_.createDir("/logs")) {
+        log_e("could not create /logs directory");
+        return;
+    }
+
+    // get current boot count
+    auto bootCount = prefs_.bootCount.get().value();
+
+    auto runTimeMs = GetRunTimeMs();
+    std::string logString =
+        StringFormat("%d,%d,%.2f,%.2f", bootCount, runTimeMs, lVoltage, rVoltage);
+
+    std::string path = "/logs/voltagelog.txt";
+    File file = fileSystem_.open(path.c_str(), FILE_APPEND);
+    file.write((const uint8_t *)logString.c_str(), logString.length());
+    file.write('\n');
+    file.flush();
+    file.close();
 }
