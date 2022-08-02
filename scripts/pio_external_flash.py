@@ -22,10 +22,14 @@ board = env.BoardConfig()
 mcu = board.get("build.mcu", "esp32")
 
 
+platform = env.PioPlatform()
+platform.install_package("tool-mkspiffs")
+mkspiffs_dir = platform.get_package_dir("tool-mkspiffs")
+
 build_action = env.VerboseAction(
     " ".join(
         [
-            '"$MKFSTOOL"',
+            f'{mkspiffs_dir}/"$MKFSTOOL"',
             "-c",
             "$SPIFFS_SOURCES",
             "-p",
@@ -83,9 +87,12 @@ env.AddCustomTarget(
     "Upload FS to external SPI flash",
 )
 
-platform = env.PioPlatform()
 env["ESPOTA"] = join(
-    platform.get_package_dir("framework-arduinoespressif32") or "", "components", "arduino", "tools", "espota.py"
+    platform.get_package_dir("framework-arduinoespressif32") or "",
+    "components",
+    "arduino",
+    "tools",
+    "espota.py",
 )
 
 upload_ota_action = env.VerboseAction(

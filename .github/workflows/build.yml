@@ -18,6 +18,7 @@ jobs:
           - glasses-idf
           - rev7-vanilla
           - esp-wrover-kit-idf
+          - sol3dev
           - simulator
           - simulator-wasm
 
@@ -68,8 +69,8 @@ jobs:
       - name: esp-idf build
         uses: espressif/esp-idf-ci-action@main
         with:
-          esp_idf_version: v4.4
-          target: esp32
+          esp_idf_version: v4.4.1
+          target: esp32s3
           path: .
 
   buildfs-ext:
