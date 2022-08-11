@@ -23,8 +23,10 @@ protected:
         void onWrite(BLECharacteristic *characteristic) override {
             std::string value = characteristic->getValue();
             if (value.length() > 0) {
-                log_d("New value: %.2x", value[0]);
-                auto command = static_cast<RemoteCommand>(value.data()[0]);
+                log_d("Page turner button: %.2x %.2x", value[0], value[1]);
+                uint16_t processed = (value[0] << 8) | (value[1]);
+                RemoteCommand command = DecodePageTurner(processed);
+
                 if (command != RemoteCommand::NONE) {
                     this->enclosed->callback_(command);
                 }
