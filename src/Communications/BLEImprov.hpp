@@ -58,10 +58,16 @@ protected:
             log_d("onWrite for Characteristic %s", characteristic->getUUID().toString().c_str());
             if (characteristic->getUUID().equals(BLEUUID(improv::RPC_COMMAND_UUID))) {
                 std::string value = characteristic->getValue();
+                std::byte bytes[value.length()];
+                memcpy(bytes, value.data(), value.length());
+
                 improv::ImprovCommand command =
                     improv::parse_improv_data((uint8_t *)value.c_str(), value.length());
-                log_d("onWrite for Improv Characteristic %s %d (%d): ", value.c_str(),
-                      command.command, improv::GET_WIFI_NETWORKS);
+                log_d("onWrite for Improv Characteristic ");
+                for (auto &b : bytes) {
+                    log_d("%d", (int)(b));
+                }
+                log_d("%d (%d): ", command.command, improv::GET_WIFI_NETWORKS);
                 switch (command.command) {
                 case improv::BAD_CHECKSUM: {
                     log_e("Error: Bad Checksum from Improv message");

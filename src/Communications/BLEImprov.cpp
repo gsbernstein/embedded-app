@@ -122,7 +122,7 @@ void BLEImprov::loop() {
     } else if (this->state_ == STATE_READY_TO_SCAN) {
         bool blockingScan = false;
         bool passiveScan = false;
-        uint32_t scanTimePerChannelMillis = 300;
+        // uint32_t scanTimePerChannelMillis = 300;
         this->lastAPsent_ = 0;
 
         wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
@@ -136,11 +136,11 @@ void BLEImprov::loop() {
         // scanConfig.show_hidden = show_hidden;
         if (passiveScan) {
             scanConfig.scan_type = WIFI_SCAN_TYPE_PASSIVE;
-            scanConfig.scan_time.passive = scanTimePerChannelMillis;
+            // scanConfig.scan_time.passive = scanTimePerChannelMillis;
         } else {
             scanConfig.scan_type = WIFI_SCAN_TYPE_ACTIVE;
-            scanConfig.scan_time.active.min = 100;
-            scanConfig.scan_time.active.max = scanTimePerChannelMillis;
+            // scanConfig.scan_time.active.min = 100;
+            // scanConfig.scan_time.active.max = scanTimePerChannelMillis;
         }
         esp_wifi_set_mode(WIFI_MODE_STA);
         esp_wifi_start();
