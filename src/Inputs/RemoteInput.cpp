@@ -20,6 +20,8 @@ auto DecodePageTurner(uint16_t processed) -> RemoteCommand {
     case PT_MULTI_N_S:
         return SETUP;
     case PT_MULTI_E_W:
+    case PT_C_PRESS:
+    case PT_C_HOLD:
         return ENTER;
     case PT_MULTI_N_E_W:
         return FACTORY_DEFAULTS;
