@@ -18,6 +18,12 @@ enum BLEImprovState : uint8_t {
     STATE_CONNECTING = 0x02,
     // Connected to WiFi
     STATE_CONNECTED = 0x03,
+    // Received RPC command to scan for WiFi APs
+    STATE_READY_TO_SCAN = 0x04,
+    // Scanning for WiFi APs
+    STATE_SCANNING = 0x05,
+    // Done scanning for WiFi APs
+    STATE_SCAN_COMPLETE = 0x06,
 };
 
 class BLEImprov : public BLECharacteristicProvider, public BLEServiceProvider {
@@ -30,6 +36,7 @@ public:
 
 protected:
     uint32_t lastStateChangeMillis_;
+    uint16_t lastAPsent_;
     BLECharacteristic *currentStateCharacteristic_;
     BLECharacteristic *errorStateCharacteristic_;
     BLECharacteristic *rpcResultCharacteristic_;
@@ -53,6 +60,8 @@ protected:
                 std::string value = characteristic->getValue();
                 improv::ImprovCommand command =
                     improv::parse_improv_data((uint8_t *)value.c_str(), value.length());
+                log_d("onWrite for Improv Characteristic %s %d (%d): ", value.c_str(),
+                      command.command, improv::GET_WIFI_NETWORKS);
                 switch (command.command) {
                 case improv::BAD_CHECKSUM: {
                     log_e("Error: Bad Checksum from Improv message");
@@ -61,6 +70,11 @@ protected:
                 case improv::WIFI_SETTINGS: {
                     this->enclosed->lastCommand_ = command;
                     this->enclosed->setState(STATE_READY_TO_CONNECT);
+                    break;
+                }
+                case improv::GET_WIFI_NETWORKS: {
+                    this->enclosed->lastCommand_ = command;
+                    this->enclosed->setState(STATE_READY_TO_SCAN);
                     break;
                 }
                 default: {

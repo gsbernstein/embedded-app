@@ -5,6 +5,7 @@
 #include <ArduinoOTA.h>
 
 #include "config.h"
+#include "esp_wifi.h"
 #include "sindarin-debug.h"
 
 void BLEImprov::configureCharacteristics(BLEService *service) {
@@ -57,6 +58,9 @@ void BLEImprov::setState(BLEImprovState state) {
     } else if (state == STATE_READY_TO_CONNECT || state == STATE_CONNECTING) {
         this->setError(improv::ERROR_NONE, false);
         improvState = improv::STATE_PROVISIONING;
+    } else if (state == STATE_SCANNING) {
+        this->setError(improv::ERROR_NONE, false);
+        improvState = improv::STATE_SCANNING;
     } else {
         this->setError(improv::ERROR_NONE, false);
         improvState = improv::STATE_PROVISIONED;
@@ -115,6 +119,64 @@ void BLEImprov::loop() {
             this->setError(improv::ERROR_UNABLE_TO_CONNECT);
             WiFi.disconnect();
         }
+    } else if (this->state_ == STATE_READY_TO_SCAN) {
+        bool blockingScan = false;
+        bool passiveScan = false;
+        uint32_t scanTimePerChannelMillis = 300;
+        this->lastAPsent_ = 0;
+
+        wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
+        esp_wifi_init(&cfg);
+
+        // Initialize the configuration struct for passive or active scanning
+        wifi_scan_config_t scanConfig;
+        scanConfig.ssid = 0;
+        scanConfig.bssid = 0;
+        // scanConfig.channel = channel;
+        // scanConfig.show_hidden = show_hidden;
+        if (passiveScan) {
+            scanConfig.scan_type = WIFI_SCAN_TYPE_PASSIVE;
+            scanConfig.scan_time.passive = scanTimePerChannelMillis;
+        } else {
+            scanConfig.scan_type = WIFI_SCAN_TYPE_ACTIVE;
+            scanConfig.scan_time.active.min = 100;
+            scanConfig.scan_time.active.max = scanTimePerChannelMillis;
+        }
+        esp_wifi_set_mode(WIFI_MODE_STA);
+        esp_wifi_start();
+        esp_wifi_scan_start(&scanConfig, blockingScan);
+
+        this->setState(STATE_SCANNING);
+    } else if (this->state_ == STATE_SCANNING) {
+        uint32_t now = millis();
+        uint16_t apCount = 0;
+        esp_wifi_scan_get_ap_num(&apCount);
+        if (now - this->lastStateChangeMillis_ > 10000) {
+            log_w("Timed out scanning for WiFi APs, %d found", apCount);
+            this->setState(STATE_SCAN_COMPLETE);
+        } else if (apCount > this->lastAPsent_) {
+            // Check if new results since last, send them
+
+            wifi_ap_record_t *ap = (wifi_ap_record_t *)malloc(sizeof(wifi_ap_record_t));
+            esp_wifi_scan_get_ap_records(&this->lastAPsent_, ap);
+
+            std::string ssid = String((char *)ap->ssid).c_str();
+            std::string rssi = String((char)ap->rssi).c_str();
+            std::string auth = String((char)(ap->authmode != WIFI_AUTH_OPEN)).c_str();
+            std::vector<uint8_t> response =
+                improv::build_rpc_response(improv::GET_WIFI_NETWORKS, {ssid, rssi, auth});
+            log_d("Sending latest AP scan result to client: %s %s %s", ssid.c_str(), rssi.c_str(),
+                  auth.c_str());
+            this->rpcResultCharacteristic_->setValue(response.data(), response.size());
+            this->rpcResultCharacteristic_->notify();
+
+            this->lastAPsent_ += 1;
+        }
+    } else if (this->state_ == STATE_SCAN_COMPLETE) {
+        uint16_t apCount = 0;
+        esp_wifi_scan_get_ap_num(&apCount);
+        log_w("Wifi scan complete, %d APs found", apCount);
+        this->setState(STATE_WAITING);
     } else if (this->state_ == STATE_CONNECTED) {
         if (!WiFi.isConnected()) {
             this->setState(STATE_WAITING);
