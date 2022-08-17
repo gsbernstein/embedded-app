@@ -65,11 +65,12 @@ protected:
 
                 improv::ImprovCommand command =
                     improv::parse_improv_data((uint8_t *)value.c_str(), value.length());
-                log_d("onWrite for Improv Characteristic ");
-                for (auto &b : bytes) {
-                    log_d("%d", (int)(b));
+                std::string commandStr;
+                for (int i = 0; i < value.length(); i++) {
+                    commandStr += std::to_string((int)bytes[i]);
+                    commandStr += " ";
                 }
-                log_d("%d (%d): ", command.command, improv::GET_WIFI_NETWORKS);
+                log_d("onWrite for Improv Characteristic %s", commandStr.c_str());
                 switch (command.command) {
                 case improv::BAD_CHECKSUM: {
                     log_e("Error: Bad Checksum from Improv message");

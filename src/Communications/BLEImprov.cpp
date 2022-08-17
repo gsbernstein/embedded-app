@@ -89,11 +89,22 @@ void BLEImprov::doneConnecting() {
     SHOW_HEAP();
 }
 
+// This event handler is unused due to `esp_event_handler_register` not able to register a class
+// method
 void BLEImprov::wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t event_id,
                                    void *event_data) {
     if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_SCAN_DONE) {
         log_d("WIFI_EVENT_SCAN_DONE");
         BLEImprov::setState(STATE_SCAN_COMPLETE);
+    }
+}
+
+static void event_handler(void *arg, esp_event_base_t event_base, int32_t event_id,
+                          void *event_data) {
+    log_d("WIFI_EVENT_SCAN_DONE? %d", event_id);
+    if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_SCAN_DONE) {
+        log_d("WIFI_EVENT_SCAN_DONE!");
+        // BLEImprov::setState(STATE_SCAN_COMPLETE);
     }
 }
 
@@ -136,6 +147,9 @@ void BLEImprov::loop() {
 
         wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
         esp_wifi_init(&cfg);
+
+        // esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID, &this->wifi_event_handler,
+        esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID, &event_handler, NULL);
 
         // Initialize the configuration struct for passive or active
         // scanning
