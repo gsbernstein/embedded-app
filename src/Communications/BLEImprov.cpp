@@ -98,18 +98,17 @@ void BLEImprov::doneConnecting() {
 
 // This event handler is unused due to `esp_event_handler_register` not able to register a class
 // method
-void BLEImprov::wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t event_id,
-                                   void *event_data) {
-    if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_SCAN_DONE) {
+void BLEImprov::wifiEventHandler(void *arg, esp_event_base_t eventBase, int32_t eventId,
+                                 void *eventData) {
+    if (eventBase == WIFI_EVENT && eventId == WIFI_EVENT_SCAN_DONE) {
         log_d("WIFI_EVENT_SCAN_DONE");
         BLEImprov::setState(STATE_SCAN_COMPLETE);
     }
 }
 
-static void event_handler(void *arg, esp_event_base_t event_base, int32_t event_id,
-                          void *event_data) {
-    log_d("WIFI_EVENT_SCAN_DONE? %d", event_id);
-    if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_SCAN_DONE) {
+static void eventHandler(void *arg, esp_event_base_t eventBase, int32_t eventId, void *eventData) {
+    log_d("WIFI_EVENT_SCAN_DONE? %d", eventId);
+    if (eventBase == WIFI_EVENT && eventId == WIFI_EVENT_SCAN_DONE) {
         log_d("WIFI_EVENT_SCAN_DONE!");
         // BLEImprov::setState(STATE_SCAN_COMPLETE);
     }
@@ -154,12 +153,12 @@ void BLEImprov::loop() {
         esp_wifi_init(&cfg);
 
         // esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID, &this->wifi_event_handler,
-        esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID, &event_handler, NULL);
+        esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID, &eventHandler, nullptr);
 
         // Initialize the configuration struct for active scanning
         wifi_scan_config_t scanConfig;
-        scanConfig.ssid = 0;
-        scanConfig.bssid = 0;
+        scanConfig.ssid = nullptr;
+        scanConfig.bssid = nullptr;
         scanConfig.scan_type = WIFI_SCAN_TYPE_ACTIVE;
 
         esp_wifi_set_mode(WIFI_MODE_STA);

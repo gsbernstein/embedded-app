@@ -33,8 +33,7 @@ public:
     void configureCharacteristics(BLEService *service) override;
     auto configureService(BLEServer *server) -> BLEService * override;
     auto start() -> bool override;
-    void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t event_id,
-                            void *event_data);
+    void wifiEventHandler(void *arg, esp_event_base_t eventBase, int32_t eventId, void *eventData);
     void setState(BLEImprovState state);
 
 protected:
