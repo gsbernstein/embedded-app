@@ -8,6 +8,13 @@
 #include "esp_wifi.h"
 #include "sindarin-debug.h"
 
+// Time to wait for WiFi scanning to complete. Should not trigger if the event handler fires a
+// `WIFI_EVENT_SCAN_DONE` event.
+#define WIFI_SCANNING_TIMEOUT_MS 10000
+
+// Max number of WiFi APs to scan for.
+#define WIFI_SCANNING_MAX_AP_RECORDS 20
+
 void BLEImprov::configureCharacteristics(BLEService *service) {
     auto *characteristicCallbacks = new CharacteristicCallbacks(this);
 
@@ -170,13 +177,13 @@ void BLEImprov::loop() {
             log_d("Wifi scanning... %d APs found so far", apCount);
         }
 
-        if (now - this->lastStateChangeMillis_ > 10000) {
+        if (now - this->lastStateChangeMillis_ > WIFI_SCANNING_TIMEOUT_MS) {
             log_w("Timed out scanning for WiFi APs, %d found", apCount);
             this->setState(STATE_SCAN_COMPLETE);
         }
     } else if (this->state_ == STATE_SCAN_COMPLETE) {
-        uint16_t maxRecords = 20;
-        wifi_ap_record_t apRecords[20];
+        uint16_t maxRecords = WIFI_SCANNING_MAX_AP_RECORDS;
+        wifi_ap_record_t apRecords[WIFI_SCANNING_MAX_AP_RECORDS];
         esp_wifi_scan_get_ap_records(&maxRecords, apRecords);
         uint16_t apCount = 0;
         esp_wifi_scan_get_ap_num(&apCount);
