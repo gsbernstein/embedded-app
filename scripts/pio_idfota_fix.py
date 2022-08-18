@@ -8,5 +8,10 @@ platform = env.PioPlatform()
 if env["UPLOADER"] == "tools/espota.py":
     env.Replace(
         UPLOADER=path.join(
-            platform.get_package_dir("framework-arduinoespressif32") or "", "components", "arduino", "tools", "espota.py"),
+            platform.get_package_dir("framework-arduinoespressif32") or "",
+            "components",
+            "arduino",
+            "tools",
+            "espota.py",
+        ),
     )

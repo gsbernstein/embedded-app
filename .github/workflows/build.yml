@@ -73,8 +73,8 @@ jobs:
           target: esp32s3
           path: .
 
-  buildfs-ext:
-    name: "pio run -t buildfs-ext"
+  buildfs:
+    name: "pio run -t buildfs"
     runs-on: ubuntu-latest
     steps:
       - name: Check out code
@@ -96,4 +96,4 @@ jobs:
           echo "All that is gold does not glitter" > data/ipsum.txt
 
       - name: PlatformIO run
-        run: pio run -t buildfs-ext
+        run: pio run -t buildfs
