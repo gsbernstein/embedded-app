@@ -34,8 +34,8 @@ protected:
 
             // If value contains an '=' character, it's setting a value to a key.
             // Otherwise, get and write the key's value back to the characteristic.
-            size_t equals_index = value.find('=');
-            if (equals_index == std::string::npos) {
+            size_t equalsIndex = value.find('=');
+            if (equalsIndex == std::string::npos) {
                 if (value == "wifi-ssid") {
                     wifi_ap_record_t info;
                     if (!esp_wifi_sta_get_ap_info(&info)) {
@@ -49,8 +49,8 @@ protected:
                     log_w("GATT client asking to read unknown setting: %s", value.c_str());
                 }
             } else {
-                std::string settingKey = value.substr(0, equals_index);
-                std::string settingValue = value.substr(equals_index + 1);
+                std::string settingKey = value.substr(0, equalsIndex);
+                std::string settingValue = value.substr(equalsIndex + 1);
                 log_i("GATT client writing setting: %s=%s", settingKey.c_str(),
                       settingValue.c_str());
 

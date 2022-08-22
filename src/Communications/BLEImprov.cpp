@@ -195,7 +195,9 @@ void BLEImprov::loop() {
             wifi_ap_record_t ap = apRecords[i];
             std::string ssid;
             for (unsigned char s : ap.ssid) {
-                if (s == '\0') break;
+                if (s == '\0') {
+                    break;
+                }
                 ssid += s;
             }
             std::string rssi = std::to_string(ap.rssi);
