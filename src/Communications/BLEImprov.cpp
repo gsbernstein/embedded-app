@@ -192,10 +192,11 @@ void BLEImprov::loop() {
             wifi_ap_record_t ap = apRecords[i];
             std::string ssid;
             for (unsigned char s : ap.ssid) {
+                if (s == '\0') break;
                 ssid += s;
             }
             std::string rssi = std::to_string(ap.rssi);
-            std::string auth(std::string(ap.authmode == WIFI_AUTH_OPEN ? "NO " : "YES"));
+            std::string auth(std::string(ap.authmode == WIFI_AUTH_OPEN ? "NO" : "YES"));
             std::vector<uint8_t> response =
                 improv::build_rpc_response(improv::GET_WIFI_NETWORKS, {ssid, rssi, auth});
 
