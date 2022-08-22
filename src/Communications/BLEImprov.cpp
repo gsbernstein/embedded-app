@@ -98,21 +98,22 @@ void BLEImprov::doneConnecting() {
 
 // This event handler is unused due to `esp_event_handler_register` not able to register a class
 // method
-void BLEImprov::wifiEventHandler(void *arg, esp_event_base_t eventBase, int32_t eventId,
-                                 void *eventData) {
-    if (eventBase == WIFI_EVENT && eventId == WIFI_EVENT_SCAN_DONE) {
-        log_d("WIFI_EVENT_SCAN_DONE");
-        BLEImprov::setState(STATE_SCAN_COMPLETE);
-    }
-}
+// void BLEImprov::wifiEventHandler(void *arg, esp_event_base_t eventBase, int32_t eventId,
+//                                  void *eventData) {
+//     if (eventBase == WIFI_EVENT && eventId == WIFI_EVENT_SCAN_DONE) {
+//         log_d("WIFI_EVENT_SCAN_DONE");
+//         BLEImprov::setState(STATE_SCAN_COMPLETE);
+//     }
+// }
 
-static void eventHandler(void *arg, esp_event_base_t eventBase, int32_t eventId, void *eventData) {
-    log_d("WIFI_EVENT_SCAN_DONE? %d", eventId);
-    if (eventBase == WIFI_EVENT && eventId == WIFI_EVENT_SCAN_DONE) {
-        log_d("WIFI_EVENT_SCAN_DONE!");
-        // BLEImprov::setState(STATE_SCAN_COMPLETE);
-    }
-}
+// static void eventHandler(void *arg, esp_event_base_t eventBase, int32_t eventId, void *eventData)
+// {
+//     log_d("WIFI_EVENT_SCAN_DONE? %d", eventId);
+//     if (eventBase == WIFI_EVENT && eventId == WIFI_EVENT_SCAN_DONE) {
+//         log_d("WIFI_EVENT_SCAN_DONE!");
+//         // BLEImprov::setState(STATE_SCAN_COMPLETE);
+//     }
+// }
 
 void BLEImprov::loop() {
     if (this->state_ == STATE_WAITING) {
@@ -152,8 +153,9 @@ void BLEImprov::loop() {
         wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
         esp_wifi_init(&cfg);
 
-        // esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID, &this->wifi_event_handler,
-        esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID, &eventHandler, nullptr);
+        // Neither handler fires yet
+        // esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID, &this->wifiEventHandler,
+        // esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID, &eventHandler, nullptr);
 
         // Initialize the configuration struct for active scanning
         wifi_scan_config_t scanConfig;
@@ -188,6 +190,7 @@ void BLEImprov::loop() {
         esp_wifi_scan_get_ap_num(&apCount);
         log_i("Wifi scan complete, %d APs found", apCount);
 
+        // Build a list of APs and send them as notifications to the gatt client
         for (int i = 0; (i < apCount) && (i < maxRecords); i++) {
             wifi_ap_record_t ap = apRecords[i];
             std::string ssid;

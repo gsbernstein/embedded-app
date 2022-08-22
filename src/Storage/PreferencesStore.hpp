@@ -146,7 +146,7 @@ public:
 #if USE_TURN_TOUCH_REMOTE
           pairedTurnTouchAddress(this->prefs_, "paired-tt"),
 #endif
-          pocketApiToken(this->prefs_, "pocket-token"),
+          pocketApiToken(this->prefs_, "pocket-token"), cloudToken(this->prefs_, "cloud-token"),
           lastReadableId(this->prefs_, "rui-readable"), readablePlace(this->prefs_, "-p"),
           invertSetting(this->prefs_, "invert"), vcom(this->prefs_, "vcom"),
           backlight(this->prefs_, "backlight"), font(this->prefs_, "font"),
@@ -174,6 +174,7 @@ public:
     BLEAddressPrefsItem pairedTurnTouchAddress;
 #endif
     PrefsItem<std::string> pocketApiToken;
+    PrefsItem<std::string> cloudToken;
     PrefsItem<std::string> lastReadableId;
     KeyedPrefsItem<uint32_t> readablePlace;
     PrefsItem<int> invertSetting;

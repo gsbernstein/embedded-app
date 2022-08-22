@@ -10,9 +10,11 @@ BLESettings::BLESettings(PreferencesStore *prefs) { this->prefs_ = prefs; }
 
 void BLESettings::configureCharacteristics(BLEService *service) {
     BLECharacteristic *characteristic = service->createCharacteristic(
-        BLEUUID(SETTINGS_CHARACTERISTIC_UUID), NIMBLE_PROPERTY::WRITE);
+        BLEUUID(SETTINGS_CHARACTERISTIC_UUID),
+        NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::WRITE | NIMBLE_PROPERTY::NOTIFY);
 
     characteristic->setCallbacks(new CharacteristicCallbacks(this));
+    this->settingsCharacteristic_ = characteristic;
 };
 
 #endif
