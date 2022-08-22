@@ -18,13 +18,15 @@ VSCode provides a nice platformio IDE. Download VSCode and get the PlatformIO ID
 
 ## Upload and Monitor
 
-You can use the "Upload and Monitor" project tasks under PlatformIO Icon (left bar) -> Project Tasks -> gilpico-frankenoscillator -> General -> Upload and Monitor
+You can use the "Upload and Monitor" project tasks under PlatformIO Icon (left bar) -> Project Tasks -> sol3dev -> General -> Upload and Monitor
+
+Note: You'll probably get a boot loop after uploading because of the flash memory size detected as 0. You'll need to apply [my IDF patch](https://github.com/espressif/esp-idf/pull/9381) to fix flashes > 512mbit in the bootloader. Find `spi_flash_chip_generic.c` (probably in `~.platformio/packages/framework-espidf/components/spi_flash/spi_flash_chip_generic.c`) and apply my change from that PR.
 
 ## Add Readables to SPIFFS
 
 To put Readables on the device, you'll need to collect some readables. Perhaps from the [sindarin-inc/readables](https://github.com/sindarin-inc/readables) repo. Just download the Readables you want and put them in a directory in the root of this repo named `data`.
 
-Then you'll need to build and upload the filesystem. You can do this in VSCode from PlatformIO Icon (left bar) -> Project Tasks -> gilpico-frankenoscillator -> Custom -> Build Filesystem Image (ext) and then Upload Filesystem Image (ext). Or you can do this at the command line with `pio run -t buildfs-ext -t uploadfs-ext`.
+Then you'll need to build and upload the filesystem. You can do this in VSCode from PlatformIO Icon (left bar) -> Project Tasks -> sol3dev -> Platform -> Upload Filesystem Image. Or you can do this at the command line with `pio run -t uploadfs`.
 
 Note: If you don't see these options in your PlatformIO bar in VSCode, try restarting VSCode.
 
@@ -91,7 +93,7 @@ You'll need SDL2 & openssl for it to work: `brew install sdl2 sdl2_image openssl
 
 ## Erasing / Resetting Non-Volatile Storage (NVS)
 
-You can erase NVS from the command line using esptool. You can either erase the entire internal flash with:
+You can erase NVS/Preferences from the command line using esptool. You can either erase the entire internal flash with:
 
 ```bash
 esptool.py erase_flash
@@ -108,7 +110,7 @@ esptool.py erase_region 0x9000 0x5000
 You can save the most recent core dump when connected over serial. This probably only works if you still have the `.elf` from the crashing version, though more experimentation is needed. Use the following command:
 
 ```bash
-espcoredump.py -p /dev/tty.usb* info_corefile .pio/build/gilpico-frankenoscillator/firmware.elf
+espcoredump.py -p /dev/tty.usb* info_corefile .pio/build/sol3dev/firmware.elf
 ```
 
 See also the [Core Dump docs](https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-guides/core_dump.html).
