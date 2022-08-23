@@ -17,4 +17,15 @@ void BLESettings::configureCharacteristics(BLEService *service) {
     this->settingsCharacteristic_ = characteristic;
 };
 
+void BLESettings::writeWifiSSIDtoCharacteristic(BLECharacteristic *characteristic) {
+    wifi_ap_record_t info;
+    if (!esp_wifi_sta_get_ap_info(&info)) {
+        characteristic->setValue(info.ssid);
+        log_i("Connected to wifi, sharing ssid: %s", info.ssid);
+    } else {
+        characteristic->setValue("");
+        log_i("Not connected to wifi, could not share ssid");
+    }
+}
+
 #endif

@@ -10,7 +10,7 @@
 
 // Time to wait for WiFi scanning to complete. Should not trigger if the event handler fires a
 // `WIFI_EVENT_SCAN_DONE` event.
-#define WIFI_SCANNING_TIMEOUT_MS 10000
+#define WIFI_SCANNING_TIMEOUT_MS 5000
 
 // Max number of WiFi APs to scan for.
 #define WIFI_SCANNING_MAX_AP_RECORDS 20

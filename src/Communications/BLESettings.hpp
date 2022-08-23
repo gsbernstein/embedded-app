@@ -19,6 +19,7 @@ public:
 protected:
     PreferencesStore *prefs_;
     BLECharacteristic *settingsCharacteristic_;
+    void writeWifiSSIDtoCharacteristic(BLECharacteristic *characteristic);
 
     class CharacteristicCallbacks : public BLECharacteristicCallbacks {
     public:
@@ -37,14 +38,7 @@ protected:
             size_t equalsIndex = value.find('=');
             if (equalsIndex == std::string::npos) {
                 if (value == "wifi-ssid") {
-                    wifi_ap_record_t info;
-                    if (!esp_wifi_sta_get_ap_info(&info)) {
-                        characteristic->setValue(info.ssid);
-                        log_i("Connected to wifi, sharing ssid: %s", info.ssid);
-                    } else {
-                        characteristic->setValue("");
-                        log_i("Not connected to wifi, could not share ssid");
-                    }
+                    this->enclosed->writeWifiSSIDtoCharacteristic(characteristic);
                 } else {
                     log_w("GATT client asking to read unknown setting: %s", value.c_str());
                 }
