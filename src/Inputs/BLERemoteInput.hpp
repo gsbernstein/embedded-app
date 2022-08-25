@@ -22,7 +22,15 @@ protected:
 
         void onWrite(BLECharacteristic *characteristic) override {
             std::string value = characteristic->getValue();
-            if (value.length() > 0) {
+            uint8_t messageSize = value.length();
+            if (messageSize == 1) {
+                // If the value is a single byte command (i.e. from the RN app), then assume the
+                // second byte is 0x0.
+                unsigned char emptyByte[] = {0x0};
+                value.append(std::string(reinterpret_cast<const char *>(emptyByte), 1));
+                messageSize = value.length();
+            }
+            if (messageSize >= 2) {
                 log_d("Page turner button: %.2x %.2x", value[0], value[1]);
                 uint16_t processed = (value[0] << 8) | (value[1]);
                 RemoteCommand command = DecodePageTurner(processed);
