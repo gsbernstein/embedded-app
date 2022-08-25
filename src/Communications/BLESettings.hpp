@@ -19,7 +19,7 @@ public:
 protected:
     PreferencesStore *prefs_;
     BLECharacteristic *settingsCharacteristic_;
-    void writeWifiSSIDtoCharacteristic(BLECharacteristic *characteristic);
+    void writeWifiSSIDtoCharacteristic(BLECharacteristic *characteristic, std::string key);
 
     class CharacteristicCallbacks : public BLECharacteristicCallbacks {
     public:
@@ -38,7 +38,7 @@ protected:
             size_t equalsIndex = value.find('=');
             if (equalsIndex == std::string::npos) {
                 if (value == "wifi-ssid") {
-                    this->enclosed->writeWifiSSIDtoCharacteristic(characteristic);
+                    this->enclosed->writeWifiSSIDtoCharacteristic(characteristic, value);
                 } else {
                     log_w("GATT client asking to read unknown setting: %s", value.c_str());
                 }

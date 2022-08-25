@@ -17,13 +17,20 @@ void BLESettings::configureCharacteristics(BLEService *service) {
     this->settingsCharacteristic_ = characteristic;
 };
 
-void BLESettings::writeWifiSSIDtoCharacteristic(BLECharacteristic *characteristic) {
+void BLESettings::writeWifiSSIDtoCharacteristic(BLECharacteristic *characteristic,
+                                                std::string key) {
     wifi_ap_record_t info;
     if (!esp_wifi_sta_get_ap_info(&info)) {
-        characteristic->setValue(info.ssid);
-        log_i("Connected to wifi, sharing ssid: %s", info.ssid);
+        std::string kv = key;
+
+        kv.append("=");
+        kv.append(reinterpret_cast<char *>(info.ssid));
+
+        characteristic->setValue(kv.c_str());
+
+        log_i("Connected to wifi, sharing ssid: %s", kv.c_str());
     } else {
-        characteristic->setValue("");
+        characteristic->setValue("\0");
         log_i("Not connected to wifi, could not share ssid");
     }
 }
