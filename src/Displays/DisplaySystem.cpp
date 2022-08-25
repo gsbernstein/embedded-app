@@ -5,7 +5,7 @@
 #include "Misc/StringUtil.hpp"
 #include "sindarin-debug.h"
 
-DisplaySystem::DisplaySystem() { autoUpdate_ = true; }
+DisplaySystem::DisplaySystem() = default;
 
 auto DisplaySystem::setup() -> bool {
     // Default to original font
@@ -86,10 +86,6 @@ void DisplaySystem::setFullWindow() {
     partialH_ = gfxClass_->height();
 }
 
-void DisplaySystem::setAutoUpdate(bool update) { autoUpdate_ = update; }
-
-auto DisplaySystem::getAutoUpdate() -> bool { return autoUpdate_; }
-
 void DisplaySystem::ensureBoundaries() {
     int gfxW = gfxClass_->width();
     int gfxH = gfxClass_->height();
@@ -146,6 +142,7 @@ void DisplaySystem::splitStringToLines(const std::string &stringToSplit,
     for (i = 0; i < len; i++) {
         // We found a new line. Split off the previous line and
         // start processing the new line
+
         if (stringToSplit.at(i) == '\n') {
             lines[numLines - 1] = stringToSplit.substr(startPos, endPos - startPos + 1);
             numLines++;
@@ -161,44 +158,34 @@ void DisplaySystem::splitStringToLines(const std::string &stringToSplit,
     // array, but if \n is the last character, we don't need to do anything and
     // we can decrement num_lines since the above loop assumes that there will
     // be more characters after the \n.
-    //
-    // The second part of this || is to handle when there's just a single line with
-    // a single character on it with no \n.
-    if (stringToSplit.length() > 0 && ((startPos != endPos) || stringToSplit.at(endPos) != '\n')) {
+    if (stringToSplit.length() > 0 && (startPos != endPos)) {
         lines[numLines - 1] = stringToSplit.substr(startPos, endPos - startPos + 1);
     } else {
         numLines--;
     }
 }
 
-void DisplaySystem::drawTextCmdsOnly(const std::string &newText, int x, int y, int lineHeight) {
-    // We want to draw the characters down from the x/y coordinates given
-    // so the renderer doesn't need to concern itself with how tall the
-    // font is, etc.
-    // u8g2Fonts->setFontPosTop();
-
-    std::array<std::string, MAX_LINES_IN_SPLIT> lines;
-    int numLines;
-    splitStringToLines(newText, lines, numLines);
-
-    // We want to have only 1 pixel length difference between the rows of
-    // text to squeeze as much in there as we can
-    // ascent = u8g2Fonts->getAscent();
-    // descent = u8g2Fonts->getDescent();
-
+// Eventually, we could add an optional argument at the end to wrap the text
+// and return whether the text was wrapped or not.
+// But that's for another day.
+void DisplaySystem::drawSingleLineOfText(const std::string &line, int x, int y) {
     gfxClass_->setTextColor(fg);
-
-    for (int i = 0; i < numLines; i++) {
-        // Don't know if it starts the line from the baseline or from the top -- TO LEARN: HACK
-        setCursor(x, y + i * (lineHeight));
-        gfxClass_->printf("%s\n", lines[i].c_str());
-    }
+    // We are allowing the this method to take an the upper left corner of the text
+    // as an argument. But the setCursor method takes the lower left corner of text
+    // to be drawn (or rather, that's how printf does it). So we need to adjust the
+    // y value by the height of the font. getTextHeight includes lineSpacing_ so
+    // we subtract that out.
+    // The magic number (3) is a hack for now to handle the bottom of the display.
+    // Need to investigate why the text is getting cut off when the y dimension is
+    // all the way at the bottom. This hasn't impacted the top.
+    gfxClass_->setCursor(xOffset(x), yOffset(y + getTextHeight() - lineSpacing_ - 3));
+    gfxClass_->printf("%s", line.c_str());
 }
 
-// This method takes in a string, and assumes that it will have
-// \n characaters in it to determine new lines. By default, the u8g2
-// driver doesn't do new lines, so we have to do the parsing of that ourselves
-// in order to determine the right placement of each new line.
+// y is the y coordinate of the top of the first line
+// MOSTLY DEPRECATED -- use drawSingleLineOfText instead.
+// The display class shouldn't be in charge rendering multiple lines because
+// it doesn't know what that should look like.
 void DisplaySystem::drawText(const std::string &newText, int x, int y, int width, int height) {
     // hack for now
     // figure out what the right window is
@@ -208,39 +195,30 @@ void DisplaySystem::drawText(const std::string &newText, int x, int y, int width
     int lineHeight = getTextHeight();
     int numLines = height / lineHeight;
 
-    if (getPartialRefresh()) {
-        setPartialWindow(x, y - 10, boundingBox_.width, lineHeight * numLines + 10);
-    }
+    log_w("This method is deprecated. Please use drawSingleLineOfText instead.");
 
-    drawTextCmdsOnly(newText, x, y, lineHeight);
-    if (autoUpdate_) {
-        // DO WRITE AND REFRESH
-        updateDisplay();
-    }
-}
+    // We want to draw the characters down from the x/y coordinates given
+    // so the renderer doesn't need to concern itself with how tall the
+    // font is, etc.
+    // u8g2Fonts->setFontPosTop();
 
-void DisplaySystem::drawTextInBox(const std::string &newText, int startX, int startY, int endX,
-                                  int endY) {
+    std::array<std::string, MAX_LINES_IN_SPLIT> lines;
 
-    int lineHeight = 0;
+    splitStringToLines(newText, lines, numLines);
 
-    log_d("Printing some stuff to screen!");
+    // We want to have only 1 pixel length difference between the rows of
+    // text to squeeze as much in there as we can
+    // ascent = u8g2Fonts->getAscent();
+    // descent = u8g2Fonts->getDescent();
 
-    if (!getPartialRefresh() && autoUpdate_) {
-        fillScreen(bg);
-    }
+    gfxClass_->setTextColor(fg);
 
-    lineHeight = getTextHeight();
-
-    if (getPartialRefresh()) {
-        setPartialWindow(startX - 2, startY - 2, (endX - startX) + 4, (endY - startY) + 4);
-    }
-
-    drawBoxCmdsOnly(startX, startY, endX, endY);
-    drawTextCmdsOnly(newText, startX + 3, startY + lineHeight + 1, lineHeight);
-    if (autoUpdate_) {
-        // DO WRITE AND REFRESH
-        updateDisplay();
+    // We start at i+1 in the since setting the cursor puts where the lower left of the text
+    // will be, not upper left.
+    for (int i = 0; i < numLines; i++) {
+        // Don't know if it starts the line from the baseline or from the top -- TO LEARN: HACK
+        setCursor(xOffset(x), yOffset(y + (i + 1) * (lineHeight)));
+        gfxClass_->printf("%s\n", lines[i].c_str());
     }
 }
 
@@ -265,47 +243,8 @@ auto DisplaySystem::getTextWidth(const char *buffer) -> int {
     return w;
 }
 
-void DisplaySystem::renderTextWithoutBox(const std::string &text, bool centerHorizontally,
-                                         bool centerVertically) {
-
-    int xOffset = 0;
-    int yOffset = 0;
-
-    if (centerHorizontally) {
-        xOffset = (width() - getTextWidth(text.c_str())) / 2;
-    }
-
-    if (centerVertically) {
-        yOffset = (height() - getTextHeight(text.c_str())) / 2;
-    }
-
-    drawText(text, 0 + xOffset, getTextHeight() + yOffset, width(), height());
-}
-
-void DisplaySystem::renderMaxBoxWithText(const std::string &text) {
-    drawTextInBox(text, 0, 0, width(), height());
-}
-
-void DisplaySystem::renderBox(int xStart, int yStart, int xEnd, int yEnd) {
-    drawBox(xStart, yStart, xEnd, yEnd);
-}
-
-void DisplaySystem::drawBoxCmdsOnly(int startX, int startY, int endX, int endY) {
-    gfxClass_->drawRect(xOffset(startX), yOffset(startY), endX - startX, endY - startY, fg);
-}
-
 void DisplaySystem::drawBox(int startX, int startY, int endX, int endY) {
-    // clear out one pixel around all of it
-    if (getPartialRefresh()) {
-        log_d("Draw partial box: %d %d | %d %d", startX, startY, endX, endY);
-        setPartialWindow(startX - 2, startY - 2, (endX - startX) + 4, (endY - startY) + 4);
-    }
-
-    drawBoxCmdsOnly(startX, startY, endX, endY);
-    if (autoUpdate_) {
-        // DO WRITE AND REFRESH
-        updateDisplay();
-    }
+    gfxClass_->drawRect(xOffset(startX), yOffset(startY), endX - startX, endY - startY, fg);
 }
 
 void DisplaySystem::drawXBitmap(int16_t x, int16_t y, const uint8_t bitmap[], int16_t w, int16_t h,
@@ -313,12 +252,9 @@ void DisplaySystem::drawXBitmap(int16_t x, int16_t y, const uint8_t bitmap[], in
     if (getPartialRefresh()) {
         setPartialWindow(x, y, w, h);
     }
+    log_d("Drawing bitmap at %d %d", xOffset(x), yOffset(y));
     gfxClass_->drawXBitmap(xOffset(x), yOffset(y), bitmap, w, h, color);
-    log_d("Bitmap drawn, updating display!");
-    if (autoUpdate_) {
-        // DO WRITE AND REFRESH
-        updateDisplay();
-    }
+    log_d("Bitmap drawn");
 }
 
 void DisplaySystem::clearScreen() {

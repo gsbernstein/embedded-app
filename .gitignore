@@ -15,3 +15,7 @@ simprefs.ini
 *.old
 build
 screenshot.png
+current.png
+next.png
+nextnext.png
+nextprev.png

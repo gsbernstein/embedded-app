@@ -18,8 +18,7 @@ void PagedMenuScreen::render(DisplaySystem &display) {
         return;
     }
     log_i("PagedMenuScreen render (selected = %s)", getCurrItem().title.c_str());
-    auto autoUpdate = display.getAutoUpdate();
-    display.setAutoUpdate(false);
+
     // Blank out screen
     display.fillScreen(display.bg);
     // Draw menu surroundings
@@ -74,16 +73,11 @@ void PagedMenuScreen::render(DisplaySystem &display) {
 #endif
     batteryStatus += StringFormat(" %dC", leftTemp);
 
-    // Get the letters in there that go below the base of the standard character
-    if (maxHeightForThisFont_ == 0) {
-        display.getTextBounds("Hi J g y p q Q j!!", &width, &maxHeightForThisFont_);
-    }
     display.getTextBounds(itemTitle.c_str(), &width, &height);
     uint16_t screenWidth = display.width();
     uint16_t screenHeight = display.height();
-    display.drawText(itemTitle.c_str(), (screenWidth / 2) - (width / 2),
-                     (screenHeight / 2) + (maxHeightForThisFont_ / 2) - 4, screenWidth,
-                     screenHeight);
+    display.drawSingleLineOfText(itemTitle.c_str(), (screenWidth / 2) - (width / 2),
+                                 (screenHeight / 2) - (display.getTextHeight()) + 6);
     display.setFont(display.style.getFontFamily().readableFont);
 
     display.getTextBounds(batteryStatus.c_str(), &width, &height);
@@ -97,7 +91,7 @@ void PagedMenuScreen::render(DisplaySystem &display) {
 
     display.updateDisplay();
     display.setFont(display.style.getFontFamily().readableFont);
-    display.setAutoUpdate(autoUpdate);
+
     needsRerender = false;
 }
 
