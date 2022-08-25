@@ -34,6 +34,28 @@ SDL_Texture *arrowTexture;
 Uint8 arrowOpacity = 0;
 double arrowRotation = 0;
 
+bool isPngEqual(std::string filepath1, std::string filepath2) {
+    SDL_Surface *saveSurface1 = IMG_Load(filepath1.c_str());
+    SDL_Surface *saveSurface2 = IMG_Load(filepath2.c_str());
+
+    for (int w = 0; w < WIDTH; w++) {
+        for (int h = 0; h < HEIGHT; h++) {
+            Uint8 r1, g1, b1, r2, g2, b2;
+            Uint32 *pixels1, *pixels2;
+            pixels1 = (Uint32 *)saveSurface1->pixels;
+            pixels2 = (Uint32 *)saveSurface2->pixels;
+            Uint32 pixel1 = pixels1[w + h * saveSurface1->w];
+            Uint32 pixel2 = pixels2[w + h * saveSurface2->w];
+            SDL_GetRGB(pixel1, saveSurface1->format, &r1, &g1, &b1);
+            SDL_GetRGB(pixel2, saveSurface2->format, &r2, &g2, &b2);
+            if ((r1 != r2) || (g1 != g2) || (b1 != b2)) {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
 bool saveScreenshotPng(std::string filepath, SDL_Window *window, SDL_Renderer *renderer) {
     // 4 bytes per pixel
     auto pitch = WIDTH * 4;
@@ -88,6 +110,44 @@ void drawOverlay(RemoteCommand command) {
 RemoteCommand ttCommand;
 #endif
 
+void sendCodeAndRender(RemoteCommand command, SDL_Renderer *renderer) {
+    UIInnerLoop(command);
+    SDL_SetRenderTarget(renderer, NULL);
+    SDL_RenderCopy(renderer, deviceScreen, NULL, NULL);
+    drawOverlay(command);
+    SDL_RenderPresent(renderer);
+}
+
+// Only press 'u' when you are on a page in a readable.
+void runBackwardsUnitTest(SDL_Window *window, SDL_Renderer *renderer) {
+    for (int i = 0; i < 50; i++) {
+        saveScreenshotPng("current.png", window, renderer);
+        sendCodeAndRender(RemoteCommand::CHANNEL_PLUS, renderer);
+        saveScreenshotPng("next.png", window, renderer);
+        sendCodeAndRender(RemoteCommand::CHANNEL_PLUS, renderer);
+        saveScreenshotPng("nextnext.png", window, renderer);
+        sendCodeAndRender(RemoteCommand::CHANNEL_MINUS, renderer);
+        saveScreenshotPng("nextprev.png", window, renderer);
+        // compare the most two recent pngs -- they should be the same.
+        // if not, error out.
+        if (!isPngEqual("./next.png", "./nextprev.png")) {
+            std::cerr << "images don't match, sad face\n";
+            std::cerr << "check out next.png and nextprev.png for the diffs\n";
+            exit(1);
+        }
+    }
+    std::cerr << "unit test passed\n";
+}
+
+void goBackNumPages(SDL_Window *window, SDL_Renderer *renderer, int numPages) {
+    int i = 0;
+
+    for (i = 0; i < numPages; i++) {
+        sendCodeAndRender(RemoteCommand::CHANNEL_MINUS, renderer);
+        usleep(1000000.0 / 240.0);
+    }
+}
+
 // Returns false if the program should quit
 auto mainLoop() -> bool {
     SDL_Event e;
@@ -117,6 +177,12 @@ auto mainLoop() -> bool {
                 break;
             case 'p':
                 saveScreenshotPng("./screenshot.png", window, renderer);
+                break;
+            case 'u':
+                runBackwardsUnitTest(window, renderer);
+                break;
+            case 'b':
+                goBackNumPages(window, renderer, 50);
                 break;
             }
 
