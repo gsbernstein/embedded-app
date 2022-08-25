@@ -2,6 +2,8 @@
 
 #include "BLESettings.hpp"
 
+#include <utility>
+
 #include "sindarin-debug.h"
 
 #define SETTINGS_CHARACTERISTIC_UUID "611f68af-5ffe-4944-9b8f-ef6773326268"
@@ -21,7 +23,7 @@ void BLESettings::writeWifiSSIDtoCharacteristic(BLECharacteristic *characteristi
                                                 std::string key) {
     wifi_ap_record_t info;
     if (!esp_wifi_sta_get_ap_info(&info)) {
-        std::string kv = key;
+        std::string kv = std::move(key);
 
         kv.append("=");
         kv.append(reinterpret_cast<char *>(info.ssid));
