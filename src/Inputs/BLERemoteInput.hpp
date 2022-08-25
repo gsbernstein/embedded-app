@@ -26,8 +26,8 @@ protected:
             if (messageSize == 1) {
                 // If the value is a single byte command (i.e. from the RN app), then assume the
                 // second byte is 0x0.
-                unsigned char emptyByte[] = {0x0};
-                value.append(std::string(reinterpret_cast<const char *>(emptyByte), 1));
+                unsigned char emptyByte = 0x0;
+                value.append(std::string(reinterpret_cast<const char *>(&emptyByte), 1));
                 messageSize = value.length();
             }
             if (messageSize >= 2) {
