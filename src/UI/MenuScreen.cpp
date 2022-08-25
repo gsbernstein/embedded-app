@@ -54,44 +54,32 @@ auto MenuScreen::getItemAt(int index) -> MenuItem {
     return menuItems_[index];
 }
 
-auto MenuScreen::getWholeMenuAsString() -> std::string {
-    return getMenuRangeAsString(0, numMenuItems_ - 1);
-}
-
-auto MenuScreen::getMenuRangeAsString(int startItem, int endItem) -> std::string {
-    int i;
-    std::string complete("");
-    // If the client gives us an end_item past the end of the range, just go to the
-    // end only
-    for (i = startItem - 1; i < endItem && i < numMenuItems_; i++) {
-        complete += getItemTitleAt(i);
-        complete += "\n";
-    }
-    return complete;
-}
-
-auto MenuScreen::getPaginatedMenuString() -> std::string {
-    auto menuString =
-        getMenuRangeAsString(curMenuPage_ * NUM_LINES_PER_MENU_PAGE + 1,
-                             curMenuPage_ * NUM_LINES_PER_MENU_PAGE + NUM_LINES_PER_MENU_PAGE);
-    return menuString;
-}
-
 void MenuScreen::render(DisplaySystem &display) {
     if (!needsRerender) {
         return;
     }
     log_i("Menuscreen render (selected = %s)", getCurrItem().title.c_str());
-    auto menuString = getPaginatedMenuString();
+
     auto batLife = power_.getBatteryLifeString();
     // TODO: Just rendering one gigantic screen limits our layout options here.
     // For example, it would be nice to have menu items take up multiple lines (e.g. Pocket articles
     // with long names)
-    std::string totalToDisplay = menuString + std::string("\n\n") + batLife;
+    // std::string totalToDisplay = menuString + std::string("\n\n") + batLife;
 
     display.setFont(display.style.getFontFamily().settingsFont);
 
-    display.drawTextInBox(totalToDisplay, 0, 0, display.width(), display.height());
+    for (int i = curMenuPage_ * NUM_LINES_PER_MENU_PAGE;
+         i < curMenuPage_ * NUM_LINES_PER_MENU_PAGE + NUM_LINES_PER_MENU_PAGE && i < numMenuItems_;
+         i++) {
+        display.drawSingleLineOfText(getItemTitleAt(i), 0,
+                                     (i % NUM_LINES_PER_MENU_PAGE) * display.getTextHeight());
+    }
+
+    // Starting the process of doing this better eventually. Mimicking the lighting screen.
+    // (But without the fast).
+    display.updateDisplay(firstLoad_ ? DisplaySystem::UpdateType::FULL
+                                     : DisplaySystem::UpdateType::FULL);
+    firstLoad_ = false;
     needsRerender = false;
 }
 

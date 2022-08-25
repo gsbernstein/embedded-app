@@ -118,7 +118,8 @@ void RootUI::setup(DisplaySystem *display, std::vector<Readable> &readables,
                                                        createReadableScreen]() {
         if (!NetworkConnected()) {
             log_w("Tried to load Pocket articles but WiFi not connected");
-            display->renderMaxBoxWithText("WiFi Disconnected");
+            display->drawSingleLineOfText("WiFi Disconnected", 0, 0);
+            display->updateDisplay();
             delay(2000);
             needsRerender = true;
             return;
@@ -126,7 +127,8 @@ void RootUI::setup(DisplaySystem *display, std::vector<Readable> &readables,
 
         if (!prefs_.pocketApiToken.get().has_value()) {
             log_w("No Pocket API token found");
-            display->renderMaxBoxWithText("No Pocket API token found");
+            display->drawSingleLineOfText("No Pocket API token found", 0, 0);
+            display->updateDisplay();
             delay(2000);
             needsRerender = true;
             return;
@@ -135,7 +137,8 @@ void RootUI::setup(DisplaySystem *display, std::vector<Readable> &readables,
         log_i("Loading Pocket articles");
         // TODO(John): I wanted to make a loading indicator for this but then realized I'll
         // need to add threading / tasks since the HTTP code is synchronous right now.
-        display->renderMaxBoxWithText("Downloading...");
+        display->drawSingleLineOfText("Downloading...", 0, 0);
+        display->updateDisplay();
         PocketAPI *pocket = PocketAPI::getInstance();
         pocket->setAccessToken(prefs_.pocketApiToken.get().value());
 
@@ -146,7 +149,8 @@ void RootUI::setup(DisplaySystem *display, std::vector<Readable> &readables,
         int code = pocket->get(&response);
         if (code != 200) {
             log_e("Pocket HTTP error: %d", code);
-            display->renderMaxBoxWithText(StringFormat("HTTP error: %d", code));
+            display->drawSingleLineOfText(StringFormat("HTTP error: %d", code), 0, 0);
+            display->updateDisplay();
             delay(2000);
             setCurrentScreen(*mainMenu);
             return;
@@ -155,7 +159,8 @@ void RootUI::setup(DisplaySystem *display, std::vector<Readable> &readables,
         JsonObject list = (*response)["list"].as<JsonObject>();
         if (list.size() <= 0) {
             log_w("No Pocket articles found");
-            display->renderMaxBoxWithText("No articles found");
+            display->drawSingleLineOfText("No articles found", 0, 0);
+            display->updateDisplay();
             delay(2000);
             setCurrentScreen(*mainMenu);
             delete response;
@@ -173,16 +178,19 @@ void RootUI::setup(DisplaySystem *display, std::vector<Readable> &readables,
             pocketMenu->addMenuItem(MenuItem(title, [this, pocketMenu, title, url, pocket, display,
                                                      &fileSystem, createReadableScreen]() {
                 log_d("Loading article %s (%s)", title, url);
-                display->renderMaxBoxWithText("Downloading...");
+                display->drawSingleLineOfText("Downloading...", 0, 0);
+                display->updateDisplay();
                 SpiRamJsonDocument *response;
                 auto code = pocket->text(url, &response);
                 if (code != 200) {
                     if (code == -1) {
                         log_e("Pocket HTTP Error: %d (Article too long?)", code);
-                        display->renderMaxBoxWithText("Error: Too long");
+                        display->drawSingleLineOfText("Error: Too long", 0, 0);
+                        display->updateDisplay();
                     } else {
                         log_e("Pocket HTTP Error: %d", code);
-                        display->renderMaxBoxWithText(StringFormat("Pocket Error: %d", code));
+                        display->drawSingleLineOfText(StringFormat("Pocket Error: %d", code), 0, 0);
+                        display->updateDisplay();
                     }
                     delay(2000);
                     setCurrentScreen(*pocketMenu);
@@ -194,7 +202,8 @@ void RootUI::setup(DisplaySystem *display, std::vector<Readable> &readables,
 
                 if (!fileSystem.createDir("/pocket")) {
                     log_e("Unable to create Pocket dir");
-                    display->renderMaxBoxWithText(StringFormat("FS error createDir"));
+                    display->drawSingleLineOfText(StringFormat("FS error createDir"), 0, 0);
+                    display->updateDisplay();
                     delay(2000);
                     setCurrentScreen(*pocketMenu);
                     return;
@@ -279,7 +288,8 @@ void RootUI::setup(DisplaySystem *display, std::vector<Readable> &readables,
         settingsMenu->addMenuItem(MenuItem("Turn off Demo Mode", [this, display]() {
             log_d("Exiting demo");
             prefs_.demoMode.set(0);
-            display->renderMaxBoxWithText("Demo mode off! Resetting...");
+            display->drawSingleLineOfText("Demo mode off! Resetting...", 0, 0);
+            display->updateDisplay();
             delay(2000);
             esp_restart();
         }));
@@ -287,7 +297,8 @@ void RootUI::setup(DisplaySystem *display, std::vector<Readable> &readables,
         settingsMenu->addMenuItem(MenuItem("Turn on Demo Mode", [this, display]() {
             log_d("Entering demo");
             prefs_.demoMode.set(1);
-            display->renderMaxBoxWithText("Demo mode on! Resetting...");
+            display->drawSingleLineOfText("Demo mode on! Resetting...", 0, 0);
+            display->updateDisplay();
             delay(2000);
             esp_restart();
         }));
@@ -427,7 +438,8 @@ void RootUI::setup(DisplaySystem *display, std::vector<Readable> &readables,
     settingsMenu->addMenuItem(MenuItem("Deep sleep", [display]() {
         log_w("Deep sleeping. Goodnight.");
 
-        display->renderMaxBoxWithText("Deep sleeping. Goodnight.");
+        display->drawSingleLineOfText("Deep sleeping. Goodnight.", 0, 0);
+        display->updateDisplay();
         delay(2000);
         esp_deep_sleep_start();
     }));
@@ -436,7 +448,8 @@ void RootUI::setup(DisplaySystem *display, std::vector<Readable> &readables,
         prefs_.clear();
         log_w("Preferences cleared. Rebooting...");
 
-        display->renderMaxBoxWithText("Preferences cleared! Resetting...");
+        display->drawSingleLineOfText("Preferences cleared! Resetting...", 0, 0);
+        display->updateDisplay();
         delay(2000);
         esp_restart();
     }));
@@ -473,7 +486,8 @@ void RootUI::setup(DisplaySystem *display, std::vector<Readable> &readables,
     settingsMenu->addMenuItem(MenuItem("Reset Statistics", [this, display]() {
         prefs_.wordCount.set(0);
         prefs_.totalReadingTimeSeconds.set(0);
-        display->renderMaxBoxWithText("Statistics reset.");
+        display->drawSingleLineOfText("Statistics reset.", 0, 0);
+        display->updateDisplay();
     }));
 
     settingsMenu->addMenuItem(MenuItem("Test Bitmap Screen", [this, settingsMenu]() {
@@ -491,14 +505,16 @@ void RootUI::setup(DisplaySystem *display, std::vector<Readable> &readables,
 #else
         std::string buildString = "No Build Info";
 #endif
-        display->renderMaxBoxWithText(buildString);
+        display->drawSingleLineOfText(buildString, 0, 0);
+        display->updateDisplay();
     }));
 
 #if USE_TURN_TOUCH_REMOTE
     settingsMenu->addMenuItem(MenuItem("Unpair TurnTouch", [this, display]() {
         prefs_.pairedTurnTouchAddress.remove();
         log_w("Unpaired TurnTouch. Rebooting...");
-        display->renderMaxBoxWithText("Unpaired TurnTouch! Resetting...");
+        display->drawSingleLineOfText("Unpaired TurnTouch! Resetting...", 0, 0);
+        display->updateDisplay();
         delay(2000);
         esp_restart();
     }));
@@ -594,7 +610,8 @@ void RootUI::loop(DisplaySystem &display, RemoteCommand command) {
 void RootUI::restoreFactoryDefaults() {
     nvs_flash_erase();
     log_w("NVS cleared. Rebooting...");
-    display_->renderMaxBoxWithText("NVS cleared! Resetting...");
+    display_->drawSingleLineOfText("NVS cleared! Resetting...", 0, 0);
+    display_->updateDisplay();
     delay(2000);
     esp_restart();
 }

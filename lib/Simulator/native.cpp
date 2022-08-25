@@ -49,6 +49,9 @@ bool isPngEqual(std::string filepath1, std::string filepath2) {
             SDL_GetRGB(pixel1, saveSurface1->format, &r1, &g1, &b1);
             SDL_GetRGB(pixel2, saveSurface2->format, &r2, &g2, &b2);
             if ((r1 != r2) || (g1 != g2) || (b1 != b2)) {
+                std::cerr << "Got here and something went wrong " << w << " " << h << "\n";
+                std::cerr << r1 << " " << g1 << " " << b1 << "\n";
+                std::cerr << r2 << " " << g2 << " " << b2 << "\n";
                 return false;
             }
         }
@@ -120,7 +123,7 @@ void sendCodeAndRender(RemoteCommand command, SDL_Renderer *renderer) {
 
 // Only press 'u' when you are on a page in a readable.
 void runBackwardsUnitTest(SDL_Window *window, SDL_Renderer *renderer) {
-    for (int i = 0; i < 50; i++) {
+    for (int i = 0; i < 500; i++) {
         saveScreenshotPng("current.png", window, renderer);
         sendCodeAndRender(RemoteCommand::CHANNEL_PLUS, renderer);
         saveScreenshotPng("next.png", window, renderer);
