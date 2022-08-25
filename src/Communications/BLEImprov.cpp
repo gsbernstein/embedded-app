@@ -73,6 +73,7 @@ void BLEImprov::setState(BLEImprovState state) {
         improvState = improv::STATE_PROVISIONED;
     }
     log_d("Switched improv state to %d (internal state = %d)", improvState, state);
+    SHOW_HEAP();
 #if !defined(DISABLE_IMPROV)
     this->currentStateCharacteristic_->setValue(improvState);
     this->currentStateCharacteristic_->notify();
@@ -121,6 +122,7 @@ void BLEImprov::loop() {
             this->doneConnecting();
         }
     } else if (this->state_ == STATE_READY_TO_CONNECT) {
+        SHOW_HEAP();
         improv::ImprovCommand command = this->lastCommand_;
         log_d("Attempting connection to: %s Password: %s (WiFi status = %d)", command.ssid.c_str(),
               command.password.c_str(), WiFi.status());
@@ -183,6 +185,7 @@ void BLEImprov::loop() {
             this->setState(STATE_SCAN_COMPLETE);
         }
     } else if (this->state_ == STATE_SCAN_COMPLETE) {
+        SHOW_HEAP();
         uint16_t maxRecords = WIFI_SCANNING_MAX_AP_RECORDS;
         wifi_ap_record_t apRecords[WIFI_SCANNING_MAX_AP_RECORDS];
         esp_wifi_scan_get_ap_records(&maxRecords, apRecords);

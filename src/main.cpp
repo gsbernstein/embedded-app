@@ -443,7 +443,7 @@ extern "C" void app_main(void) { // NOLINT(readability-identifier-naming)
 
 #if !SIMULATOR
     remoteQueue = xQueueCreate(10, sizeof(RemoteCommand));
-    xTaskCreatePinnedToCore(RadioTask, "Radio", 5000, nullptr, 1, nullptr, 0);
+    xTaskCreatePinnedToCore(RadioTask, "Radio", 10000, nullptr, 1, nullptr, 0);
     xTaskCreatePinnedToCore(UITask, "UI", 10000, nullptr, 10, &uiTaskHandle, 1);
     xTaskCreatePinnedToCore(StatsTask, "Stats", 5000, nullptr, 0, nullptr, 1);
 #else
