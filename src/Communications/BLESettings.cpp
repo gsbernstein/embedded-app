@@ -31,8 +31,9 @@ void BLESettings::writeWifiSSIDtoCharacteristic(BLECharacteristic *characteristi
         log_i("Connected to wifi, sharing ssid: %s %d/%d", key.c_str(), key.length(),
               sizeof(key.c_str()));
     } else {
-        characteristic->setValue("\0");
-        log_i("Not connected to wifi, could not share ssid");
+        key.append("=");
+        characteristic->setValue(key);
+        log_i("Not connected to wifi, share blank ssid: %s", key.c_str());
     }
 
     characteristic->notify();
