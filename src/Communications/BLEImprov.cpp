@@ -191,10 +191,11 @@ void BLEImprov::loop() {
         esp_wifi_scan_get_ap_records(&maxRecords, apRecords);
         uint16_t apCount = 0;
         esp_wifi_scan_get_ap_num(&apCount);
-        log_i("Wifi scan complete, %d APs found", apCount);
+        log_i("Wifi scan complete, %d/%d APs found", apCount, WIFI_SCANNING_MAX_AP_RECORDS);
 
         // Build a list of APs and send them as notifications to the gatt client
-        for (int i = 0; (i < apCount) && (i < maxRecords); i++) {
+        for (int i = 0; (i < apCount) && (i < WIFI_SCANNING_MAX_AP_RECORDS); i++) {
+            log_i("Wifi scan complete, %d APs found... %d", apCount, i);
             wifi_ap_record_t ap = apRecords[i];
             std::string ssid;
             for (unsigned char s : ap.ssid) {
@@ -213,6 +214,8 @@ void BLEImprov::loop() {
                       rssi.c_str(), auth.c_str());
                 this->rpcResultCharacteristic_->setValue(response.data(), response.size());
                 this->rpcResultCharacteristic_->notify();
+            } else {
+                log_d("Skipping empty AP scan result: %s", ap.ssid);
             }
         }
 
