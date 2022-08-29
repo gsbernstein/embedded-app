@@ -7,6 +7,7 @@
 #include "Communications/BLEManager.hpp"
 #include "Communications/PocketAPI.hpp"
 #include "Storage/PreferencesStore.hpp"
+#include "esp_wifi.h"
 #include "sindarin-debug.h"
 
 class BLESettings : BLECharacteristicProvider {
@@ -17,6 +18,9 @@ public:
 
 protected:
     PreferencesStore *prefs_;
+    BLECharacteristic *settingsCharacteristic_;
+    void writeWifiSSIDtoCharacteristic(BLECharacteristic *characteristic, std::string key);
+
     class CharacteristicCallbacks : public BLECharacteristicCallbacks {
     public:
         BLESettings *enclosed;
@@ -25,10 +29,33 @@ protected:
 
         void onWrite(BLECharacteristic *characteristic) override {
             std::string value = characteristic->getValue();
-            if (value.length() > 0) {
-                // TODO: Handle other types of settings values
-                enclosed->prefs_->pocketApiToken.set(value);
-                log_i("Got Pocket Access Token");
+            if (value.length() == 0) {
+                return;
+            }
+
+            // If value contains an '=' character, it's setting a value to a key.
+            // Otherwise, get and write the key's value back to the characteristic.
+            size_t equalsIndex = value.find('=');
+            if (equalsIndex == std::string::npos) {
+                if (value == "wifi-ssid") {
+                    this->enclosed->writeWifiSSIDtoCharacteristic(characteristic, value);
+                } else {
+                    log_w("GATT client asking to read unknown setting: %s", value.c_str());
+                }
+            } else {
+                std::string settingKey = value.substr(0, equalsIndex);
+                std::string settingValue = value.substr(equalsIndex + 1);
+                log_i("GATT client writing setting: %s=%s", settingKey.c_str(),
+                      settingValue.c_str());
+
+                if (settingKey == "pocket-token") {
+                    this->enclosed->prefs_->pocketApiToken.set(settingValue);
+                } else if (settingKey == "cloud-token") {
+                    this->enclosed->prefs_->cloudToken.set(settingValue);
+                } else {
+                    log_w("GATT client asking to write unknown setting: %s=%s", settingKey.c_str(),
+                          settingValue.c_str());
+                }
             }
         }
     };

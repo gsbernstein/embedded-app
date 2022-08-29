@@ -98,5 +98,9 @@
     "python.formatting.provider": "black",
     "[yaml]": {
         "editor.defaultFormatter": "redhat.vscode-yaml"
-    }
+    },
+    "search.exclude": {
+        "**/build/**": true,
+        "build": true,
+    },
 }
