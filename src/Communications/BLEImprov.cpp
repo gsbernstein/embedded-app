@@ -188,14 +188,7 @@ void BLEImprov::loop() {
                 improv::build_rpc_response(improv::GET_WIFI_NETWORKS, {ssid, rssi, auth});
 
             // Skip duplicate APs that have the same SSID, probably satellite routers/repeaters
-            bool ssidFound = false;
-            for (std::string &s : ssidList) {
-                if (s == ssid) {
-                    ssidFound = true;
-                    break;
-                }
-            }
-            if (!ssidFound) {
+            if (std::find(ssidList.begin(), ssidList.end(), ssid) == ssidList.end()) {
                 ssidList.push_back(ssid);
             } else {
                 log_d("Skipping duplicate AP scan result: %s %s %s", ssid.c_str(), rssi.c_str(),
