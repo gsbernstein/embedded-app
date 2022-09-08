@@ -3,6 +3,7 @@
 #include "BLEImprov.hpp"
 
 #include <ArduinoOTA.h>
+#include <set>
 
 #include "config.h"
 #include "esp_wifi.h"
@@ -249,6 +250,7 @@ void BLEImprov::loop() {
         // }
 
         uint16_t scanCount = WiFi.scanComplete();
+        std::vector<std::string> ssidList;
         for (int i = 0; i < scanCount; i++) {
             log_d("Wifi scan complete, %d APs found... %d", scanCount, i);
             std::string ssid = std::string(WiFi.SSID(i).c_str());
@@ -256,6 +258,21 @@ void BLEImprov::loop() {
             std::string auth = std::string(WiFi.encryptionType(i) == WIFI_AUTH_OPEN ? "NO" : "YES");
             std::vector<uint8_t> response =
                 improv::build_rpc_response(improv::GET_WIFI_NETWORKS, {ssid, rssi, auth});
+
+            // Skip duplicate APs that have the same SSID, probably satellite routers/repeaters
+            bool ssidFound = false;
+            for (std::string &s : ssidList) {
+                if (s == ssid) {
+                    ssidFound = true;
+                    break;
+                }
+            }
+            if (!ssidFound) {
+                ssidList.push_back(ssid);
+            } else {
+                log_d("Skipping duplicate AP scan result: %s", ssid.c_str());
+                continue;
+            }
 
             if (ssid.length() > 0) {
                 log_d("Sending latest AP scan result to client: %s %s %s", ssid.c_str(),
