@@ -270,7 +270,8 @@ void BLEImprov::loop() {
             if (!ssidFound) {
                 ssidList.push_back(ssid);
             } else {
-                log_d("Skipping duplicate AP scan result: %s", ssid.c_str());
+                log_d("Skipping duplicate AP scan result: %s %s %s", ssid.c_str(), rssi.c_str(),
+                      auth.c_str());
                 continue;
             }
 
