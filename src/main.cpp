@@ -23,8 +23,7 @@
 #endif
 
 #if EINKET013TT1
-DisplayEinkET013TT1 myDisplay(DISPLAY_CS_LEFT, DISPLAY_CS_RIGHT, DISPLAY_OEI, DISPLAY_RST,
-                              DISPLAY_BUSY);
+DisplayEinkET013TT1 myDisplay(DISPLAY_CS_LEFT, DISPLAY_CS_RIGHT, DISPLAY_RST);
 #endif
 
 #if SIMULATOR
@@ -226,6 +225,8 @@ extern "C" void app_main(void) { // NOLINT(readability-identifier-naming)
     auto partId = lightSensor.readPartId();
     auto manufacturerId = lightSensor.readManufacturerId();
     if (partId != 0xA0 || manufacturerId != 0x05) {
+        log_e("LTR329 ambient light sensor not found (partId: 0x%02X, manufacturerId: 0x%02X)",
+              partId, manufacturerId);
         bootErrors.push_back({.type = BootError::Type::AmbientLight});
     } else {
         log_i("LTR329 ambient light sensor found (partId: 0x%02X, manufacturerId: 0x%02X)", partId,
@@ -236,6 +237,7 @@ extern "C" void app_main(void) { // NOLINT(readability-identifier-naming)
 #if USE_MMC5603
     auto mmcProductId = magSensor.readProductId();
     if (mmcProductId != 0x10) {
+        log_e("MMC5603 magnetometer not found (productId: 0x%02X)", mmcProductId);
         bootErrors.push_back({.type = BootError::Type::Magnetometer});
     } else {
         log_i("MMC5603 magnetometer found (productId: 0x%02X)", mmcProductId);

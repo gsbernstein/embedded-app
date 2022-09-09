@@ -163,8 +163,8 @@ enum class ScreenSide {
 class EinkET013TT1 {
 public:
     // Constructor. Nothing interesting happens here until init()
-    EinkET013TT1(uint8_t csLeft, uint8_t csRight, uint8_t oei, uint8_t rst, uint8_t busy)
-        : csLeft_(csLeft), csRight_(csRight), oei_(oei), rst_(rst), busy_(busy){};
+    EinkET013TT1(uint8_t csLeft, uint8_t csRight, uint8_t rst)
+        : csLeft_(csLeft), csRight_(csRight), rst_(rst){};
     ~EinkET013TT1() = default;
 
     void init();
@@ -210,9 +210,7 @@ protected:
 
     uint8_t csLeft_;
     uint8_t csRight_;
-    uint8_t oei_;
     uint8_t rst_;
-    uint8_t busy_;
     // Keep track of both the vcom in the MV value (that is on the
     // sticker on the back of the display).
     // The 8-bit register value is calculated when it is set in the

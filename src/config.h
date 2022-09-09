@@ -106,19 +106,17 @@
 #define DISPLAY_CS_LEFT 5
 #define DISPLAY_CS_RIGHT 5
 #define DISPLAY_OEI 21
+#define DISPLAY_BUSY 33
 #else
+// Sol3
 #define DISPLAY_CS_LEFT 21
 #define DISPLAY_CS_RIGHT 11
-#define DISPLAY_OEI 8
+#define SYS_ON 5
 #endif
 #ifndef DISPLAY_RST
 #define DISPLAY_RST 9
 #endif
-#define DISPLAY_BUSY 33
 
-#ifndef DISABLE_BUSY
-#define DISABLE_BUSY 0
-#endif
 #if GILPICO_SINDARIN
 #define DISPLAY_SPI VSPI_HOST
 #define DISPLAY_MOSI VSPI_IOMUX_PIN_NUM_MOSI
