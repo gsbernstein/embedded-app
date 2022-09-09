@@ -10,6 +10,11 @@
 #include "esp_wifi.h"
 #include "sindarin-debug.h"
 
+// clang-format off
+#include "esp_efuse.h"
+#include "Storage/include/EFusesCustomTable.h"
+// clang-format on
+
 class BLESettings : BLECharacteristicProvider {
 
 public:
@@ -19,6 +24,7 @@ public:
 protected:
     PreferencesStore *prefs_;
     BLECharacteristic *settingsCharacteristic_;
+    void writeDeviceSerialToCharacteristic(BLECharacteristic *characteristic, std::string key);
     void writeWifiSSIDtoCharacteristic(BLECharacteristic *characteristic, std::string key);
 
     class CharacteristicCallbacks : public BLECharacteristicCallbacks {
@@ -39,6 +45,8 @@ protected:
             if (equalsIndex == std::string::npos) {
                 if (value == "wifi-ssid") {
                     this->enclosed->writeWifiSSIDtoCharacteristic(characteristic, value);
+                } else if (value == "device-serial") {
+                    this->enclosed->writeDeviceSerialToCharacteristic(characteristic, value);
                 } else {
                     log_w("GATT client asking to read unknown setting: %s", value.c_str());
                 }
