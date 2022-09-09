@@ -86,23 +86,29 @@ void EinkET013TT1::init() {
     log_d("Initializing EinkET013TT1");
     pinMode(csLeft_, OUTPUT);
     pinMode(csRight_, OUTPUT);
-    pinMode(oei_, OUTPUT);
     pinMode(rst_, OUTPUT);
-#if !DISABLE_BUSY
-    pinMode(busy_, INPUT);
+    // The eink-provided driver only kept OEI low always, so we have it optional here
+#ifdef DISPLAY_OEI
+    pinMode(DISPLAY_OEI, OUTPUT);
+#endif
+#ifdef DISPLAY_BUSY
+    pinMode(DISPLAY_BUSY, INPUT);
 #endif
 
     setCS(HIGH, ScreenSide::Both);
 
     digitalWrite(rst_, LOW);
     delay(5);
-    // TODO: OEI is always low, can we reclaim it? What is it useful for?
-    digitalWrite(oei_, LOW);
+#ifdef DISPLAY_OEI
+    digitalWrite(DISPLAY_OEI, LOW);
+#endif
     delay(5);
     digitalWrite(rst_, HIGH);
     delay(5);
 
     // Initialize the SPI bus
+    // TODO(john): It's maybe a little weird that some pins come in via config.h and some come in
+    // via the constructor
     spi_bus_config_t buscfg = {
         .mosi_io_num = DISPLAY_MOSI,
         .miso_io_num = DISPLAY_MISO,
@@ -607,11 +613,11 @@ inline void EinkET013TT1::waitForTimer() {
 }
 
 inline void EinkET013TT1::waitForNotBusy() {
-#if !DISABLE_BUSY
-    if (digitalRead(busy_) == HIGH) {
+#ifdef DISPLAY_BUSY
+    if (digitalRead(DISPLAY_BUSY) == HIGH) {
         busyWaits_ += 1;
     }
-    while (digitalRead(busy_) == HIGH) {
+    while (digitalRead(DISPLAY_BUSY) == HIGH) {
     }
 #endif
 }
