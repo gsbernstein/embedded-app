@@ -47,14 +47,20 @@ auto Ltr329Als::registerWriteByte(ltr329als01_reg_t regAddr, uint8_t data) -> es
 }
 
 auto Ltr329Als::readPartId() -> uint8_t {
-    uint8_t partId;
-    ESP_ERROR_CHECK(registerReadByte(LTR329ALS01_REG_PART_ID, &partId));
+    uint8_t partId = 0;
+    auto err = registerReadByte(LTR329ALS01_REG_PART_ID, &partId);
+    if (err != ESP_OK) {
+        ESP_LOGE("LTR329ALS", "Failed to read part ID (%s)", esp_err_to_name(err));
+    }
     return partId;
 }
 
 auto Ltr329Als::readManufacturerId() -> uint8_t {
-    uint8_t manufacturerId;
-    ESP_ERROR_CHECK(registerReadByte(LTR329ALS01_REG_MANUFAC_ID, &manufacturerId));
+    uint8_t manufacturerId = 0;
+    auto err = registerReadByte(LTR329ALS01_REG_MANUFAC_ID, &manufacturerId);
+    if (err != ESP_OK) {
+        ESP_LOGE("LTR329ALS", "Failed to read part ID (%s)", esp_err_to_name(err));
+    }
     return manufacturerId;
 }
 
