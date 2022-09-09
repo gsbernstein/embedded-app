@@ -110,6 +110,7 @@
 #define DISPLAY_CS_LEFT 21
 #define DISPLAY_CS_RIGHT 11
 #define DISPLAY_OEI 8
+#define SYS_ON 5
 #endif
 #ifndef DISPLAY_RST
 #define DISPLAY_RST 9
