@@ -11,7 +11,7 @@
 #include "sindarin-debug.h"
 
 // clang-format off
-#include "esp_efuse.h"
+#include <esp_efuse.h>
 #include "Storage/include/EFusesCustomTable.h"
 // clang-format on
 

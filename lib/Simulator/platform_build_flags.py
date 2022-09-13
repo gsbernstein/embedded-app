@@ -23,6 +23,7 @@ libs_dir = pathlib.Path(f"{script_dir}/stubs").resolve()
 libs = [
     "Arduino",
     "Adafruit_GFX",
+    "esp-idf",
 ]
 lib_includes = "\n".join([f"-I{libs_dir}/{lib}" for lib in libs])
 

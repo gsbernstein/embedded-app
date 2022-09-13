@@ -87,7 +87,7 @@ Issues that will be fixed automatically will be fixed by clang-tidy, warnings wi
 
 ## Simulator!
 
-The simulator compiles in <3s from a clean build, and even less on an incremental build. Thsi makes it super fast for us to iterate on anything that doesn't need the physical hardware.
+The simulator compiles in <3s from a clean build, and even less on an incremental build. This makes it super fast for us to iterate on anything that doesn't need the physical hardware.
 
 You'll need SDL2 & openssl for it to work: `brew install sdl2 sdl2_image openssl`. But then you can just hit the upload button in VSCode+PlatformIO and it should build and run! We haven't figured out how to get VSCode to properly debug the binary yet, but for now you can use the command line: `pio run -e simulator && lldb .pio/build/simulator/program`. Enjoy!
 
@@ -222,7 +222,7 @@ Note that when you run the above command, the resulting `include/EFusesCustomTab
 
 ```c
 // clang-format off
-#include "esp_efuse.h"
+#include <esp_efuse.h>
 #include "Storage/include/EFusesCustomTable.h"
 // clang-format on
 ```
