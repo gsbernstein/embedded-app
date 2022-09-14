@@ -192,7 +192,7 @@ def main():
     parser.add_argument(
         "-e",
         "--environment",
-        default="gilpico-idf",
+        default="sol3dev",
         help="the PlatformIO environment to use (as defined in platformio.ini)",
     )
     parser.add_argument(

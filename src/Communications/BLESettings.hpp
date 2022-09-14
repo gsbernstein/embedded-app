@@ -24,7 +24,8 @@ public:
 protected:
     PreferencesStore *prefs_;
     BLECharacteristic *settingsCharacteristic_;
-    void writeDeviceSerialToCharacteristic(BLECharacteristic *characteristic, std::string key);
+    void writeDeviceSerialToCharacteristic(BLECharacteristic *characteristic,
+                                           const std::string &key);
     void writeWifiSSIDtoCharacteristic(BLECharacteristic *characteristic, std::string key);
 
     class CharacteristicCallbacks : public BLECharacteristicCallbacks {

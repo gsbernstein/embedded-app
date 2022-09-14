@@ -10,9 +10,8 @@ public:
     std::string id;
     std::string name;
     std::string path;
-    uint32_t place, placePrev;
-    Readable(const char *id, const char *name, const char *path)
-        : id(id), name(name), path(path), place(0), placePrev(0){};
+    uint32_t place{0}, placePrev{0};
+    Readable(const char *id, const char *name, const char *path) : id(id), name(name), path(path){};
     Readable(const Readable &r) = default;
 };
 #endif
