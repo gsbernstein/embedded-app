@@ -4,10 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-// clang-format off
-#include <esp_efuse.h>
 #include "Storage/include/EFusesCustomTable.h"
-// clang-format on
 
 #include <assert.h>
 
