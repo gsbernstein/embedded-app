@@ -19,6 +19,21 @@ void BLESettings::configureCharacteristics(BLEService *service) {
     this->settingsCharacteristic_ = characteristic;
 };
 
+void BLESettings::writeDeviceSerialToCharacteristic(BLECharacteristic *characteristic,
+                                                    const std::string &key) {
+    uint8_t serialNumber[8] = {0};
+    ESP_ERROR_CHECK(esp_efuse_read_field_blob(ESP_EFUSE_USER_DATA_SERIAL_NUMBER, &serialNumber,
+                                              sizeof(serialNumber) * 8));
+    log_i("Read efuse serial number, sending over ble: %02x%02x%02x%02x%02x%02x%02x%02x",
+          serialNumber[0], serialNumber[1], serialNumber[2], serialNumber[3], serialNumber[4],
+          serialNumber[5], serialNumber[6], serialNumber[7]);
+
+    std::string value = key + "=" + std::string((char *)serialNumber, sizeof(serialNumber));
+
+    characteristic->setValue(value);
+    characteristic->notify();
+}
+
 void BLESettings::writeWifiSSIDtoCharacteristic(BLECharacteristic *characteristic,
                                                 std::string key) {
     wifi_ap_record_t info;
@@ -28,7 +43,7 @@ void BLESettings::writeWifiSSIDtoCharacteristic(BLECharacteristic *characteristi
         key.append(reinterpret_cast<char *>(info.ssid));
         characteristic->setValue(key);
 
-        log_i("Connected to wifi, sharing ssid: %s %d/%d", key.c_str(), key.length(),
+        log_i("Connected to wifi, sharing ssid: %s %zu/%zu", key.c_str(), key.length(),
               sizeof(key.c_str()));
     } else {
         key.append("=");

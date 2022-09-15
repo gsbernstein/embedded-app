@@ -87,7 +87,7 @@ Issues that will be fixed automatically will be fixed by clang-tidy, warnings wi
 
 ## Simulator!
 
-The simulator compiles in <3s from a clean build, and even less on an incremental build. Thsi makes it super fast for us to iterate on anything that doesn't need the physical hardware.
+The simulator compiles in <3s from a clean build, and even less on an incremental build. This makes it super fast for us to iterate on anything that doesn't need the physical hardware.
 
 You'll need SDL2 & openssl for it to work: `brew install sdl2 sdl2_image openssl`. But then you can just hit the upload button in VSCode+PlatformIO and it should build and run! We haven't figured out how to get VSCode to properly debug the binary yet, but for now you can use the command line: `pio run -e simulator && lldb .pio/build/simulator/program`. Enjoy!
 
@@ -196,3 +196,33 @@ xtensa-esp32s3-elf-gdb -x gdbinit build/embedded-app.elf
 A _very_ useful GDB command is `catch throw` which sets a breakpoint at any C++ exceptions. You might also try `break filename.cpp:55` to set a breakpoint at a file and line number. Then use `continue` (or `c`) to continue execution until the breakpoint is hit. [Here's a handy GDB cheat sheet](https://users.ece.utexas.edu/~adnan/gdb-refcard.pdf).
 
 TODO: It would be really nice to get this running in VSCode.
+
+## Flashing the device serial number at the factory
+
+Since every individual device has its own unique serial number that can't be changed by the user, we need to burn in the serial number before it arrives at their door. Note that `offset` is in bytes, not bits, and comes from `EFusesCustomTable.csv`.
+
+```bash
+echo -n -e \\x01\\x02\\x03\\x04\\x05\\x06\\x07\\x08 > serial_number.bin
+espefuse.py --debug --port /dev/cu.usbmodem31144101 --chip esp32s3 burn_block_data --offset 8 BLOCK_USR_DATA serial_number.bin
+```
+
+Verify the serial number was fused:
+
+```bash
+espefuse.py --port /dev/cu.usbmodem31144101 --chip esp32s3 dump
+```
+
+If you change the fuses custom table in `EFusesCustomTable.csv`, you'll need to update the `EFusesCustomTable.c` definitions:
+
+```bash
+idf.py efuse-custom-table
+```
+
+Note that when you run the above command, the resulting `include/EFusesCustomTable.h` does not have the correct includes. You must add them manually:
+
+```c
+// clang-format off
+#include <esp_efuse.h>
+#include "Storage/include/EFusesCustomTable.h"
+// clang-format on
+```

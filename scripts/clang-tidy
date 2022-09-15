@@ -113,7 +113,7 @@ def clang_options(idedata):
     cmd.extend(f"-D{define}" for define in idedata["defines"])
 
     # add library include directories using -isystem to suppress their errors
-    for directory in sorted(set(idedata["includes"]["build"])):
+    for directory in idedata["includes"]["build"]:
         # skip our own directories, we add those later
         if (
             not directory.startswith(f"{root_path}/")
@@ -192,7 +192,7 @@ def main():
     parser.add_argument(
         "-e",
         "--environment",
-        default="gilpico-idf",
+        default="sol3dev",
         help="the PlatformIO environment to use (as defined in platformio.ini)",
     )
     parser.add_argument(
@@ -341,6 +341,13 @@ def main():
             shutil.rmtree(tmpdir)
         os.kill(0, 9)
 
+    if failed_files and len(failed_files):
+        print(f"Failed files:")
+        for f in failed_files:
+            print(f"\t{f}")
+        print("\nExiting before applying fixes!\n")
+        sys.exit(len(failed_files))
+    
     if args.fix:
         print("Applying fixes ...")
         try:
