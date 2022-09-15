@@ -43,7 +43,7 @@ void BLESettings::writeWifiSSIDtoCharacteristic(BLECharacteristic *characteristi
         key.append(reinterpret_cast<char *>(info.ssid));
         characteristic->setValue(key);
 
-        log_i("Connected to wifi, sharing ssid: %s %lu/%lu", key.c_str(), key.length(),
+        log_i("Connected to wifi, sharing ssid: %s %lu/%zu", key.c_str(), key.length(),
               sizeof(key.c_str()));
     } else {
         key.append("=");
