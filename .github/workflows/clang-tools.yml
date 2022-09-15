@@ -20,17 +20,17 @@ jobs:
           python -m pip install --upgrade pip
           pip install colorama click platformio
 
-      - name: Install clang-tidy-12
-        run: sudo apt-get update && sudo apt install -y clang-tidy-12
+      - name: Install clang-tidy-14
+        run: sudo apt-get update && sudo apt install -y clang-tidy-14
 
       - name: Run clang-tidy
-        run: ./scripts/clang-tidy -w --fix --clang-tidy-path=/usr/bin/clang-tidy-12 --clang-apply-replacements-path=/usr/bin/clang-apply-replacements-12
+        run: ./scripts/clang-tidy -w --fix --clang-tidy-path=/usr/bin/clang-tidy-14 --clang-apply-replacements-path=/usr/bin/clang-apply-replacements-14
 
-      - uses: DoozyX/clang-format-lint-action@v0.12
+      - uses: DoozyX/clang-format-lint-action@v0.14
         with:
           source: "./src"
           extensions: "hpp,h,cpp,c"
-          clangFormatVersion: 12
+          clangFormatVersion: 14
           inplace: True
 
       - uses: EndBug/add-and-commit@v4
