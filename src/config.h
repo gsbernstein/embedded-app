@@ -73,12 +73,22 @@
 #if GILPICO_SINDARIN
 #define BAT_VOLTAGE_RIGHT 37
 #define BAT_VOLTAGE_LEFT 38
+#define BATT_CHANNEL_RIGHT ADC1_CHANNEL_1
+#define BATT_CHANNEL_LEFT ADC1_CHANNEL_2
+#define UPPER_DIVIDER 442
+#define LOWER_DIVIDER 160
+// Default referance voltage in mv
+#define DEFAULT_VREF 1100
 #else
 #define BAT_VOLTAGE_RIGHT 10
 #define BAT_VOLTAGE_LEFT 4
+#define BATT_CHANNEL_RIGHT ADC1_CHANNEL_9
+#define BATT_CHANNEL_LEFT ADC1_CHANNEL_3
+#define UPPER_DIVIDER 442
+#define LOWER_DIVIDER 160
+// Unused on ESP32-S3
+#define DEFAULT_VREF 0
 #endif
-#define BATT_CHANNEL_RIGHT ADC1_CHANNEL_1
-#define BATT_CHANNEL_LEFT ADC1_CHANNEL_2
 
 #if defined(REVSION) && REVISION < 7
 // On revisions prior to 7, the screen's power was tied to pin 26 along with the backlight, so
