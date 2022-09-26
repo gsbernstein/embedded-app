@@ -163,3 +163,7 @@
 #define I2C_MASTER_SDA_IO 1
 #define I2C_MASTER_FREQ_HZ 400000
 #endif
+
+#if !GILPICO_SINDARIN
+#define USB_CONNECTED_PIN 8
+#endif
