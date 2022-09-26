@@ -92,6 +92,10 @@ void InitializePlatform() {
     UlpStart();
 #endif
 #endif // EINKET013TT1
+
+#ifdef USB_CONNECTED_PIN
+    pinMode(USB_CONNECTED_PIN, INPUT);
+#endif
 }
 
 // Forked from TinyPico's GetBatteryVoltage() method:
@@ -156,5 +160,14 @@ void SetBacklight(int percent) {
 }
 
 auto GetRunTimeMs() -> uint32_t { return FreeRTOS::getTimeSinceStart(); }
+
+auto USBConnected() -> bool {
+#ifdef USB_CONNECTED_PIN
+    return digitalRead(USB_CONNECTED_PIN);
+#else
+    // No way to know if USB is connected on old boards. But it's probably not.
+    return false;
+#endif
+}
 
 #endif

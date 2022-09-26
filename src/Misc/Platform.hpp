@@ -13,3 +13,5 @@ void SetCpuSpeedMhz(int speedMhz);
 void SetBacklight(int percent);
 
 auto GetRunTimeMs() -> uint32_t;
+
+auto USBConnected() -> bool;
