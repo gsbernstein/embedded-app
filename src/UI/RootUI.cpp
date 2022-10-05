@@ -15,6 +15,7 @@
 #include "Renderers/Renderer.hpp"
 #include "UI/CalibrationScreen.hpp"
 #include "UI/DemoScreen.hpp"
+#include "UI/FirmwareUpdateScreen.hpp"
 #include "UI/LightingAdjustScreen.hpp"
 #include "UI/LineSpacingScreen.hpp"
 #include "UI/LoadingScreen.hpp"
@@ -536,6 +537,15 @@ void RootUI::setup(DisplaySystem *display, std::vector<Readable> &readables,
             debugMenu->setFirstLoad();
             setCurrentScreen(*debugMenu);
             delete demoScreen;
+        };
+    }));
+
+    debugMenu->addMenuItem(MenuItem("Firmware Update", [this, settingsMenu, display]() {
+        auto firmwareUpdateScreen = new FirmwareUpdateScreen(*display);
+        this->setCurrentScreen(*firmwareUpdateScreen);
+        firmwareUpdateScreen->backCallback = [this, firmwareUpdateScreen, settingsMenu]() {
+            setCurrentScreen(*settingsMenu);
+            delete firmwareUpdateScreen;
         };
     }));
 

@@ -1,6 +1,7 @@
 #ifndef RemoteInput_H
 #define RemoteInput_H
 
+#include <cstdint>
 #include <functional>
 #include <utility>
 
