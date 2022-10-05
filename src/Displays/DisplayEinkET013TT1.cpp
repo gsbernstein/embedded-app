@@ -33,7 +33,6 @@ auto DisplayEinkET013TT1::setup() -> bool {
     log_d("Initializing EPD driver");
     driver_.init();
     log_d("Clearing display");
-    driver_.clear(PANEL_CLEAR_WAVEFORM);
 
     setFullWindow();
 
@@ -136,7 +135,11 @@ void DisplayEinkET013TT1::updateDisplay(DisplaySystem::UpdateType updateType) {
         break;
     case FAST:
         if (!fullRefreshNext_) {
-            driver_.update(EINK_10_13C_WAVEFORM_AU4, gfxCanvas_.getBuffer());
+            if (getInversion()) {
+                driver_.update(BC_INVERTED_EINK_10_13C_WAVEFORM_AU4, gfxCanvas_.getBuffer());
+            } else {
+                driver_.update(BC_REGULAR_EINK_10_13C_WAVEFORM_AU4, gfxCanvas_.getBuffer());
+            }
         } else {
             driver_.update(FULL_BIG_ORIGINAL_WAVEFORM, gfxCanvas_.getBuffer());
             firstPartialTime_ = 0;

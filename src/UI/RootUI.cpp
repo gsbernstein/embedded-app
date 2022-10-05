@@ -643,6 +643,9 @@ void RootUI::setup(DisplaySystem *display, std::vector<Readable> &readables,
         if (it != readables.end()) {
             auto readableScreen = createReadableScreen(&(*it));
             this->display_->setFont(this->display_->style.getFontFamily().readableFont);
+#if !SIMULATOR
+            log_i("Setting Readable Screen on boot in %.0f ms", esp_timer_get_time() / 1000.0f);
+#endif
             this->setCurrentScreen(*readableScreen);
             log_i("Resuming readable from last session: %s", (*it).name.c_str());
         } else {
@@ -664,7 +667,11 @@ void RootUI::setup(DisplaySystem *display, std::vector<Readable> &readables,
         // calibration
         // screen
 
+#if !SIMULATOR
+        log_i("Setting Menu Screen on boot in %.0f ms", esp_timer_get_time() / 1000.0f);
+#endif
         setCurrentScreen(*mainMenu);
+
         /*
         auto calibrationScreen = new LogoScreen();
         calibrationScreen->backCallback = [this, calibrationScreen, display, mainMenu]() {
