@@ -66,7 +66,7 @@ void RootUI::setup(DisplaySystem *display, std::vector<Readable> &readables,
         auto stream = fileSystem.newRendererStream(readable->path.c_str());
         this->prefs_.lastReadableId.set(readable->id);
         auto *readableScreen =
-            new ReadableScreen(stream, *display, *readable, this->prefs_, this->power_);
+            new ReadableScreen(stream, *display, *readable, this->prefs_, this->power_, fileSystem);
         if (readable->id.rfind("pkt-", 0) == 0) {
             readableScreen->setLeftPopupButton("Delete", [readable, &fileSystem]() {
                 log_i("Deleting Pocket readable %s", readable->path.c_str());
