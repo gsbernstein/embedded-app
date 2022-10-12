@@ -4,8 +4,8 @@
 #endif
 
 #include "Communications/OTA.hpp"
+#include "Communications/SindarinAPI.hpp"
 #include "Communications/WiFi.hpp"
-#include "Contents/Readable.hpp"
 #include "Displays/AllDisplays.hpp"
 #include "Inputs/RemoteInput.hpp"
 #include "Misc/BootError.hpp"
@@ -13,6 +13,8 @@
 #include "Misc/Power.hpp"
 #include "Misc/StringUtil.hpp"
 #include "Misc/Style.hpp"
+#include "Models/Readable.hpp"
+#include "Storage/LocalStore.hpp"
 #include "Storage/PreferencesStore.hpp"
 #include "UI/RootUI.hpp"
 #include "config.h"
@@ -86,6 +88,8 @@ PosixFileSystem fileSystem;
 LittleFSFileSystem fileSystem;
 #endif
 
+LocalStore localStore(fileSystem, prefs);
+
 Power power(fileSystem, prefs);
 RootUI rootUi(prefs, power);
 
@@ -99,7 +103,7 @@ void RadioTask(void *parameter) {
         ttRemoteInput.connect();
 #endif
 
-#if USE_BLE_SERVER_REMOTE && !DISABLE_WIFI
+#if USE_BLE_SERVER_REMOTE
         bleWifi->loop();
 #endif
 
@@ -417,17 +421,6 @@ extern "C" void app_main(void) { // NOLINT(readability-identifier-naming)
     }
 #endif
 
-#if !DISABLE_WIFI
-    if (!ConnectWiFiIfCredentialsExist()) {
-        bootErrors.push_back({.type = BootError::Type::WiFi});
-    }
-
-#if ENABLE_OTA
-    // Disabling for now since WiFi coexistance is not working
-    // ota.setup();
-#endif
-#endif
-
 #if !DISABLE_POWER_MANAGEMENT
     pmConfig.max_freq_mhz = CPU_FREQ_MHZ_HIGH;
     pmConfig.min_freq_mhz = CPU_FREQ_MHZ_LOW;
@@ -449,18 +442,20 @@ extern "C" void app_main(void) { // NOLINT(readability-identifier-naming)
 #endif
 #endif
 
-    auto readables = new std::vector<Readable>();
     if (!fileSystem.begin()) {
         bootErrors.push_back({.type = BootError::Type::FileSystem});
     }
-    fileSystem.getReadables(readables);
-    fileSystem.getDownloadedPocketReadables(readables);
+
+    if (!localStore.begin()) {
+        bootErrors.push_back({.type = BootError::Type::LocalStore});
+    }
+    auto readables = localStore.readables();
 
     SHOW_HEAP();
 
     power.setup();
 
-    rootUi.setup(&myDisplay, *readables, fileSystem);
+    rootUi.setup(&myDisplay, localStore, fileSystem);
 
     SHOW_HEAP();
 
