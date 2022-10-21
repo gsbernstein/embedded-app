@@ -29,7 +29,6 @@ void BLESettings::writeDeviceSerialToCharacteristic(BLECharacteristic *character
 
 void BLESettings::blinkLedAfterConnect(BLECharacteristic *characteristic, const std::string &key) {
     for (int i = 0; i < 10; i++) {
-#if !SIMULATOR
         // Flash all the LEDs
         digitalWrite(RED_LED, LED_ON);
         vTaskDelay(200 / portTICK_PERIOD_MS);
@@ -41,7 +40,6 @@ void BLESettings::blinkLedAfterConnect(BLECharacteristic *characteristic, const 
         digitalWrite(BLUE_LED, LED_ON);
         vTaskDelay(200 / portTICK_PERIOD_MS);
         digitalWrite(BLUE_LED, LED_OFF);
-#endif
 #endif
     }
 

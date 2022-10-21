@@ -11,7 +11,6 @@ void AlignmentScreen::render(DisplaySystem &display) {
         return;
     }
 
-#if !SIMULATOR
     auto backlight = prefs_.backlight.get().value();
 
     // Alternate left and right on for setup.
@@ -29,7 +28,6 @@ void AlignmentScreen::render(DisplaySystem &display) {
         SetLeftBackLight(backlight);
     }
     // Don't need to set it after that as they are on.
-#endif
 
     display.fillCircle(display.xAbsolute(display.xAbsoluteCenter()),
                        display.yAbsolute(display.yAbsoluteCenter()), 5, display.fg);
@@ -59,11 +57,9 @@ void AlignmentScreen::processCommand(RemoteCommand command) {
     }
 
     if (currentScreen_ >= 2) {
-#if !SIMULATOR
         auto backlight = prefs_.backlight.get().value();
         SetRightBackLight(backlight);
         SetLeftBackLight(backlight);
-#endif
         backCallback();
     }
 }

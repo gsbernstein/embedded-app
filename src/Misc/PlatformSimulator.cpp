@@ -21,6 +21,15 @@ void SetBacklight(int percent) {
     log_d("Setting backlight to %d%%", percent);
 }
 
+void SetRightBackLight(int percent) {
+    log_d("Setting right backlight to %d%% (but ignoring b/c Simulator)", percent);
+}
+
+void SetLeftBackLight(int percent) {
+    myDisplay.setLighting(percent);
+    log_d("Setting left backlight to %d%%", percent);
+}
+
 auto GetRunTimeMs() -> uint32_t { return millis(); }
 
 auto USBConnected() -> bool { return true; }

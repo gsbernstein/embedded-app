@@ -6,6 +6,7 @@
 
 extern SDL_Renderer *renderer;
 extern SDL_Texture *deviceScreen;
+extern bool SDLNeedsRedraw;
 
 DisplaySDLSimulator::DisplaySDLSimulator()
     : gfxCanvas_(DisplaySDL_X_PIXELS, DisplaySDL_Y_PIXELS), DisplaySystem() {
@@ -41,6 +42,7 @@ void DisplaySDLSimulator::updateDisplay(DisplaySystem::UpdateType updateType) {
     SDL_RenderCopy(renderer, deviceScreen, NULL, NULL);
     SDL_RenderPresent(renderer);
     fillScreen(bg);
+    SDLNeedsRedraw = true;
 };
 
 #endif

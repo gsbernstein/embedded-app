@@ -7,7 +7,7 @@
 #include "Bitmaps/Menu_Blank_Bidirectional.hpp"
 #include "Misc/StringUtil.hpp"
 #include "Misc/Style.hpp"
-#if !SIMULATOR
+#if EINKET013TT1
 #include "Displays/DisplayEinkET013TT1.hpp"
 #endif
 
