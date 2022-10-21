@@ -237,6 +237,9 @@ auto mainLoop() -> bool {
 void emscriptemLoop() { mainLoop(); }
 
 void appMainTask(void *parameters) {
+#if __APPLE__
+    pthread_setname_np("app_main");
+#endif
     app_main();
     vTaskDelete(NULL);
 }
@@ -277,6 +280,9 @@ auto main(int argc, char *argv[]) -> int {
 
     // Start the FreeRTOS scheduler
     std::thread schedulerThread([]() {
+#if __APPLE__
+        pthread_setname_np("Scheduler");
+#endif
         // ESP-IDF does `app_main` in a task as well. We need to do this so we can use
         // FreeRTOS-timed stuff like vTaskDelay
         xTaskCreate(appMainTask, "app_main", 10000, NULL, 1, NULL);

@@ -99,6 +99,9 @@ QueueHandle_t remoteQueue = nullptr;
 
 // Resonsible for handling connecting / reconnecting to remotes
 void RadioTask(void *parameter) {
+#if __APPLE__
+    pthread_setname_np("Radio");
+#endif
     for (;;) {
 #if USE_TURN_TOUCH_REMOTE
         ttRemoteInput.connect();
@@ -128,6 +131,9 @@ esp_pm_config_esp32s3_t pmConfig;
 #endif
 
 void PowerTask(void *parameter) {
+#if __APPLE__
+    pthread_setname_np("Power");
+#endif
     for (;;) {
         // Run the power loop first so that we don't show a 0% battery reading
         power.loop();
@@ -160,6 +166,9 @@ void PowerTask(void *parameter) {
 }
 
 void StatsTask(void *parameter) {
+#if __APPLE__
+    pthread_setname_np("Stats");
+#endif
     for (;;) {
         // Spit out data on locks every 30s
         vTaskDelay(30000 / portTICK_PERIOD_MS);
@@ -173,6 +182,9 @@ void StatsTask(void *parameter) {
 TaskHandle_t uiTaskHandle = nullptr;
 
 void UITask(void *parameter) {
+#if __APPLE__
+    pthread_setname_np("UI");
+#endif
     RemoteCommand command = RemoteCommand::NONE;
     for (;;) {
         rootUi.loop(myDisplay, command);
