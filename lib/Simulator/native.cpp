@@ -8,6 +8,7 @@
 #include <freertos/queue.h>
 #include <freertos/task.h>
 #include <iostream>
+#include <signal.h>
 #include <thread>
 #include <unistd.h>
 
@@ -277,6 +278,14 @@ auto main(int argc, char *argv[]) -> int {
 #if defined(EMSCRIPTEN)
     emscripten_set_main_loop(emscriptemLoop, 0, 0);
 #else
+
+    // The FreeRTOS tick handler happens via SIGALRM, and it also kicks off preemptive task
+    // switching, which is not what we want on the main thread, since it's not a real FreeRTOS task.
+    // Just disable SIGALRM on this thread so that it only happens on FreeRTOS tasks.
+    sigset_t mask;
+    sigemptyset(&mask);
+    sigaddset(&mask, SIGALRM);
+    pthread_sigmask(SIG_BLOCK, &mask, NULL);
 
     // Start the FreeRTOS scheduler
     std::thread schedulerThread([]() {
