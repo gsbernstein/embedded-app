@@ -125,28 +125,29 @@ RemoteCommand ttCommand;
 #endif
 
 void sendCodeAndRender(RemoteCommand command, SDL_Renderer *renderer) {
-    xQueueSend(remoteQueue, (void *)&command, (TickType_t)0);
-    xTaskNotify(uiTaskHandle, 0, eNoAction);
+    xQueueSendFromISR(remoteQueue, (void *)&command, NULL);
+    xTaskNotifyFromISR(uiTaskHandle, 0, eNoAction, NULL);
 
     // Wait for the UI thread to do the rendering to be rendered
     // TODO: This should be a lock or something
     while (!SDLNeedsRedraw) {
-        usleep(1000);
+        usleep(10000);
     }
 
     SDL_SetRenderTarget(renderer, NULL);
     SDL_RenderCopy(renderer, deviceScreen, NULL, NULL);
-    drawOverlay(command);
     SDL_RenderPresent(renderer);
+
+    SDLNeedsRedraw = false;
 }
 
 // Only press 'u' when you are on a page in a readable.
 void runBackwardsUnitTest(SDL_Window *window, SDL_Renderer *renderer) {
     for (int i = 0; i < 500; i++) {
         saveScreenshotPng("current.png", window, renderer);
-        sendCodeAndRender(RemoteCommand::CHANNEL_PLUS, renderer);
+        sendCodeAndRender(RemoteCommand::ENTER, renderer);
         saveScreenshotPng("next.png", window, renderer);
-        sendCodeAndRender(RemoteCommand::CHANNEL_PLUS, renderer);
+        sendCodeAndRender(RemoteCommand::ENTER, renderer);
         saveScreenshotPng("nextnext.png", window, renderer);
         sendCodeAndRender(RemoteCommand::CHANNEL_MINUS, renderer);
         saveScreenshotPng("nextprev.png", window, renderer);
@@ -209,8 +210,8 @@ auto mainLoop() -> bool {
             }
 
             if (remoteCode != RemoteCommand::NONE) {
-                xQueueSend(remoteQueue, (void *)&remoteCode, (TickType_t)0);
-                xTaskNotify(uiTaskHandle, 0, eNoAction);
+                xQueueSendFromISR(remoteQueue, (void *)&remoteCode, NULL);
+                xTaskNotifyFromISR(uiTaskHandle, 0, eNoAction, NULL);
             }
         }
     }

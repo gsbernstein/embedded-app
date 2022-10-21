@@ -38,9 +38,6 @@ void DisplaySDLSimulator::updateDisplay(DisplaySystem::UpdateType updateType) {
             SDL_RenderDrawPoint(renderer, x, y);
         }
     }
-    SDL_SetRenderTarget(renderer, NULL);
-    SDL_RenderCopy(renderer, deviceScreen, NULL, NULL);
-    SDL_RenderPresent(renderer);
     fillScreen(bg);
     SDLNeedsRedraw = true;
 };
