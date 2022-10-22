@@ -56,13 +56,6 @@ void vApplicationMallocFailedHook(void) {
 static int nameSet = 0;
 
 void vApplicationIdleHook(void) {
-#if __APPLE__
-    if (!nameSet) {
-        pthread_setname_np("Idle");
-        nameSet = 1;
-    }
-#endif
-
     /* vApplicationIdleHook() will only be called if configUSE_IDLE_HOOK is set
      * to 1 in FreeRTOSConfig.h.  It will be called on each iteration of the idle
      * task.  It is essential that code added to this hook function never attempts
@@ -100,9 +93,6 @@ void vApplicationTickHook(void) {
 }
 
 void vApplicationDaemonTaskStartupHook(void) {
-#if __APPLE__
-    pthread_setname_np("Timer");
-#endif
     /* This function will be called once only, when the daemon task starts to
      * execute    (sometimes called the timer task).  This is useful if the
      * application includes initialisation code that would benefit from executing

@@ -454,8 +454,10 @@ static void * prvWaitForStart( void * pvParams )
     vPortEnableInterrupts();
 
 #if __APPLE__
-        // pthread_setname_np("FreeRTOS Task");
+    // Name the thread, for easier viewing in a debugger
+    pthread_setname_np(pcTaskGetName( NULL ));
 #endif
+
     /* Call the task's entry point. */
     pxThread->pxCode( pxThread->pvParams );
 

@@ -86,9 +86,6 @@ auto TTRemoteInput::connectToDevice(BLEAdvertisedDevice *device) -> bool {
 }
 
 void TTRemoteInput::connectTask(void *params) {
-#if __APPLE__
-    pthread_setname_np("TTRemoteInput");
-#endif
     auto *tThis = (TTRemoteInput *)params;
     if (tThis->connectToDevice(tThis->turntouchDevice_)) {
         // Output a metric log on the very first TT connection
