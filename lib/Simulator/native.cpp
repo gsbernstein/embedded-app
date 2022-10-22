@@ -219,8 +219,8 @@ auto mainLoop() -> bool {
 #if SIMULATOR_BLE
     if (ttCommand != RemoteCommand::NONE) {
         remoteCode = ttCommand;
-        xQueueSend(remoteQueue, (void *)&remoteCode, (TickType_t)0);
-        xTaskNotify(uiTaskHandle, 0, eNoAction);
+        xQueueSendFromISR(remoteQueue, (void *)&remoteCode, NULL);
+        xTaskNotifyFromISR(uiTaskHandle, 0, eNoAction, NULL);
         ttCommand = RemoteCommand::NONE;
     }
 #endif
