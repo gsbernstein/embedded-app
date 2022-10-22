@@ -4,18 +4,19 @@ BUILD_DIR             := ./build
 BUILD_DIR_ABS         := $(abspath $(BUILD_DIR))
 
 # Get the environment variable for FREERTOS_DIR
-FREERTOS_SUBDIR       := $(abspath $(FREERTOS_DIR))/FreeRTOS
+# FREERTOS_SUBDIR       := $(abspath $(FREERTOS_DIR))/FreeRTOS
+FREERTOS_SUBDIR := src
 
 KERNEL_DIR            := ${FREERTOS_SUBDIR}/Source
 
 INCLUDE_DIRS          := -I.
-INCLUDE_DIRS          += -I${KERNEL_DIR}/include
+INCLUDE_DIRS          += -I./freertos
 INCLUDE_DIRS          += -I${KERNEL_DIR}/portable/ThirdParty/GCC/Posix
 INCLUDE_DIRS          += -I${KERNEL_DIR}/portable/ThirdParty/GCC/Posix/utils
 INCLUDE_DIRS          += -I${FREERTOS_SUBDIR}/Demo/Common/include
 
-SOURCE_FILES          := libfreertos.c
-SOURCE_FILES          += run-time-stats-utils.c
+SOURCE_FILES          := src/libfreertos.c
+SOURCE_FILES          += src/run-time-stats-utils.c
 SOURCE_FILES          += $(wildcard ${FREERTOS_SUBDIR}/Source/*.c)
 # Memory manager (use malloc() / free() )
 SOURCE_FILES          += ${KERNEL_DIR}/portable/MemMang/heap_3.c
@@ -71,7 +72,7 @@ OBJ_FILES = $(SOURCE_FILES:%.c=$(BUILD_DIR)/%.o)
 
 DEP_FILE = $(OBJ_FILES:%.o=%.d)
 
-${BUILD_DIR}/%.o : %.c Makefile check-env
+${BUILD_DIR}/%.o : %.c Makefile
 	-mkdir -p $(@D)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -MMD -c $< -o $@
 
@@ -80,12 +81,7 @@ libfreertos.a : ${OBJ_FILES}
 
 lib : libfreertos.a
 
-.PHONY: clean check-env
+.PHONY: clean
 
 clean:
 	-rm -rf $(BUILD_DIR)
-
-check-env:
-ifndef FREERTOS_DIR
-	$(error FREERTOS_DIR is undefined)
-endif

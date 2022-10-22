@@ -24,7 +24,7 @@ libs = [
     "Arduino",
     "Adafruit_GFX",
     "esp-idf",
-    "freertos",
+    "freertos-posix",
 ]
 lib_includes = "\n".join([f"-I{libs_dir}/{lib}" for lib in libs])
 
@@ -121,12 +121,6 @@ else:
         "-DCPPHTTPLIB_OPENSSL_SUPPORT",
         openssl_flags,
         "-lssl -lcrypto",
-    ]
-
-    # FreeRTOS things
-    flags += [
-        f"-L{script_dir}/stubs/freertos",
-        "-lfreertos",
     ]
 
 print(" ".join(flags))
