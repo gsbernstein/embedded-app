@@ -4,19 +4,25 @@
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_image.h>
 #include <cstring>
+#include <freertos/FreeRTOS.h>
+#include <freertos/queue.h>
+#include <freertos/task.h>
 #include <iostream>
+#include <signal.h>
+#include <thread>
 #include <unistd.h>
+
+#include "sindarin-debug.h"
 
 #if SIMULATOR_BLE
 #include "ble.hpp"
 #endif
 #include "Inputs/RemoteInput.hpp"
 
-// It will be cleaner to adopt the FreeRTOS POSIX port since then we don't have to work around
-// the multitasking architecture
-// https://www.freertos.org/FreeRTOS-simulator-for-Linux.html
-extern void UIInnerLoop(RemoteCommand command); // NOLINT(readability-identifier-naming)
-extern "C" void app_main(void);                 // NOLINT(readability-identifier-naming)
+extern TaskHandle_t uiTaskHandle;
+extern QueueHandle_t remoteQueue;
+
+extern "C" void app_main(void); // NOLINT(readability-identifier-naming)
 
 const char *kGitHash = "SIMULATOR";
 
@@ -28,7 +34,7 @@ SDL_Window *window;
 SDL_Renderer *renderer;
 // Texture on which to draw the UI from the firmware
 SDL_Texture *deviceScreen;
-bool needsRedraw = true;
+bool SDLNeedsRedraw = true;
 
 // Variables related to drawing the overlay
 SDL_Surface *arrow;
@@ -119,20 +125,29 @@ RemoteCommand ttCommand;
 #endif
 
 void sendCodeAndRender(RemoteCommand command, SDL_Renderer *renderer) {
-    UIInnerLoop(command);
+    xQueueSendFromISR(remoteQueue, (void *)&command, NULL);
+    xTaskNotifyFromISR(uiTaskHandle, 0, eNoAction, NULL);
+
+    // Wait for the UI thread to do the rendering to be rendered
+    // TODO: This should be a lock or something
+    while (!SDLNeedsRedraw) {
+        usleep(10000);
+    }
+
     SDL_SetRenderTarget(renderer, NULL);
     SDL_RenderCopy(renderer, deviceScreen, NULL, NULL);
-    drawOverlay(command);
     SDL_RenderPresent(renderer);
+
+    SDLNeedsRedraw = false;
 }
 
 // Only press 'u' when you are on a page in a readable.
 void runBackwardsUnitTest(SDL_Window *window, SDL_Renderer *renderer) {
     for (int i = 0; i < 500; i++) {
         saveScreenshotPng("current.png", window, renderer);
-        sendCodeAndRender(RemoteCommand::CHANNEL_PLUS, renderer);
+        sendCodeAndRender(RemoteCommand::ENTER, renderer);
         saveScreenshotPng("next.png", window, renderer);
-        sendCodeAndRender(RemoteCommand::CHANNEL_PLUS, renderer);
+        sendCodeAndRender(RemoteCommand::ENTER, renderer);
         saveScreenshotPng("nextnext.png", window, renderer);
         sendCodeAndRender(RemoteCommand::CHANNEL_MINUS, renderer);
         saveScreenshotPng("nextprev.png", window, renderer);
@@ -195,8 +210,8 @@ auto mainLoop() -> bool {
             }
 
             if (remoteCode != RemoteCommand::NONE) {
-                UIInnerLoop(remoteCode);
-                needsRedraw = true;
+                xQueueSendFromISR(remoteQueue, (void *)&remoteCode, NULL);
+                xTaskNotifyFromISR(uiTaskHandle, 0, eNoAction, NULL);
             }
         }
     }
@@ -204,24 +219,29 @@ auto mainLoop() -> bool {
 #if SIMULATOR_BLE
     if (ttCommand != RemoteCommand::NONE) {
         remoteCode = ttCommand;
-        UIInnerLoop(ttCommand);
-        needsRedraw = true;
+        xQueueSendFromISR(remoteQueue, (void *)&remoteCode, NULL);
+        xTaskNotifyFromISR(uiTaskHandle, 0, eNoAction, NULL);
         ttCommand = RemoteCommand::NONE;
     }
 #endif
 
-    if (needsRedraw || arrowOpacity > 0) {
+    if (SDLNeedsRedraw || arrowOpacity > 0) {
         SDL_SetRenderTarget(renderer, NULL);
         SDL_RenderCopy(renderer, deviceScreen, NULL, NULL);
         drawOverlay(remoteCode);
         SDL_RenderPresent(renderer);
-        needsRedraw = false;
+        SDLNeedsRedraw = false;
     }
 
     return true;
 }
 
 void emscriptemLoop() { mainLoop(); }
+
+void appMainTask(void *parameters) {
+    app_main();
+    vTaskDelete(NULL);
+}
 
 auto main(int argc, char *argv[]) -> int {
 #if SIMULATOR_BLE
@@ -253,22 +273,42 @@ auto main(int argc, char *argv[]) -> int {
     arrowTexture = SDL_CreateTextureFromSurface(renderer, arrow);
     SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
 
-    app_main();
-    // Run the loop once to render the screen
-    UIInnerLoop(RemoteCommand::NONE);
-
 #if defined(EMSCRIPTEN)
     emscripten_set_main_loop(emscriptemLoop, 0, 0);
 #else
+
+    // The FreeRTOS tick handler happens via SIGALRM, and it also kicks off preemptive task
+    // switching, which is not what we want on the main thread, since it's not a real FreeRTOS task.
+    // Just disable SIGALRM on this thread so that it only happens on FreeRTOS tasks.
+    sigset_t mask;
+    sigemptyset(&mask);
+    sigaddset(&mask, SIGALRM);
+    pthread_sigmask(SIG_BLOCK, &mask, NULL);
+
+    // Start the FreeRTOS scheduler
+    std::thread schedulerThread([]() {
+        // ESP-IDF does `app_main` in a task as well. We need to do this so we can use
+        // FreeRTOS-timed stuff like vTaskDelay
+        xTaskCreate(appMainTask, "app_main", 10000, NULL, 1, NULL);
+        vTaskStartScheduler();
+        log_i("Scheduler thread done");
+    });
+
     while (mainLoop()) {
         // Limit to ~60fps so we don't murder battery unnecessarily
         usleep(1000000.0 / 60.0);
     }
+
+    log_i("Shutting down");
+
+    vTaskEndScheduler();
+    schedulerThread.join();
+
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
     SDL_Quit();
 
-    std::cout << "Quit" << std::endl;
+    log_i("Quit");
 #endif
 
     return 0;

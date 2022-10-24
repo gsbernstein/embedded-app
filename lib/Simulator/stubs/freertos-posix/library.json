@@ -1,0 +1,12 @@
+{
+    "build": {
+        "libArchive": true,
+		"flags": [
+			"-Ifreertos",
+			"-Isrc",
+			"-Isrc/Source/portable/ThirdParty/GCC/Posix",
+			"-Isrc/Source/portable/ThirdParty/GCC/Posix/utils",
+			"-Isrc/Demo/Common/include"
+		]
+    }
+}

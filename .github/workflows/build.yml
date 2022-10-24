@@ -20,7 +20,7 @@ jobs:
           - esp-wrover-kit-idf
           - sol3dev
           - simulator
-          - simulator-wasm
+          # - simulator-wasm
 
     steps:
       - name: Check out code

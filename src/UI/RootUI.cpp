@@ -1,5 +1,6 @@
 #include "RootUI.hpp"
 
+#include <esp_timer.h>
 #include <filesystem>
 #include <nvs_flash.h>
 
@@ -702,9 +703,7 @@ void RootUI::setup(DisplaySystem *display, LocalStore &localStore, FileSystem &f
         if (it != readables.end()) {
             auto readableScreen = createReadableScreen(*it);
             this->display_->setFont(this->display_->style.getFontFamily().readableFont);
-#if !SIMULATOR
             log_i("Setting Readable Screen on boot in %.0f ms", esp_timer_get_time() / 1000.0f);
-#endif
             this->setCurrentScreen(*readableScreen);
             log_i("Resuming readable %s at place %d", (*it).title.c_str(), (*it).place);
         } else {
@@ -726,9 +725,7 @@ void RootUI::setup(DisplaySystem *display, LocalStore &localStore, FileSystem &f
         // calibration
         // screen
 
-#if !SIMULATOR
         log_i("Setting Menu Screen on boot in %.0f ms", esp_timer_get_time() / 1000.0f);
-#endif
         setCurrentScreen(*mainMenu);
 
         /*

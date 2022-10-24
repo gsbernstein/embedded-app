@@ -3,6 +3,10 @@
 #include <esp_err.h>
 #endif
 
+#include <esp_system.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/queue.h>
+
 #include "Communications/OTA.hpp"
 #include "Communications/SindarinAPI.hpp"
 #include "Communications/WiFi.hpp"
@@ -29,9 +33,7 @@ DisplayEinkET013TT1 myDisplay(DISPLAY_CS_LEFT, DISPLAY_CS_RIGHT, DISPLAY_RST);
 #endif
 
 #if SIMULATOR
-#include <thread>
 DisplaySDLSimulator myDisplay;
-std::thread *simPowerThread;
 #endif
 
 #if WROVER_KIT
@@ -93,7 +95,6 @@ LocalStore localStore(fileSystem, prefs);
 Power power(fileSystem, prefs);
 RootUI rootUi(prefs, power);
 
-#if !SIMULATOR
 QueueHandle_t remoteQueue = nullptr;
 
 // Resonsible for handling connecting / reconnecting to remotes
@@ -115,9 +116,7 @@ void RadioTask(void *parameter) {
     }
     vTaskDelete(nullptr);
 }
-#endif
 
-#if !SIMULATOR
 TaskHandle_t powerTaskHandle = nullptr;
 
 #if !DISABLE_POWER_MANAGEMENT
@@ -160,39 +159,23 @@ void PowerTask(void *parameter) {
     vTaskDelete(nullptr);
 }
 
-#else // SIMULATOR
-
-void simStatsTask(int intervalMs) {
-    for (;;) {
-        power.loop();
-        std::this_thread::sleep_for(std::chrono::milliseconds(intervalMs));
-    }
-}
-
-#endif // !SIMULATOR
-
 void StatsTask(void *parameter) {
-#if !SIMULATOR
     for (;;) {
         // Spit out data on locks every 30s
         vTaskDelay(30000 / portTICK_PERIOD_MS);
-#if !DISABLE_POWER_MANAGEMENT
+#if !SIMULATOR && !DISABLE_POWER_MANAGEMENT
         esp_pm_dump_locks(stdout);
 #endif
     }
     vTaskDelete(nullptr);
-#endif
 }
 
-void UIInnerLoop(RemoteCommand command) { rootUi.loop(myDisplay, command); }
-
-#if !SIMULATOR
 TaskHandle_t uiTaskHandle = nullptr;
 
 void UITask(void *parameter) {
     RemoteCommand command = RemoteCommand::NONE;
     for (;;) {
-        UIInnerLoop(command);
+        rootUi.loop(myDisplay, command);
 
         // Peek if there's anything remaining in the queue
         if (xQueuePeek(remoteQueue, &command, 0) != pdTRUE) {
@@ -207,7 +190,6 @@ void UITask(void *parameter) {
     }
     vTaskDelete(nullptr);
 }
-#endif
 
 #if CONFIG_AUTOSTART_ARDUINO
 void loop() { vTaskDelay(portMAX_DELAY); };
@@ -236,7 +218,6 @@ extern "C" void app_main(void) { // NOLINT(readability-identifier-naming)
 
     log_i("SN: %s", GetSerialNumber().c_str());
 
-#if !SIMULATOR
     if (esp_reset_reason() == ESP_RST_POWERON) {
         // Flash all the LEDs
         digitalWrite(RED_LED, LED_ON);
@@ -251,7 +232,6 @@ extern "C" void app_main(void) { // NOLINT(readability-identifier-naming)
         digitalWrite(BLUE_LED, LED_OFF);
 #endif
     }
-#endif
 
 #if USE_LTR329
     auto partId = lightSensor.readPartId();
@@ -468,13 +448,9 @@ extern "C" void app_main(void) { // NOLINT(readability-identifier-naming)
     bootCount++;
     prefs.bootCount.set(bootCount);
 
-#if !SIMULATOR
     remoteQueue = xQueueCreate(10, sizeof(RemoteCommand));
     xTaskCreatePinnedToCore(RadioTask, "Radio", 10000, nullptr, 1, nullptr, 0);
-    xTaskCreatePinnedToCore(UITask, "UI", 10000, nullptr, 10, &uiTaskHandle, 1);
+    xTaskCreatePinnedToCore(UITask, "UI", 10000, nullptr, 7, &uiTaskHandle, 1);
     xTaskCreatePinnedToCore(StatsTask, "Stats", 5000, nullptr, 0, nullptr, 1);
     xTaskCreatePinnedToCore(PowerTask, "Power", 5000, nullptr, 0, &powerTaskHandle, 1);
-#else
-    simPowerThread = new std::thread(simStatsTask, 5000);
-#endif
 }

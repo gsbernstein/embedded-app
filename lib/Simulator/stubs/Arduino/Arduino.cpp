@@ -1,14 +1,15 @@
 #include "Arduino.h"
 
 #include <SDL2/SDL.h>
+#include <freertos/FreeRTOS.h>
 
-void delay(int delay_ms) { SDL_Delay(delay_ms); }
+extern "C" void vTaskDelay(const TickType_t xTicksToDelay);
+
+void delay(int delay_ms) { vTaskDelay(delay_ms / portTICK_PERIOD_MS); }
 
 void esp_deep_sleep_start(){};
 
 void esp_restart(){};
-
-void vPortYield() {}
 
 void digitalWrite(int, int){};
 

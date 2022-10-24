@@ -1,8 +1,7 @@
 #include "UI/DemoScreen.hpp"
 
-#if !SIMULATOR
+#include <freertos/FreeRTOS.h>
 #include <freertos/queue.h>
-#endif
 
 #include "Misc/Platform.hpp"
 #include "UI/Bitmaps/Logo.hpp"
@@ -16,10 +15,8 @@
 #include "UI/Fonts/Tahoma9pt7b.h"
 #include "sindarin-debug.h"
 
-#if !SIMULATOR
 extern QueueHandle_t remoteQueue;
 extern TaskHandle_t uiTaskHandle;
-#endif
 
 DemoScreen::DemoScreen(DisplaySystem &display, PreferencesStore &prefs, Power &power)
     : display_(display), renderer_(display), prefs_(prefs), power_(power) {}
@@ -96,7 +93,6 @@ void DemoScreen::render(DisplaySystem &display) {
 
     display.setFont(&TAHOMA_REGULAR_FONT6PT7B);
 
-#if !SIMULATOR
     auto backlight = prefs_.backlight.get().value();
 
     // Alternate left and right on for setup.
@@ -114,7 +110,6 @@ void DemoScreen::render(DisplaySystem &display) {
         SetLeftBackLight(backlight);
     }
     // Don't need to set it after that as they are on.
-#endif
 
     // NOLINTBEGIN(bugprone-branch-clone) - keeping these duplicative for symmetry
     switch (currentScreen_) {
@@ -827,12 +822,10 @@ void DemoScreen::render(DisplaySystem &display) {
     needsRerender = false;
 
     if (currentScreen_ == 3) {
-#if !SIMULATOR
         RemoteCommand toSend = RemoteCommand::NEXT;
         xQueueSend(remoteQueue, (void *)&(toSend), (TickType_t)0);
         // Notify the UI thread that we have a new command
         xTaskNotify(uiTaskHandle, 0, eNoAction);
-#endif
     }
 }
 
@@ -859,11 +852,9 @@ void DemoScreen::processCommand(RemoteCommand command) {
     }
 
     if (currentScreen_ >= NUM_DEMO_SCREENS) {
-#if !SIMULATOR
         auto backlight = prefs_.backlight.get().value();
         SetRightBackLight(backlight);
         SetLeftBackLight(backlight);
-#endif
         // When we're done with the onboarding screen, turn this mode off.
         prefs_.demoMode.set(0);
         backCallback();
