@@ -50,7 +50,7 @@ auto ReadableScreen::readOneBookmark(File &file, Bookmark &bookmark) -> bool {
 //
 void ReadableScreen::updateBookmarkStatus() {
     std::string bookmarkPath = "/bookmarks/";
-    bookmarkPath += readable_.id;
+    bookmarkPath += readable_.uuid;
     bookmarkPath += "-bookmark.txt";
 
     inBookmark_ = false;
@@ -79,7 +79,7 @@ void ReadableScreen::updateBookmarkStatus() {
 
 void ReadableScreen::writeOutBookmarkUpdate() {
     std::string bookmarkPath = "/bookmarks/";
-    bookmarkPath += readable_.id;
+    bookmarkPath += readable_.uuid;
     bookmarkPath += "-bookmark.txt";
 
     // create log directory in filesystem if it doesn't exist
@@ -252,14 +252,14 @@ void ReadableScreen::processCommand(RemoteCommand command) {
     switch (command) {
     case RemoteCommand::CHANNEL_MINUS:
         readable_.place = renderer_.getPreviousPlace();
-        prefs_.readablePlace.set(readable_.id.c_str(), readable_.place);
+        prefs_.readablePlace.set(readable_.uuid.c_str(), readable_.place);
         needsRerender = true;
         break;
 
     case RemoteCommand::ENTER:
         readable_.placePrev = readable_.place;
         readable_.place = newPlace_;
-        prefs_.readablePlace.set(readable_.id.c_str(), readable_.place);
+        prefs_.readablePlace.set(readable_.uuid.c_str(), readable_.place);
         needsRerender = true;
         break;
 

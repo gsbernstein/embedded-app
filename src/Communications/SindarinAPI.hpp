@@ -19,7 +19,7 @@ public:
     auto checkSync(const std::string &readablesSha, CheckSyncResponse *resp) -> int;
 
     // Get list of readables from the server
-    auto getReadablesUsersAll(std::vector<UserReadable> *userReadables) -> int;
+    auto getUserReadables(std::vector<UserReadable> *userReadables) -> int;
 
     auto downloadReadable(Readable &readable, FileSystem &fileSystem,
                           const std::function<void(int percentage)> &progressCallback) -> bool;

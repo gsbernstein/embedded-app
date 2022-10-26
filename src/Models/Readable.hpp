@@ -14,7 +14,7 @@ public:
     Readable() = default;
     ~Readable() override = default;
 
-    std::string id;
+    std::string uuid;
     std::string title;
     std::string dateCreated;
     std::string dateModified;
@@ -35,13 +35,13 @@ public:
     [[nodiscard]] auto remoteUrl() const -> std::string { return file().file; }
 
     auto fromJson(const JsonObject &j) -> bool override {
-        if (!j.containsKey("id") || !j.containsKey("title") || !j.containsKey("date_created") ||
+        if (!j.containsKey("uuid") || !j.containsKey("title") || !j.containsKey("date_created") ||
             !j.containsKey("date_modified") || !j.containsKey("authors") ||
             !j.containsKey("files")) {
             log_w("Failed to parse Readable %s", DumpJson(j).c_str());
             return false;
         }
-        id = j["id"].as<std::string>();
+        uuid = j["uuid"].as<std::string>();
         title = j["title"].as<std::string>();
         dateCreated = j["date_created"].as<std::string>();
         dateModified = j["date_modified"].as<std::string>();
