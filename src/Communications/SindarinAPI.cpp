@@ -61,7 +61,7 @@ auto SindarinAPI::checkSync(const std::string &readablesSha, CheckSyncResponse *
 
 auto SindarinAPI::getUserReadables(std::vector<UserReadable> *userReadables) -> int {
     HTTPClient httpClient;
-    if (!beginClient(httpClient, String("/user-readables/"))) {
+    if (!beginClient(httpClient, String("/user/readables/"))) {
         return -1;
     }
 
@@ -91,9 +91,9 @@ auto SindarinAPI::getUserReadables(std::vector<UserReadable> *userReadables) -> 
             userReadables->push_back(userReadable);
         }
 
-        log_i("GET /user-readables/ succeeded");
+        log_i("GET /user/readables/ succeeded");
     } else {
-        log_w("GET /user-readables/ request failed with code %d\n", httpCode);
+        log_w("GET /user/readables/ request failed with code %d\n", httpCode);
     }
     httpClient.end();
     return httpCode;
