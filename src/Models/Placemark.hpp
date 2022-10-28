@@ -10,7 +10,7 @@ public:
     ~Placemark() override = default;
 
     std::string uuid;
-    std::string readable_uuid;
+    std::string readableUuid;
     std::int16_t placemark;
     std::string dateCreated;
     std::string dateModified;
@@ -21,7 +21,7 @@ public:
             return false;
         }
         uuid = j["uuid"].as<std::string>();
-        readable_uuid = j["readable_uuid"].as<std::string>();
+        readableUuid = j["readable_uuid"].as<std::string>();
         placemark = j["placemark"].as<std::int16_t>();
         dateCreated = j["date_created"].as<std::string>();
         dateModified = j["date_modified"].as<std::string>();
