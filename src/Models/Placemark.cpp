@@ -1,4 +1,4 @@
-#include "UserReadable.hpp"
+#include "Placemark.hpp"
 
 // NOLINTNEXTLINE(readability-identifier-naming) - ArduinoJson requires this name
 auto convertToJson(const Placemark &src, JsonVariant dst) -> bool {
