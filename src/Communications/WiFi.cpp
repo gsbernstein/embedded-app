@@ -1,14 +1,10 @@
 #include "Communications/WiFi.hpp"
 
+#include <WiFi.h>
 #include <cstring>
 
-#include "sindarin-debug.h"
-
-#if !SIMULATOR
-
-#include <WiFi.h>
-
 #include "config.h"
+#include "sindarin-debug.h"
 
 auto GetWiFiCredentials(wifi_config_t *conf) -> bool {
     // Needs to be called before we can get the WiFi config
@@ -70,23 +66,19 @@ void DisconnectWifi() {
 
 auto NetworkConnected() -> bool { return WiFi.isConnected(); }
 
-#else
+auto ConnectWifi(int timeoutMs) -> bool {
+    auto startTime = millis();
+    if (!NetworkConnected()) {
+        ConnectWiFiIfCredentialsExist();
+        // TODO: Would be nice to make this not a polling loop
+        while (!NetworkConnected() && (millis() - startTime) < timeoutMs) {
+            delay(200);
+        }
+        if (!NetworkConnected()) {
+            DisconnectWifi();
+            return false;
+        }
+    }
 
-auto GetWiFiCredentials(wifi_config_t *conf) -> bool {
-    strncpy((char *)conf->sta.ssid, "ssid", sizeof(conf->sta.ssid));
-    strncpy((char *)conf->sta.password, "password", sizeof(conf->sta.password));
     return true;
 }
-
-auto HasWiFiCredentials() -> bool { return true; }
-
-auto ConnectWiFiIfCredentialsExist() -> bool {
-    log_i("Pretending to connect WiFi");
-    return true;
-}
-
-void DisconnectWifi() { log_i("Pretending to disconnect WiFi"); }
-
-auto NetworkConnected() -> bool { return true; }
-
-#endif
