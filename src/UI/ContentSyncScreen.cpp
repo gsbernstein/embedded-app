@@ -73,7 +73,7 @@ void ContentSyncScreen::render(DisplaySystem &display) {
     if (lastState_.state != state_.state) {
         display.updateDisplay(DisplaySystem::UpdateType::PARTIAL);
     } else {
-        display.updateDisplay(DisplaySystem::UpdateType::FAST);
+        display.updateDisplay(DisplaySystem::UpdateType::FAST_WITH_VCOM_NUDGE);
     }
 
     needsRerender = false;
