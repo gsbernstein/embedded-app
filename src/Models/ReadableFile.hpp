@@ -8,7 +8,7 @@ public:
     ReadableFile() = default;
     ~ReadableFile() override = default;
 
-    std::string id;
+    std::string uuid;
     std::string name;
     int size;
     std::string filetype;
@@ -18,13 +18,13 @@ public:
     std::string file;
 
     auto fromJson(const JsonObject &j) -> bool override {
-        if (!j.containsKey("id") || !j.containsKey("name") || !j.containsKey("size") ||
+        if (!j.containsKey("uuid") || !j.containsKey("name") || !j.containsKey("size") ||
             !j.containsKey("filetype") || !j.containsKey("uploaded_at") ||
             !j.containsKey("sha_hash")) {
             log_w("Failed to parse ReadableFile with JSON %s", DumpJson(j).c_str());
             return false;
         }
-        id = j["id"].as<std::string>();
+        uuid = j["uuid"].as<std::string>();
         name = j["name"].as<std::string>();
         size = j["size"];
         filetype = j["filetype"].as<std::string>();

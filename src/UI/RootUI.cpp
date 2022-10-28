@@ -69,7 +69,7 @@ void RootUI::setup(DisplaySystem *display, LocalStore &localStore, FileSystem &f
                                  &fileSystem](const Readable &readable) -> ReadableScreen * {
         // TODO: Would be better to not allocate / delete these all the time
         auto stream = fileSystem.newRendererStream(readable.localFilePath().c_str());
-        this->prefs_.lastReadableId.set(readable.id);
+        this->prefs_.lastReadableId.set(readable.uuid);
         auto *readableScreen =
             new ReadableScreen(stream, *display, readable, this->prefs_, this->power_, fileSystem);
 #if ENABLE_POCKET
@@ -127,7 +127,7 @@ void RootUI::setup(DisplaySystem *display, LocalStore &localStore, FileSystem &f
                 auto readableScreen = createReadableScreen(r);
                 this->setCurrentScreen(*readableScreen);
             }));
-            if (currentReadable.has_value() && currentReadable.value() == r.id) {
+            if (currentReadable.has_value() && currentReadable.value() == r.uuid) {
                 mainMenu->setCurrSelection(mainMenu->getNumItems() - 1);
             }
         }
@@ -652,8 +652,9 @@ void RootUI::setup(DisplaySystem *display, LocalStore &localStore, FileSystem &f
         // If we previously had a readable loaded, show that same readable by default
 
         auto it =
-            std::find_if(readables.begin(), readables.end(),
-                         [&currentReadable](const Readable &x) { return currentReadable == x.id; });
+            std::find_if(readables.begin(), readables.end(), [&currentReadable](const Readable &x) {
+                return currentReadable == x.uuid;
+            });
         if (it != readables.end()) {
             auto readableScreen = createReadableScreen(*it);
             this->display_->setFont(this->display_->style.getFontFamily().readableFont);
@@ -661,7 +662,7 @@ void RootUI::setup(DisplaySystem *display, LocalStore &localStore, FileSystem &f
             this->setCurrentScreen(*readableScreen);
             log_i("Resuming readable %s at place %d", (*it).title.c_str(), (*it).place);
         } else {
-            // Assume this readable has gone away
+            // Assume this readable has gone away (or changed from id to uuid)
             prefs_.lastReadableId.remove();
         }
     }

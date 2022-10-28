@@ -2,7 +2,7 @@
 
 // NOLINTNEXTLINE(readability-identifier-naming) - ArduinoJson requires this name
 auto convertToJson(const ReadableFile &src, JsonVariant dst) -> bool {
-    dst["id"] = src.id;
+    dst["uuid"] = src.uuid;
     dst["name"] = src.name;
     dst["size"] = src.size;
     dst["filetype"] = src.filetype;

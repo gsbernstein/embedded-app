@@ -12,6 +12,7 @@
 #include "sindarin-debug.h"
 
 #define SINDARIN_SERVER_URL "https://sol-cloud.fly.dev"
+// #define SINDARIN_SERVER_URL "https://sol-staging.fly.dev"
 
 SindarinAPI *SindarinAPI::instance = nullptr;
 
@@ -61,9 +62,9 @@ auto SindarinAPI::checkSync(const std::string &readablesSha, CheckSyncResponse *
     return httpCode;
 }
 
-auto SindarinAPI::getReadablesUsersAll(std::vector<UserReadable> *userReadables) -> int {
+auto SindarinAPI::getUserReadables(std::vector<UserReadable> *userReadables) -> int {
     HTTPClient httpClient;
-    if (!beginClient(httpClient, String("/readables/users/all/"))) {
+    if (!beginClient(httpClient, String("/user/readables/"))) {
         return -1;
     }
 
@@ -93,9 +94,9 @@ auto SindarinAPI::getReadablesUsersAll(std::vector<UserReadable> *userReadables)
             userReadables->push_back(userReadable);
         }
 
-        log_i("GET /readables/users/all succeeded");
+        log_i("GET /user/readables/ succeeded");
     } else {
-        log_w("GET /readables/users/all request failed with code %d\n", httpCode);
+        log_w("GET /user/readables/ request failed with code %d\n", httpCode);
     }
     httpClient.end();
     return httpCode;

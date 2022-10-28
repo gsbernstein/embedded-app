@@ -63,7 +63,7 @@ auto LocalStore::begin() -> bool {
 
 auto LocalStore::hasReadable(Readable &readable) -> bool {
     for (auto &r : readables_) {
-        if (r.id == readable.id && fileSystem.exists(r.localFilePath())) {
+        if (r.uuid == readable.uuid && fileSystem.exists(r.localFilePath())) {
             auto file = fileSystem.open(r.localFilePath());
             auto fileSize = file.size();
             file.close();
@@ -86,7 +86,7 @@ void LocalStore::addReadable(const Readable &readable) {
 
 void LocalStore::removeReadable(const Readable &readable) {
     for (auto it = readables_.begin(); it != readables_.end(); ++it) {
-        if (it->id == readable.id) {
+        if (it->uuid == readable.uuid) {
             readables_.erase(it);
             return;
         }
@@ -167,7 +167,7 @@ void LocalStore::syncFromRemote(
 
         log_i("Not synced, downloading readables");
         std::vector<UserReadable> userReadables;
-        httpCode = SindarinAPI::getInstance()->getReadablesUsersAll(&userReadables);
+        httpCode = SindarinAPI::getInstance()->getUserReadables(&userReadables);
         if (httpCode != HTTP_CODE_OK) {
             log_e("Failed to get readables (HTTP %d)", httpCode);
             progressCallback(ContentSyncState{.state = ContentSyncState::State::Failure,
@@ -197,8 +197,8 @@ void LocalStore::syncFromRemote(
         for (auto &readable : readables_) {
             if (!readable.localOnly && std::find_if(userReadables.begin(), userReadables.end(),
                                                     [&readable](const UserReadable &userReadable) {
-                                                        return userReadable.readable.id ==
-                                                               readable.id;
+                                                        return userReadable.readable.uuid ==
+                                                               readable.uuid;
                                                     }) == userReadables.end()) {
                 log_i("Will delete %s", readable.title.c_str());
                 readablesToDelete.push_back(readable);
