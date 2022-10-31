@@ -227,8 +227,8 @@ auto GetSerialNumber() -> std::string {
                                               sizeof(serialNumber) * 8));
 
     std::string serialString;
-    for (size_t i = 0; i < sizeof(serialNumber); i++) {
-        serialString += serialNumber[i];
+    for (unsigned char i : serialNumber) {
+        serialString += i;
     }
     return serialString;
 }
