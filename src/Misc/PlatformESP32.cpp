@@ -222,7 +222,7 @@ auto USBConnected() -> bool {
 
 auto GetSerialNumber() -> std::string {
     // Probably should read at boot to make logs more useful
-    uint8_t serialNumber[16] = {0};
+    uint8_t serialNumber[14] = {0};
     ESP_ERROR_CHECK(esp_efuse_read_field_blob(ESP_EFUSE_USER_DATA_SERIAL_NUMBER, &serialNumber,
                                               sizeof(serialNumber) * 8));
 

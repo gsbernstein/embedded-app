@@ -10,7 +10,7 @@ extern "C" {
 
 #include <esp_efuse.h>
 
-// md5_digest_table 3786ce5d77afabd0c910a0e1456ec23e
+// md5_digest_table d3f09607385401b808efed8b9e3c1553
 // This file was generated from the file EFusesCustomTable.csv. DO NOT CHANGE THIS FILE MANUALLY.
 // If you want to change some fields, you need to change EFusesCustomTable.csv file
 // then run `efuse_common_table` or `efuse_custom_table` command it will generate this file.
