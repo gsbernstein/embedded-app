@@ -14,6 +14,7 @@
 #pragma clang diagnostic ignored "-Wformat-security"
 
 auto WordCount(const char *str) -> int;
+auto BytesToHex(const uint8_t *data, size_t size) -> std::string;
 
 template <typename... ARGS>
 auto StringFormat(const char *format, ARGS... args) -> std::string {
@@ -35,3 +36,6 @@ auto StringFormat(const char *format, ARGS... args) -> std::string {
 }
 
 #pragma clang diagnostic pop
+
+// bytesToHex
+// https://stackoverflow.com/a/3386294

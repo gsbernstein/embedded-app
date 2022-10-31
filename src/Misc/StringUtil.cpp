@@ -15,3 +15,14 @@ auto WordCount(const char *str) -> int {
     }
     return wordCount;
 }
+
+auto BytesToHex(const uint8_t *data, size_t size) -> std::string {
+    std::string result;
+    for (size_t i = 0; i < size; ++i) {
+        char buf[3];
+        // NOLINTNEXTLINE(cert-err33-c) -- this is a safe format string
+        snprintf(buf, sizeof(buf), "%02x", data[i]);
+        result += buf;
+    }
+    return result;
+}
