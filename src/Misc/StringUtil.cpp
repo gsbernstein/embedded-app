@@ -16,6 +16,8 @@ auto WordCount(const char *str) -> int {
     return wordCount;
 }
 
+// bytesToHex
+// https://stackoverflow.com/a/3386294
 auto BytesToHex(const uint8_t *data, size_t size) -> std::string {
     std::string result;
     for (size_t i = 0; i < size; ++i) {

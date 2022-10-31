@@ -36,6 +36,3 @@ auto StringFormat(const char *format, ARGS... args) -> std::string {
 }
 
 #pragma clang diagnostic pop
-
-// bytesToHex
-// https://stackoverflow.com/a/3386294
