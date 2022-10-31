@@ -12,6 +12,7 @@
 #include "sindarin-debug.h"
 
 #define SINDARIN_SERVER_URL "https://sol-cloud.fly.dev"
+// #define SINDARIN_SERVER_URL "https://sol-staging.fly.dev"
 
 SindarinAPI *SindarinAPI::instance = nullptr;
 
@@ -31,7 +32,9 @@ auto SindarinAPI::beginClient(HTTPClient &httpClient, const String &urlPath) -> 
     httpClient.setUserAgent("Sindarin/" + String(kVersionString) + " (" + String(kGitHash) + ")");
     httpClient.setFollowRedirects(HTTPC_FORCE_FOLLOW_REDIRECTS);
     httpClient.addHeader("Content-Type", "application/json");
-    httpClient.addHeader("Authorization", "Tolkien " + String(accessToken_.c_str()));
+    if (!accessToken_.empty()) {
+        httpClient.addHeader("Authorization", "Tolkien " + String(accessToken_.c_str()));
+    }
     httpClient.setTimeout(30000);
     return true;
 }
@@ -48,8 +51,14 @@ auto SindarinAPI::checkSync(const std::string &readablesSha, CheckSyncResponse *
 
     int httpCode = httpClient.GET();
     auto string = httpClient.getString();
-    auto *respJson = new SpiRamJsonDocument(string.length());
-    ArduinoJson::deserializeJson(*respJson, string);
+    auto *respJson = new SpiRamJsonDocument(string.length() * 2);
+    auto error = ArduinoJson::deserializeJson(*respJson, string);
+    if (error.code() != DeserializationError::Ok) {
+        log_e("Failed to deserialize sync response: %s", error.c_str());
+        delete respJson;
+        httpClient.end();
+        return 0;
+    }
     resp->fromJson(respJson->as<JsonObject>());
     log_d("Synced: %d Message: %s, Firmware: %s", resp->synced, resp->message.c_str(),
           resp->firmware.url.c_str());
@@ -59,9 +68,9 @@ auto SindarinAPI::checkSync(const std::string &readablesSha, CheckSyncResponse *
     return httpCode;
 }
 
-auto SindarinAPI::getReadablesUsersAll(std::vector<UserReadable> *userReadables) -> int {
+auto SindarinAPI::getUserReadables(std::vector<UserReadable> *userReadables) -> int {
     HTTPClient httpClient;
-    if (!beginClient(httpClient, String("/readables/users/all/"))) {
+    if (!beginClient(httpClient, String("/user/readables/"))) {
         return -1;
     }
 
@@ -71,7 +80,14 @@ auto SindarinAPI::getReadablesUsersAll(std::vector<UserReadable> *userReadables)
         // The document seems to need more length than the JSON string itself, so to be safe we just
         // double the storage. We have plenty of SPIRAM anyways.
         auto *resp = new SpiRamJsonDocument(string.length() * 2);
-        ArduinoJson::deserializeJson(*resp, string);
+        auto error = ArduinoJson::deserializeJson(*resp, string);
+        if (error.code() != DeserializationError::Ok) {
+            log_e("Failed to deserialize user readables: %s", error.c_str());
+            delete resp;
+            httpClient.end();
+            return 0;
+        }
+
         log_d("%s", string.c_str());
 
         // TODO: Handle pagination
@@ -83,23 +99,22 @@ auto SindarinAPI::getReadablesUsersAll(std::vector<UserReadable> *userReadables)
         delete resp;
 
         for (JsonObject userReadableJson : userReadablesJson) {
-            UserReadable userReadable;
-            if (!userReadable.fromJson(userReadableJson)) {
+            userReadables->emplace_back();
+            if (!userReadables->back().fromJson(userReadableJson)) {
                 log_e("Failed to parse UserReadable");
                 continue;
             }
-            userReadables->push_back(userReadable);
         }
 
-        log_i("GET /readables/users/all succeeded");
+        log_i("GET /user/readables/ succeeded");
     } else {
-        log_w("GET /readables/users/all request failed with code %d\n", httpCode);
+        log_w("GET /user/readables/ request failed with code %d\n", httpCode);
     }
     httpClient.end();
     return httpCode;
 }
 
-auto SindarinAPI::downloadReadable(Readable &readable, FileSystem &fileSystem,
+auto SindarinAPI::downloadReadable(const Readable &readable, FileSystem &fileSystem,
                                    const std::function<void(int percentage)> &progressCallback)
     -> bool {
     HTTPClient httpClient;
@@ -110,11 +125,11 @@ auto SindarinAPI::downloadReadable(Readable &readable, FileSystem &fileSystem,
         log_e("HTTPClient::begin failed for URL %s", remoteUrl.c_str());
         return false;
     }
+    httpClient.setUserAgent("Sindarin/" + String(kVersionString) + " (" + String(kGitHash) + ")");
     httpClient.setFollowRedirects(HTTPC_FORCE_FOLLOW_REDIRECTS);
     httpClient.setTimeout(30000);
 
     auto localPath = readable.localFilePath();
-    unsigned long downloadStart = millis();
 
     log_d("Downloading readable from %s to %s", remoteUrl.c_str(), localPath.c_str());
     int httpCode = httpClient.GET();
@@ -133,14 +148,10 @@ auto SindarinAPI::downloadReadable(Readable &readable, FileSystem &fileSystem,
             log_d("Readable length is %d", len);
         }
 
-        // TODO: This is kinda weird to get the filesystem from localstore
-        success =
-            DownloadFile(httpClient, fileSystem, localPath.c_str(), len,
-                         [downloadStart, progressCallback](int bytesWritten, float percentage) {
-                             log_d("Downloaded %.1f%% (%.1f KB/s)", percentage,
-                                   bytesWritten / 1024.0f / ((millis() - downloadStart) / 1000.0f));
-                             progressCallback(percentage);
-                         });
+        success = DownloadFile(httpClient, fileSystem, localPath.c_str(), len,
+                               [progressCallback](int bytesWritten, float percentage) {
+                                   progressCallback(percentage);
+                               });
     }
     httpClient.end();
     return success;

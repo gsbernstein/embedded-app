@@ -1,4 +1,4 @@
-#if EINKET013TT1
+#if EINKET013TT1 && !SIMULATOR
 
 #include "EinkET013TT1.hpp"
 
@@ -190,80 +190,6 @@ void EinkET013TT1::clear(const EinkET013TT1Waveform &waveform) {
     update(waveform, previousBuffer_);
 }
 
-auto EinkET013TT1::checkWaveform(const EinkET013TT1Waveform &waveform) -> uint8_t {
-    // Track the number of whites and blacks in each transition type
-    // BW and WB are combined as they should be counted together for
-    // the symmetry calculation
-    uint32_t numBlacks[3] = {0, 0, 0};
-    uint32_t numWhites[3] = {0, 0, 0};
-    uint8_t returnVal = WAVEFORM_OK;
-
-    for (int frameIndex = 0; frameIndex < waveform.frameCount; frameIndex++) {
-        auto frame = waveform.frames[frameIndex];
-        switch (frame.bb) {
-        case BLACK:
-            numBlacks[0]++;
-            break;
-        case WHITE:
-            numWhites[0]++;
-            break;
-        default:
-            break;
-        }
-
-        switch (frame.bw) {
-        case BLACK:
-            numBlacks[1]++;
-            break;
-        case WHITE:
-            numWhites[1]++;
-            break;
-        default:
-            break;
-        }
-
-        switch (frame.wb) {
-        case BLACK:
-            numBlacks[1]++;
-            break;
-        case WHITE:
-            numWhites[1]++;
-            break;
-        default:
-            break;
-        }
-
-        switch (frame.ww) {
-        case BLACK:
-            numBlacks[2]++;
-            break;
-        case WHITE:
-            numWhites[2]++;
-            break;
-        default:
-            break;
-        }
-    }
-
-    if (numBlacks[0] != numWhites[0]) {
-        returnVal |= WAVEFORM_BB_FAIL;
-    }
-
-    if (numBlacks[1] != numWhites[1]) {
-        returnVal |= WAVEFORM_BWWB_FAIL;
-    }
-
-    if (numBlacks[2] != numWhites[2]) {
-        returnVal |= WAVEFORM_WW_FAIL;
-    }
-
-    if (returnVal != 0) {
-        log_d("Waveform Check Failed on %s, failure code %d!", waveform.name, returnVal);
-    }
-
-    return returnVal;
-}
-
 inline void EinkET013TT1::setCS(bool value, ScreenSide screen) {
     if (screen == ScreenSide::Left) {
         digitalWrite(csLeft_, value);
@@ -296,7 +222,7 @@ void EinkET013TT1::update(const EinkET013TT1Waveform &waveform, const uint8_t *b
     auto *gateSelectHigh = (uint16_t *)&(scanLine[42]);
     auto *gateBlockHigh = (uint32_t *)&(scanLine[44]);
 
-    log_d("Updating dispay with waveform \"%s\"", waveform.name);
+    log_d("Updating display with waveform \"%s\"", waveform.name);
 
     powerOn();
 
@@ -416,13 +342,14 @@ void EinkET013TT1::update(const EinkET013TT1Waveform &waveform, const uint8_t *b
             // Perhaps this means latch everything into place?
             writeRegister(MYSTERY_SETTING_1, 0x10);
         }
-        taskYIELD();
 
         // Send clear packet
         writeRegister(WRITE_GATE_SOURCE_DATA, CLEAR_PACKET, sizeof(CLEAR_PACKET));
         waitForTimer();
         waitForNotBusy();
         writeRegister(MYSTERY_SETTING_1, 0x10);
+
+        taskYIELD();
     }
 
     PROFILE_END(sendFrames);

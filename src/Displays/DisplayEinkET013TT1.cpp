@@ -40,13 +40,13 @@ auto DisplayEinkET013TT1::setup() -> bool {
 
     log_d("Checking Waveforms");
 
-    uint8_t retVal = driver_.checkWaveform(FULL_BIG_ORIGINAL_WAVEFORM);
+    uint8_t retVal = FULL_BIG_ORIGINAL_WAVEFORM.check();
 
     if (retVal != WAVEFORM_OK) {
         log_d("Caught a Waveform Error %d", retVal);
     }
 
-    retVal = driver_.checkWaveform(PARTIAL_REFRESH_WAVEFORM_REGULAR);
+    retVal = PARTIAL_REFRESH_WAVEFORM_REGULAR.check();
 
     if (retVal != WAVEFORM_OK) {
         log_d("Caught a Waveform Error %d", retVal);
@@ -142,6 +142,23 @@ void DisplayEinkET013TT1::updateDisplay(DisplaySystem::UpdateType updateType) {
             } else {
                 driver_.update(BC_REGULAR_EINK_10_13C_WAVEFORM_AU4, gfxCanvas_.getBuffer());
             }
+        } else {
+            driver_.update(FULL_BIG_ORIGINAL_WAVEFORM, gfxCanvas_.getBuffer());
+            firstPartialTime_ = 0;
+            numPartials_ = 0;
+        }
+        break;
+    case FAST_WITH_VCOM_NUDGE:
+        if (!fullRefreshNext_) {
+            int oldVcom = getDriver()->getVcom();
+            if (getInversion()) {
+                getDriver()->setVcom(oldVcom - 2000);
+                driver_.update(BC_INVERTED_EINK_10_13C_WAVEFORM_AU4, gfxCanvas_.getBuffer());
+            } else {
+                getDriver()->setVcom(oldVcom + 2000);
+                driver_.update(BC_REGULAR_EINK_10_13C_WAVEFORM_AU4, gfxCanvas_.getBuffer());
+            }
+            getDriver()->setVcom(oldVcom);
         } else {
             driver_.update(FULL_BIG_ORIGINAL_WAVEFORM, gfxCanvas_.getBuffer());
             firstPartialTime_ = 0;

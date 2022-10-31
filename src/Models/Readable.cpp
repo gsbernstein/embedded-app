@@ -2,7 +2,7 @@
 
 // NOLINTNEXTLINE(readability-identifier-naming) - ArduinoJson requires this name
 auto convertToJson(const Readable &src, JsonVariant dst) -> bool {
-    dst["id"] = src.id;
+    dst["uuid"] = src.uuid;
     dst["title"] = src.title;
     dst["date_created"] = src.dateCreated;
     dst["date_modified"] = src.dateModified;
