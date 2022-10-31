@@ -9,7 +9,6 @@
 #include <assert.h>
 
 #include "esp_efuse.h"
-#include "sdkconfig.h"
 
 // md5_digest_table 22e201b862a59b61f6f50bfcda072ab2
 // This file was generated from the file EFusesCustomTable.csv. DO NOT CHANGE THIS FILE MANUALLY.
