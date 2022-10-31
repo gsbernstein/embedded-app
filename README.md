@@ -239,7 +239,8 @@ Run the `openocd -f board/esp32s3-builtin.cfg` command in the terminal, as above
 Since every individual device has its own unique serial number that can't be changed by the user, we need to burn in the serial number before it arrives at their door. Note that `offset` is in bytes, not bits, and comes from `EFusesCustomTable.csv`.
 
 ```bash
-echo -n -e \\x01\\x02\\x03\\x04\\x05\\x06\\x07\\x08 > serial_number.bin
+# 
+echo -n SOL01224400001 > serial_number.bin
 espefuse.py --debug --port /dev/cu.usbmodem* --chip esp32s3 burn_block_data --offset 8 BLOCK_USR_DATA serial_number.bin
 ```
 

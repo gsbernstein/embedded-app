@@ -23,6 +23,7 @@ void BLESettings::configureCharacteristics(BLEService *service) {
 void BLESettings::writeDeviceSerialToCharacteristic(BLECharacteristic *characteristic,
                                                     const std::string &key) {
     std::string value = key + "=" + GetSerialNumber();
+    log_i("GATT client reading serial number: %s", value.c_str());
     characteristic->setValue(value);
     characteristic->notify();
 }

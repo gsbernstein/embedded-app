@@ -222,13 +222,11 @@ auto USBConnected() -> bool {
 
 auto GetSerialNumber() -> std::string {
     // Probably should read at boot to make logs more useful
-    uint8_t serialNumber[8] = {0};
+    uint8_t serialNumber[14] = {0};
     ESP_ERROR_CHECK(esp_efuse_read_field_blob(ESP_EFUSE_USER_DATA_SERIAL_NUMBER, &serialNumber,
                                               sizeof(serialNumber) * 8));
-    auto serialNumberHexString = StringFormat(
-        "%02x%02x%02x%02x%02x%02x%02x%02x", serialNumber[0], serialNumber[1], serialNumber[2],
-        serialNumber[3], serialNumber[4], serialNumber[5], serialNumber[6], serialNumber[7]);
-    return serialNumberHexString;
+
+    return std::string((const char *)serialNumber, sizeof(serialNumber));
 }
 
 #endif

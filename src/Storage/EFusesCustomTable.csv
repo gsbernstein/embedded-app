@@ -12,4 +12,4 @@
 
 
 USER_DATA.MODULE_VERSION,                   EFUSE_BLK3,    56,  4,    Module version
-USER_DATA.SERIAL_NUMBER,                    EFUSE_BLK3,    64,  64,   Serial number
+USER_DATA.SERIAL_NUMBER,                    EFUSE_BLK3,    64,  112,   Serial number
