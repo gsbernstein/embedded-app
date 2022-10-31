@@ -226,8 +226,10 @@ auto GetSerialNumber() -> std::string {
     ESP_ERROR_CHECK(esp_efuse_read_field_blob(ESP_EFUSE_USER_DATA_SERIAL_NUMBER, &serialNumber,
                                               sizeof(serialNumber) * 8));
 
-    // Store the hex digits of serialNumber in a std::string
-    std::string serialString = BytesToHex(serialNumber, sizeof(serialNumber));
+    std::string serialString;
+    for (size_t i = 0; i < sizeof(serialNumber); i++) {
+        serialString += serialNumber[i];
+    }
     return serialString;
 }
 
