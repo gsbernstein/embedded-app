@@ -28,6 +28,23 @@ void BLESettings::writeDeviceSerialToCharacteristic(BLECharacteristic *character
     characteristic->notify();
 }
 
+void BLESettings::writePageTurnerBuildToCharacteristic(BLECharacteristic *characteristic,
+                                                       const std::string &key) {
+    std::string value = key + "=" + std::to_string(this->prefs_->lastPageTurnerBuild.get().value());
+    log_i("GATT client reading page turner build: %s", value.c_str());
+    characteristic->setValue(value);
+    characteristic->notify();
+}
+
+void BLESettings::writePageTurnerBatteryToCharacteristic(BLECharacteristic *characteristic,
+                                                         const std::string &key) {
+    std::string value =
+        key + "=" + std::to_string(this->prefs_->lastPageTurnerBattery.get().value());
+    log_i("GATT client reading page turner battery: %s", value.c_str());
+    characteristic->setValue(value);
+    characteristic->notify();
+}
+
 void BLESettings::blinkLedAfterConnect(BLECharacteristic *characteristic, const std::string &key) {
     for (int i = 0; i < 10; i++) {
         // Flash all the LEDs

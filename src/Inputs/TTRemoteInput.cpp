@@ -56,6 +56,8 @@ auto TTRemoteInput::connectToDevice(BLEAdvertisedDevice *device) -> bool {
         buttonCharacteristic->subscribe(true, callback);
     }
 
+    // Read the battery level from the battery service
+    // TODO: Pull the batteryService and disService out into a background task
     BLERemoteService *batteryService = client_->getService(TURNTOUCH_BATTERY_SVC_ID);
     if (batteryService == nullptr) {
         log_e("Failed to find TurnTouch battery service ID.");
@@ -72,6 +74,27 @@ auto TTRemoteInput::connectToDevice(BLEAdvertisedDevice *device) -> bool {
     uint8_t battery = 0;
     if (batteryCharacteristic->canRead()) {
         battery = batteryCharacteristic->readValue<uint8_t>();
+        prefs_.lastPageTurnerBattery.set(battery);
+    }
+
+    // Read the build version from the Device Information Service (DIS)
+    BLERemoteService *disService = client_->getService(TURNTOUCH_DIS_SVC_ID);
+    if (disService == nullptr) {
+        log_w("Failed to find TurnTouch Device Information Service ID.");
+        // return false; // Don't exit if not found, simply means an older remote
+    } else {
+        BLERemoteCharacteristic *buildCharacteristic =
+            disService->getCharacteristic(TURNTOUCH_BUILD_CHR_ID);
+        if (buildCharacteristic == nullptr) {
+            log_e("Failed to find TurnTouch build characteristic UUID.");
+            return false;
+        }
+
+        uint8_t build = 0;
+        if (buildCharacteristic->canRead()) {
+            build = buildCharacteristic->readValue<uint8_t>();
+            prefs_.lastPageTurnerBuild.set(build);
+        }
     }
 
     // Save the id of this turn touch for future connection attempts, but only
