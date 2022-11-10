@@ -565,7 +565,7 @@ void RootUI::setup(DisplaySystem *display, LocalStore &localStore, FileSystem &f
         };
     }));
 
-    debugMenu->addMenuItem(MenuItem("Battery and Temperature", [this, display, debugMenu]() {
+    debugMenu->addMenuItem(MenuItem("Batteries and Temperature", [this, display, debugMenu]() {
         uint16_t width = 0, height = 0;
         display->setFont(display->style.getFontFamily().readableFont);
         auto batteryStatus = this->power_.getBatteryLifeString();
@@ -585,6 +585,16 @@ void RootUI::setup(DisplaySystem *display, LocalStore &localStore, FileSystem &f
         display->drawSingleLineOfText(batteryStatus.c_str(),
                                       display->xAbsolute(display->xAbsoluteCenter() - width / 2),
                                       display->yAbsolute(display->yAbsoluteCenter() - height / 2));
+
+        auto ptBatteryPct = this->prefs_.lastPageTurnerBattery.get().value_or(0);
+        auto ptBuild = this->prefs_.lastPageTurnerBuild.get().value_or("Unknown build");
+        auto ptBatteryStatus =
+            StringFormat("Page Turner: %d%% (%s)", ptBatteryPct, ptBuild.c_str());
+        width = display->getTextWidth(ptBatteryStatus.c_str());
+        height = display->getTextHeight(ptBatteryStatus.c_str());
+        display->drawSingleLineOfText(ptBatteryStatus.c_str(),
+                                      display->xAbsolute(display->xAbsoluteCenter() - width / 2),
+                                      display->yAbsolute(display->yAbsoluteCenter() + height / 2));
 
         display->updateDisplay();
         debugMenu->setFirstLoad();
