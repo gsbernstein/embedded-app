@@ -39,7 +39,6 @@ auto TTRemoteInput::connectToDevice(BLEAdvertisedDevice *device) -> bool {
         log_e("Failed to find TurnTouch button characteristic UUID.");
         return false;
     }
-    log_d("BLE characteristic found");
 
     // Read the value of the characteristic.
     if (buttonCharacteristic->canRead()) {
@@ -54,6 +53,7 @@ auto TTRemoteInput::connectToDevice(BLEAdvertisedDevice *device) -> bool {
                 std::forward<decltype(pH3)>(pH3), std::forward<decltype(pH4)>(pH4));
         };
         buttonCharacteristic->subscribe(true, callback);
+        log_i("Subscribed to TurnTouch buttons.");
     }
 
     // Read the battery level from the battery service
@@ -79,6 +79,7 @@ auto TTRemoteInput::connectToDevice(BLEAdvertisedDevice *device) -> bool {
 
     // Read the build version from the Device Information Service (DIS)
     BLERemoteService *disService = client_->getService(TURNTOUCH_DIS_SVC_ID);
+    std::string build;
     if (disService == nullptr) {
         log_w("Failed to find TurnTouch Device Information Service ID.");
         // return false; // Don't exit if not found, simply means an older remote
@@ -90,9 +91,8 @@ auto TTRemoteInput::connectToDevice(BLEAdvertisedDevice *device) -> bool {
             return false;
         }
 
-        uint8_t build = 0;
         if (buildCharacteristic->canRead()) {
-            build = buildCharacteristic->readValue<uint8_t>();
+            build = buildCharacteristic->readValue();
             prefs_.lastPageTurnerBuild.set(build);
         }
     }
@@ -103,7 +103,8 @@ auto TTRemoteInput::connectToDevice(BLEAdvertisedDevice *device) -> bool {
         prefs_.pairedTurnTouchAddress.set(address);
     }
 
-    log_i("Connected to TurnTouch %s (battery: %d%%)", address.toString().c_str(), battery);
+    log_i("Connected to TurnTouch %s (battery: %d%%, build: %s)", address.toString().c_str(),
+          battery, build.c_str());
 
     return true;
 }

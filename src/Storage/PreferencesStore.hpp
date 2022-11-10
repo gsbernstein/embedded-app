@@ -150,8 +150,8 @@ public:
           pairedTurnTouchAddress(this->prefs_, "paired-tt"),
 #endif
           pocketApiToken(this->prefs_, "pocket-token"), cloudToken(this->prefs_, "cloud-token"),
-          lastReadableId(this->prefs_, "rui-readable"), readablePlace(this->prefs_, "-p"),
-          lastPageTurnerBuild(this->prefs_, "pt-build"),
+          lastReadableId(this->prefs_, "rui-readable"),
+          lastPageTurnerBuild(this->prefs_, "pt-build"), readablePlace(this->prefs_, "-p"),
           lastPageTurnerBattery(this->prefs_, "pt-battery"), invertSetting(this->prefs_, "invert"),
           vcom(this->prefs_, "vcom"), backlight(this->prefs_, "backlight"),
           font(this->prefs_, "font"), rectX(this->prefs_, "rectX"), rectY(this->prefs_, "rectY"),
@@ -181,8 +181,8 @@ public:
     PrefsItem<std::string> pocketApiToken;
     PrefsItem<std::string> cloudToken;
     PrefsItem<std::string> lastReadableId;
+    PrefsItem<std::string> lastPageTurnerBuild;
     KeyedPrefsItem<uint32_t> readablePlace;
-    PrefsItem<int> lastPageTurnerBuild;
     PrefsItem<int> lastPageTurnerBattery;
     PrefsItem<int> invertSetting;
     PrefsItem<int> vcom;

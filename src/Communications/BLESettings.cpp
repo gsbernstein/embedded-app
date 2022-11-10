@@ -30,7 +30,13 @@ void BLESettings::writeDeviceSerialToCharacteristic(BLECharacteristic *character
 
 void BLESettings::writePageTurnerBuildToCharacteristic(BLECharacteristic *characteristic,
                                                        const std::string &key) {
-    std::string value = key + "=" + std::to_string(this->prefs_->lastPageTurnerBuild.get().value());
+    auto lastPageTurnerBuild = this->prefs_->lastPageTurnerBuild.get();
+    std::string value;
+    if (!lastPageTurnerBuild.has_value()) {
+        value = key + "=";
+    } else {
+        value = key + "=" + lastPageTurnerBuild.value();
+    }
     log_i("GATT client reading page turner build: %s", value.c_str());
     characteristic->setValue(value);
     characteristic->notify();
