@@ -41,12 +41,6 @@ auto TTRemoteInput::connectToDevice(BLEAdvertisedDevice *device) -> bool {
         return false;
     }
 
-    // Read the value of the characteristic.
-    // if (buttonCharacteristic->canRead()) {
-    //     auto value = buttonCharacteristic->readValue<uint16_t>();
-    //     log_d("The characteristic value was: %X", value);
-    // }
-
     if (buttonCharacteristic->canNotify()) {
         auto callback = [this](auto &&pH1, auto &&pH2, auto &&pH3, auto &&pH4) {
             buttonNotificationCallback(
@@ -56,10 +50,10 @@ auto TTRemoteInput::connectToDevice(BLEAdvertisedDevice *device) -> bool {
         buttonCharacteristic->subscribe(true, callback);
     }
 
+    // Discover non-immediate services and characteristics asynchronously
     auto queue = DispatchGetCore0BackgroundQueue();
     queue->dispatch([this, address] {
         // Read the battery level from the battery service
-        // TODO: Pull the batteryService and disService out into a background task
         BLERemoteService *batteryService = client_->getService(TURNTOUCH_BATTERY_SVC_ID);
         if (batteryService == nullptr) {
             log_e("Failed to find TurnTouch battery service ID.");
