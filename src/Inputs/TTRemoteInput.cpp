@@ -4,6 +4,7 @@
 
 #include <functional>
 
+#include "Misc/Dispatch.hpp"
 #include "TurnTouch.hpp"
 #include "sindarin-debug.h"
 
@@ -41,10 +42,10 @@ auto TTRemoteInput::connectToDevice(BLEAdvertisedDevice *device) -> bool {
     }
 
     // Read the value of the characteristic.
-    if (buttonCharacteristic->canRead()) {
-        auto value = buttonCharacteristic->readValue<uint16_t>();
-        log_d("The characteristic value was: %X", value);
-    }
+    // if (buttonCharacteristic->canRead()) {
+    //     auto value = buttonCharacteristic->readValue<uint16_t>();
+    //     log_d("The characteristic value was: %X", value);
+    // }
 
     if (buttonCharacteristic->canNotify()) {
         auto callback = [this](auto &&pH1, auto &&pH2, auto &&pH3, auto &&pH4) {
@@ -53,58 +54,61 @@ auto TTRemoteInput::connectToDevice(BLEAdvertisedDevice *device) -> bool {
                 std::forward<decltype(pH3)>(pH3), std::forward<decltype(pH4)>(pH4));
         };
         buttonCharacteristic->subscribe(true, callback);
-        log_i("Subscribed to TurnTouch buttons.");
     }
 
-    // Read the battery level from the battery service
-    // TODO: Pull the batteryService and disService out into a background task
-    BLERemoteService *batteryService = client_->getService(TURNTOUCH_BATTERY_SVC_ID);
-    if (batteryService == nullptr) {
-        log_e("Failed to find TurnTouch battery service ID.");
-        return false;
-    }
-
-    BLERemoteCharacteristic *batteryCharacteristic =
-        batteryService->getCharacteristic(TURNTOUCH_BATTERY_CHR_ID);
-    if (batteryCharacteristic == nullptr) {
-        log_e("Failed to find TurnTouch battery characteristic UUID.");
-        return false;
-    }
-
-    uint8_t battery = 0;
-    if (batteryCharacteristic->canRead()) {
-        battery = batteryCharacteristic->readValue<uint8_t>();
-        prefs_.lastPageTurnerBattery.set(battery);
-    }
-
-    // Read the build version from the Device Information Service (DIS)
-    BLERemoteService *disService = client_->getService(TURNTOUCH_DIS_SVC_ID);
-    std::string build;
-    if (disService == nullptr) {
-        log_w("Failed to find TurnTouch Device Information Service ID.");
-        // return false; // Don't exit if not found, simply means an older remote
-    } else {
-        BLERemoteCharacteristic *buildCharacteristic =
-            disService->getCharacteristic(TURNTOUCH_BUILD_CHR_ID);
-        if (buildCharacteristic == nullptr) {
-            log_e("Failed to find TurnTouch build characteristic UUID.");
-            return false;
+    auto queue = DispatchGetCore0BackgroundQueue();
+    queue->dispatch([this, address] {
+        // Read the battery level from the battery service
+        // TODO: Pull the batteryService and disService out into a background task
+        BLERemoteService *batteryService = client_->getService(TURNTOUCH_BATTERY_SVC_ID);
+        if (batteryService == nullptr) {
+            log_e("Failed to find TurnTouch battery service ID.");
+            return;
         }
 
-        if (buildCharacteristic->canRead()) {
-            build = buildCharacteristic->readValue();
-            prefs_.lastPageTurnerBuild.set(build);
+        BLERemoteCharacteristic *batteryCharacteristic =
+            batteryService->getCharacteristic(TURNTOUCH_BATTERY_CHR_ID);
+        if (batteryCharacteristic == nullptr) {
+            log_e("Failed to find TurnTouch battery characteristic UUID.");
+            return;
         }
-    }
 
-    // Save the id of this turn touch for future connection attempts, but only
-    // if it wasn't set already.
-    if (!prefs_.pairedTurnTouchAddress.get().has_value()) {
-        prefs_.pairedTurnTouchAddress.set(address);
-    }
+        uint8_t battery = 0;
+        if (batteryCharacteristic->canRead()) {
+            battery = batteryCharacteristic->readValue<uint8_t>();
+            prefs_.lastPageTurnerBattery.set(battery);
+            log_i("Page turner battery level: %d%%", battery);
+        }
 
-    log_i("Connected to TurnTouch %s (battery: %d%%, build: %s)", address.toString().c_str(),
-          battery, build.c_str());
+        // Read the build version from the Device Information Service (DIS)
+        BLERemoteService *disService = client_->getService(TURNTOUCH_DIS_SVC_ID);
+        std::string build;
+        if (disService == nullptr) {
+            log_w("Failed to find TurnTouch Device Information Service ID.");
+            // return false; // Don't exit if not found, simply means an older remote
+        } else {
+            BLERemoteCharacteristic *buildCharacteristic =
+                disService->getCharacteristic(TURNTOUCH_BUILD_CHR_ID);
+            if (buildCharacteristic == nullptr) {
+                log_e("Failed to find TurnTouch build characteristic UUID.");
+                return;
+            }
+
+            if (buildCharacteristic->canRead()) {
+                build = buildCharacteristic->readValue();
+                prefs_.lastPageTurnerBuild.set(build);
+                log_d("Page turner build: %s", build.c_str());
+            }
+        }
+
+        // Save the id of this turn touch for future connection attempts, but only
+        // if it wasn't set already.
+        if (!prefs_.pairedTurnTouchAddress.get().has_value()) {
+            prefs_.pairedTurnTouchAddress.set(address);
+        }
+    });
+
+    log_i("Connected to TurnTouch %s", address.toString().c_str());
 
     return true;
 }
