@@ -5,6 +5,7 @@
 #include <utility>
 
 #include "Misc/Platform.hpp"
+#include "Misc/StringUtil.hpp"
 #include "sindarin-debug.h"
 
 #define SETTINGS_CHARACTERISTIC_UUID "611f68af-5ffe-4944-9b8f-ef6773326268"
@@ -22,7 +23,7 @@ void BLESettings::configureCharacteristics(BLEService *service) {
 
 void BLESettings::writeDeviceSerialToCharacteristic(BLECharacteristic *characteristic,
                                                     const std::string &key) {
-    std::string value = key + "=" + GetSerialNumber();
+    std::string value = StringFormat("%s=%s", key, GetSerialNumber());
     log_i("GATT client reading serial number: %s", value.c_str());
     characteristic->setValue(value);
     characteristic->notify();
@@ -33,9 +34,9 @@ void BLESettings::writePageTurnerBuildToCharacteristic(BLECharacteristic *charac
     auto lastPageTurnerBuild = this->prefs_->lastPageTurnerBuild.get();
     std::string value;
     if (!lastPageTurnerBuild.has_value()) {
-        value = key + "=";
+        value = StringFormat("%s=", key);
     } else {
-        value = key + "=" + lastPageTurnerBuild.value();
+        value = StringFormat("%s=%s", key, lastPageTurnerBuild.value());
     }
     log_i("GATT client reading page turner build: %s", value.c_str());
     characteristic->setValue(value);
@@ -44,8 +45,7 @@ void BLESettings::writePageTurnerBuildToCharacteristic(BLECharacteristic *charac
 
 void BLESettings::writePageTurnerBatteryToCharacteristic(BLECharacteristic *characteristic,
                                                          const std::string &key) {
-    std::string value =
-        key + "=" + std::to_string(this->prefs_->lastPageTurnerBattery.get().value());
+    std::string value = StringFormat("%s=%d", key, this->prefs_->lastPageTurnerBuild.get().value());
     log_i("GATT client reading page turner battery: %s", value.c_str());
     characteristic->setValue(value);
     characteristic->notify();
@@ -67,7 +67,7 @@ void BLESettings::blinkLedAfterConnect(BLECharacteristic *characteristic, const 
 #endif
     }
 
-    std::string value = key + "=1";
+    std::string value = StringFormat("%s=1", key);
     characteristic->setValue(value);
     characteristic->notify();
 }
