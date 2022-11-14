@@ -14,6 +14,8 @@
 
 #define Hastings20x40_3
 
+#define DISABLE_POWER_MANAGEMENT 1
+
 // Currently using the App (BLE Server in firmware) is incompatible with
 // Turn Touch (BLE client in firmware). Enable one of these options or the
 // other.
