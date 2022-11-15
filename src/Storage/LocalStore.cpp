@@ -137,13 +137,34 @@ auto LocalStore::readablePlacemarksChanged() -> std::vector<std::string> {
         if (!readable.localOnly) {
             bool changed = prefs_.readablePlaceChanged.get(readable.placemarkUuid.c_str());
             if (changed) {
+                uint32_t place = prefs_.readablePlace.get(readable.placemarkUuid.c_str());
+                log_i("Placemark on readable %s has changed to %d", readable.uuid.c_str(), place);
                 placemarks.push_back(
-                    StringFormat("&placemark_%s=%d", readable.uuid.c_str(), readable.place));
+                    StringFormat("&placemark_%s=%d", readable.uuid.c_str(), place));
             }
         }
     }
 
     return placemarks;
+}
+
+void LocalStore::pullPlacemarksFromServer(std::vector<Placemark> placemarks) {
+    for (auto &placemark : placemarks) {
+        for (auto &readable : readables_) {
+            if (readable.uuid == placemark.readableUuid) {
+                uint32_t onDevicePlace = prefs_.readablePlace.get(readable.placemarkUuid.c_str());
+                bool changed = prefs_.readablePlaceChanged.get(readable.placemarkUuid.c_str());
+
+                if (placemark.placemark > onDevicePlace && !changed) {
+                    log_i("Updating placemark for \"%s\" from device value of %d to server "
+                          "value of %d",
+                          readable.title.c_str(), onDevicePlace, placemark.placemark);
+                }
+
+                break;
+            }
+        }
+    }
 }
 
 void LocalStore::resetReadablePlacemarkChanged() {
@@ -189,6 +210,8 @@ void LocalStore::syncFromRemote(
             return;
         }
         if (checkSyncResponse.synced) {
+            this->pullPlacemarksFromServer(checkSyncResponse.placemarks);
+            this->resetReadablePlacemarkChanged();
             log_i("Client is in sync");
             progressCallback(ContentSyncState{.state = ContentSyncState::State::Synced});
             return;
@@ -297,9 +320,11 @@ void LocalStore::syncFromRemote(
             log_e("Failed to save readables.json");
         }
 
+        this->pullPlacemarksFromServer(checkSyncResponse.placemarks);
+        this->resetReadablePlacemarkChanged();
+
         // TODO: Force reload of rootUI instead of rebooting
         if (checkSyncResponse.synced) {
-            this->resetReadablePlacemarkChanged();
             log_i("Synced, rebooting");
             esp_restart();
             // Only for the sim
