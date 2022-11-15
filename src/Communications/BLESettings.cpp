@@ -23,7 +23,7 @@ void BLESettings::configureCharacteristics(BLEService *service) {
 
 void BLESettings::writeDeviceSerialToCharacteristic(BLECharacteristic *characteristic,
                                                     const std::string &key) {
-    std::string value = key + "=" + GetSerialNumber();
+    std::string value = StringFormat("%s=%s", key.c_str(), GetSerialNumber().c_str());
     log_i("GATT client reading serial number: %s", value.c_str());
     characteristic->setValue(value);
     characteristic->notify();
@@ -32,12 +32,8 @@ void BLESettings::writeDeviceSerialToCharacteristic(BLECharacteristic *character
 void BLESettings::writePageTurnerBuildToCharacteristic(BLECharacteristic *characteristic,
                                                        const std::string &key) {
     auto lastPageTurnerBuild = this->prefs_->lastPageTurnerBuild.get();
-    std::string value;
-    if (!lastPageTurnerBuild.has_value()) {
-        value = key + "=";
-    } else {
-        value = key + "=" + lastPageTurnerBuild.value();
-    }
+    std::string value = StringFormat("%s=%s", key.c_str(),
+                                     this->prefs_->lastPageTurnerBuild.get().value_or("").c_str());
     log_i("GATT client reading page turner build: %s", value.c_str());
     characteristic->setValue(value);
     characteristic->notify();
