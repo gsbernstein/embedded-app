@@ -12,8 +12,8 @@
 #include "Version.hpp"
 #include "sindarin-debug.h"
 
-#define SINDARIN_SERVER_URL "https://sol-cloud.fly.dev"
-// #define SINDARIN_SERVER_URL "https://sol-staging.fly.dev"
+// #define SINDARIN_SERVER_URL "https://sol-cloud.fly.dev"
+#define SINDARIN_SERVER_URL "https://sol-staging.fly.dev"
 
 SindarinAPI *SindarinAPI::instance = nullptr;
 
@@ -42,15 +42,26 @@ auto SindarinAPI::beginClient(HTTPClient &httpClient, const String &urlPath) -> 
 
 void SindarinAPI::setAccessToken(std::string token) { accessToken_ = std::move(token); }
 
-auto SindarinAPI::checkSync(const std::string &readablesSha, CheckSyncResponse *resp) -> int {
+auto SindarinAPI::checkSync(const std::string &readablesSha,
+                            const std::vector<std::string> placemarks, CheckSyncResponse *resp)
+    -> int {
     HTTPClient httpClient;
-    auto params = StringFormat("/sync/all/?sha=%s&build=%s&git_hash=%s", readablesSha.c_str(),
-                               kVersionString, kGitHash);
-    if (!beginClient(httpClient, String(params.c_str()))) {
+
+    auto url = StringFormat("/sync/all/");
+    if (!beginClient(httpClient, String(url.c_str()))) {
         return -1;
     }
 
-    int httpCode = httpClient.GET();
+    httpClient.addHeader("Content-Type", "application/x-www-form-urlencoded");
+    auto body =
+        StringFormat("sha=%s&build=%s&git_hash=%s", readablesSha.c_str(), kVersionString, kGitHash);
+    for (auto &placemark : placemarks) {
+        body += placemark.c_str();
+    }
+
+    char request[300];
+    int requestLen = snprintf(request, sizeof(request), body.c_str());
+    int httpCode = httpClient.POST((uint8_t *)request, requestLen);
     auto string = httpClient.getString();
     auto *respJson = new SpiRamJsonDocument(string.length() * 2);
     auto error = ArduinoJson::deserializeJson(*respJson, string);

@@ -42,6 +42,8 @@ public:
     void removeReadable(const Readable &readable);
 
     auto calculateReadablesSha() -> std::string;
+    auto readablePlacemarksChanged() -> std::vector<std::string>;
+    void resetReadablePlacemarkChanged();
 
     void syncFromRemote(const std::function<void(ContentSyncState state)> &progressCallback);
 

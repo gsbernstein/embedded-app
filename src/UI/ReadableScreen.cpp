@@ -251,12 +251,16 @@ void ReadableScreen::processCommand(RemoteCommand command) {
     case RemoteCommand::CHANNEL_MINUS:
         readable_.place = renderer_.getPreviousPlace();
         prefs_.readablePlace.set(readable_.placemarkUuid.c_str(), readable_.place);
+        prefs_.readablePlaceChanged.set(readable_.placemarkUuid.c_str(), true);
         needsRerender = true;
         break;
+    case RemoteCommand::PLAY: // To allow the PT to long press east to change page without an enter
+                              // button
     case RemoteCommand::ENTER:
         readable_.placePrev = readable_.place;
         readable_.place = newPlace_;
         prefs_.readablePlace.set(readable_.placemarkUuid.c_str(), readable_.place);
+        prefs_.readablePlaceChanged.set(readable_.placemarkUuid.c_str(), true);
         needsRerender = true;
         break;
     case RemoteCommand::NEXT:
