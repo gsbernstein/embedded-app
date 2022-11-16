@@ -44,7 +44,7 @@ public:
 
     auto calculateReadablesSha() -> std::string;
     auto readablePlacemarksChanged() -> std::vector<std::string>;
-    void pullPlacemarksFromServer(const std::vector<Placemark> &placemarks);
+    void mergePlacemarksFromServer(const std::vector<Placemark> &placemarks);
     void resetReadablePlacemarkChanged();
 
     void syncFromRemote(const std::function<void(ContentSyncState state)> &progressCallback);

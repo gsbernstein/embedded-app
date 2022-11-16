@@ -47,8 +47,7 @@ auto SindarinAPI::checkSync(const std::string &readablesSha,
     -> int {
     HTTPClient httpClient;
 
-    auto url = StringFormat("/sync/all/");
-    if (!beginClient(httpClient, String(url.c_str()))) {
+    if (!beginClient(httpClient, "/sync/all/")) {
         return -1;
     }
 
@@ -59,7 +58,7 @@ auto SindarinAPI::checkSync(const std::string &readablesSha,
         body += placemark.c_str();
     }
 
-    std::byte request[body.length() + 1];
+    std::byte request[body.length()];
     memcpy(request, body.c_str(), body.length());
     int httpCode = httpClient.POST((uint8_t *)request, sizeof(request));
     auto string = httpClient.getString();
