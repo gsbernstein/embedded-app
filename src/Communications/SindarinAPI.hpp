@@ -16,7 +16,7 @@ public:
 
     auto beginClient(HTTPClient &httpClient, const String &urlPath) -> bool;
 
-    auto checkSync(const std::string &readablesSha, const std::vector<std::string> placemarks,
+    auto checkSync(const std::string &readablesSha, const std::vector<std::string> &placemarks,
                    CheckSyncResponse *resp) -> int;
 
     // Get list of readables from the server

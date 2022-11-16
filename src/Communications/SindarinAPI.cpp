@@ -43,7 +43,7 @@ auto SindarinAPI::beginClient(HTTPClient &httpClient, const String &urlPath) -> 
 void SindarinAPI::setAccessToken(std::string token) { accessToken_ = std::move(token); }
 
 auto SindarinAPI::checkSync(const std::string &readablesSha,
-                            const std::vector<std::string> placemarks, CheckSyncResponse *resp)
+                            const std::vector<std::string> &placemarks, CheckSyncResponse *resp)
     -> int {
     HTTPClient httpClient;
 
@@ -59,9 +59,9 @@ auto SindarinAPI::checkSync(const std::string &readablesSha,
         body += placemark.c_str();
     }
 
-    char request[300];
-    int requestLen = snprintf(request, sizeof(request), body.c_str());
-    int httpCode = httpClient.POST((uint8_t *)request, requestLen);
+    std::byte request[body.length() + 1];
+    memcpy(request, body.c_str(), body.length());
+    int httpCode = httpClient.POST((uint8_t *)request, sizeof(request));
     auto string = httpClient.getString();
     auto *respJson = new SpiRamJsonDocument(string.length() * 2);
     auto error = ArduinoJson::deserializeJson(*respJson, string);

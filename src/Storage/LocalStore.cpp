@@ -148,7 +148,7 @@ auto LocalStore::readablePlacemarksChanged() -> std::vector<std::string> {
     return placemarks;
 }
 
-void LocalStore::pullPlacemarksFromServer(std::vector<Placemark> placemarks) {
+void LocalStore::pullPlacemarksFromServer(const std::vector<Placemark> &placemarks) {
     for (auto &placemark : placemarks) {
         for (auto &readable : readables_) {
             if (readable.uuid == placemark.readableUuid) {

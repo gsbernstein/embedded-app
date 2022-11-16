@@ -232,7 +232,7 @@ auto GetSerialNumber() -> std::string {
     ESP_ERROR_CHECK(esp_efuse_read_field_blob(ESP_EFUSE_USER_DATA_SERIAL_NUMBER, &serialNumber,
                                               sizeof(serialNumber) * 8));
 
-    return std::string((const char *)serialNumber, sizeof(serialNumber));
+    return {(const char *)serialNumber, sizeof(serialNumber)};
 }
 
 #endif
