@@ -48,6 +48,12 @@ void BLESettings::writePageTurnerBatteryToCharacteristic(BLECharacteristic *char
     characteristic->notify();
 }
 
+void BLESettings::disconnectPageTurnerForSeconds(BLECharacteristic *characteristic,
+                                                 const int seconds) {
+    std::string value = StringFormat("%s=%d", key.c_str(), seconds);
+    log_i("GATT client disconnecting page turner for %d seconds", seconds);
+}
+
 void BLESettings::blinkLedAfterConnect(BLECharacteristic *characteristic, const std::string &key) {
     for (int i = 0; i < 10; i++) {
         // Flash all the LEDs
