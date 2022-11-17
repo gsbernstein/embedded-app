@@ -352,6 +352,9 @@ extern "C" void app_main(void) { // NOLINT(readability-identifier-naming)
 #if USE_BLE_SERVER_SETTINGS
     bleSettings = new BLESettings(&prefs);
     bleSettings->configureCharacteristics(sindarinService);
+#if USE_TURN_TOUCH_REMOTE
+    bleSettings->attachTTRemoteInput(&ttRemoteInput);
+#endif
 #endif
 
     if (!bleSindarinService.start()) {

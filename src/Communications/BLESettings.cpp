@@ -12,6 +12,10 @@
 
 BLESettings::BLESettings(PreferencesStore *prefs) { this->prefs_ = prefs; }
 
+void BLESettings::attachTTRemoteInput(TTRemoteInput *ttRemoteInput) {
+    this->ttRemoteInput_ = ttRemoteInput;
+}
+
 void BLESettings::configureCharacteristics(BLEService *service) {
     BLECharacteristic *characteristic = service->createCharacteristic(
         BLEUUID(SETTINGS_CHARACTERISTIC_UUID),
@@ -48,10 +52,10 @@ void BLESettings::writePageTurnerBatteryToCharacteristic(BLECharacteristic *char
     characteristic->notify();
 }
 
-void BLESettings::disconnectPageTurnerForSeconds(BLECharacteristic *characteristic,
-                                                 const int seconds) {
-    std::string value = StringFormat("%s=%d", key.c_str(), seconds);
+void BLESettings::disconnectPageTurnerForSeconds(const int seconds) {
     log_i("GATT client disconnecting page turner for %d seconds", seconds);
+
+    ttRemoteInput_->disconnectTemporarily(seconds);
 }
 
 void BLESettings::blinkLedAfterConnect(BLECharacteristic *characteristic, const std::string &key) {
