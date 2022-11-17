@@ -124,29 +124,39 @@ void ReadableScreen::renderIcons(DisplaySystem &display) {
                         screenHeight + display.getTextHeight() / 2 + 3, readGearBits,
                         READ_GEAR_WIDTH, READ_GEAR_HEIGHT, display.fg);
 
-    // Left Arrow
-    display.drawLine(-arrowHeight - 8, screenHeight / 2, -8, screenHeight / 2 - arrowWidth / 2,
-                     display.fg);
-    display.drawLine(-arrowHeight - 8, screenHeight / 2, -8, screenHeight / 2 + arrowWidth / 2,
-                     display.fg);
+    if (pageSpeed_ == 0) {
+        // Left Arrow
+        display.drawLine(-arrowHeight - 8, screenHeight / 2, -8, screenHeight / 2 - arrowWidth / 2,
+                         display.fg);
+        display.drawLine(-arrowHeight - 8, screenHeight / 2, -8, screenHeight / 2 + arrowWidth / 2,
+                         display.fg);
+    } else {
+        display.drawXBitmap(-auto_minus_width - 8, screenHeight / 2 - auto_minus_height / 2 - 5,
+                            autoMinusBits, auto_minus_width, auto_minus_height, display.fg);
+    }
 
     // Up arrow - looks like a bookmark to indicate that's what you can do.
     display.drawXBitmap(screenWidth / 2 - HOME2_WIDTH / 2, -HOME2_HEIGHT - 3, homE2Bits,
                         HOME2_WIDTH, HOME2_HEIGHT, display.fg);
 
-    display.setRotation(1);
-    // Right side show bookmark icon.
-    display.drawLine(screenWidth / 2, -arrowHeight - 1, screenWidth / 2 - arrowWidth / 2, -1,
-                     display.fg);
-    display.drawLine(screenWidth / 2, -arrowHeight - 1, screenWidth / 2 + arrowWidth / 2, -1,
-                     display.fg);
+    if (pageSpeed_ == 0) {
+        display.setRotation(1);
+        // Right side show bookmark icon.
+        display.drawLine(screenWidth / 2, -arrowHeight - 1, screenWidth / 2 - arrowWidth / 2, -1,
+                         display.fg);
+        display.drawLine(screenWidth / 2, -arrowHeight - 1, screenWidth / 2 + arrowWidth / 2, -1,
+                         display.fg);
 
-    display.drawLine(screenWidth / 2 - arrowWidth / 2, -1, screenWidth / 2 - arrowWidth / 2,
-                     display.yAbsolute(0), display.fg);
-    display.drawLine(screenWidth / 2 + arrowWidth / 2, -1, screenWidth / 2 + arrowWidth / 2,
-                     display.yAbsolute(0), display.fg);
+        display.drawLine(screenWidth / 2 - arrowWidth / 2, -1, screenWidth / 2 - arrowWidth / 2,
+                         display.yAbsolute(0), display.fg);
+        display.drawLine(screenWidth / 2 + arrowWidth / 2, -1, screenWidth / 2 + arrowWidth / 2,
+                         display.yAbsolute(0), display.fg);
 
-    display.setRotation(0);
+        display.setRotation(0);
+    } else {
+        display.drawXBitmap(screenWidth + 2, screenHeight / 2 - auto_plus_height / 2, autoPlusBits,
+                            auto_plus_width, auto_plus_height, display.fg);
+    }
 
     // Right Arrow
     /*
@@ -182,17 +192,39 @@ void ReadableScreen::render(DisplaySystem &display) {
     // Then ignore the next press of the button
     if (prefs_.firstRead.get().value() == 0) {
 
+        // We need to make sure this goes onto the second page because of a bug in the renderer.
         std::string message =
             "Welcome to reading with Sol! This is a one page tutorial on what each button does "
             "while reading.\n\n\nUp: Main Menu\n\nDown: Reading Settings\n\nLeft: Previous "
-            "Page\n\nRight: Bookmark Page\n\nCenter: Next Page\n\n\n"
-
-            "That's it! Press any button... ";
+            "Page\n\nRight: Bookmark Page\n\nCenter: Next Page\n\n\nThat's it! Press any button... "
+            "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n";
 
         auto streamFirstTime = new StdStringStream(message);
         firstTimeRenderer_.setStream(streamFirstTime);
 
         prefs_.firstRead.set(1);
+        ignoreNextPress_ = true;
+        firstTimeRenderer_.renderPage(0);
+        renderIcons(display);
+        display.updateDisplay(DisplaySystem::UpdateType::PARTIAL);
+        needsRerender = false;
+        delete streamFirstTime;
+        return;
+    }
+
+    if ((prefs_.firstAutopilotRead.get().value() == 0) && (pageSpeed_ != 0)) {
+        // We need to make sure this goes onto the second page because of a bug in the renderer.
+        std::string message =
+            "Welcome to the beta of Autopilot mode! Here is what each button does "
+            "while in autopilot mode.\n\n\nUp: Main Menu\n\nDown: Reading "
+            "Settings\n\nLeft: Slow Down "
+            "Page\n\nRight: Speed Up\n\nCenter: Turn off autopilot mode\n\n\nPress any button to "
+            "start reading... \n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n";
+
+        auto streamFirstTime = new StdStringStream(message);
+        firstTimeRenderer_.setStream(streamFirstTime);
+
+        prefs_.firstAutopilotRead.set(1);
         ignoreNextPress_ = true;
         firstTimeRenderer_.renderPage(0);
         renderIcons(display);
@@ -258,6 +290,28 @@ void ReadableScreen::render(DisplaySystem &display) {
         shownIcons_ = true;
     }
 
+    // Only show the autopilot icon on page turns or if speed was changed -- let it fade out with
+    // the rest of the text
+    if (((pageSpeed_ != 0) && (speedLinesToSkip_ == 0)) || (showAutopilotMinus_) ||
+        (showAutopilotPlus_)) {
+        int screenWidth = display.width();
+        int screenHeight = display.height();
+        display.drawXBitmap(screenWidth + 2, 0, autoPilotBits, auto_pilot_width, auto_pilot_height,
+                            display.fg);
+
+        if (showAutopilotMinus_) {
+            display.drawXBitmap(screenWidth + 2, screenHeight / 2 - auto_minus_height / 2,
+                                autoMinusBits, auto_minus_width, auto_minus_height, display.fg);
+            showAutopilotMinus_ = false;
+        }
+
+        if (showAutopilotPlus_) {
+            display.drawXBitmap(screenWidth + 2, screenHeight / 2 - auto_plus_height / 2,
+                                autoPlusBits, auto_plus_width, auto_plus_height, display.fg);
+            showAutopilotPlus_ = false;
+        }
+    }
+
     log_d("%lu is the new place in the text", newPlace_);
 
     if ((pageSpeed_ != 0) && (speedLinesToSkip_ > 0)) {
@@ -321,6 +375,7 @@ void ReadableScreen::processCommand(RemoteCommand command) {
             pageSpeed_ = std::min(pageSpeed_ + PAGE_SPEED_INCREMENT, SLOWEST_PAGE_SPEED);
             prefs_.autoPilotSpeed.set(pageSpeed_);
             log_d("Slowing down: New Page Speed is %u", pageSpeed_);
+            showAutopilotMinus_ = true;
             needsRerender = false;
         }
         break;
@@ -347,6 +402,7 @@ void ReadableScreen::processCommand(RemoteCommand command) {
             pageSpeed_ = std::max(pageSpeed_ - PAGE_SPEED_INCREMENT, 1);
             log_d("Speeding up: New Page Speed is %u", pageSpeed_);
             prefs_.autoPilotSpeed.set(pageSpeed_);
+            showAutopilotPlus_ = true;
             needsRerender = false;
         } else {
             inBookmark_ = !inBookmark_;
