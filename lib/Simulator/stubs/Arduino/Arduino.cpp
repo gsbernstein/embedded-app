@@ -1,4 +1,6 @@
 #include "Arduino.h"
+#include <esp_flash.h>
+#include <esp_core_dump.h>
 
 #include <SDL2/SDL.h>
 #include <freertos/FreeRTOS.h>

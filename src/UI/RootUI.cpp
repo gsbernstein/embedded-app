@@ -20,6 +20,7 @@
 #include "UI/AlignmentScreen.hpp"
 #include "UI/CalibrationScreen.hpp"
 #include "UI/ContentSyncScreen.hpp"
+#include "UI/CrashReportScreen.hpp"
 #include "UI/DemoScreen.hpp"
 #include "UI/FirmwareUpdateScreen.hpp"
 #include "UI/LightingAdjustScreen.hpp"
@@ -516,6 +517,17 @@ void RootUI::setup(DisplaySystem *display, LocalStore &localStore, FileSystem &f
             setCurrentScreen(*debugMenu);
             delete statsScreen;
         };
+    }));
+
+    debugMenu->addMenuItem(MenuItem("Send Crash Report", [this, debugMenu, display, &fileSystem]() {
+        auto crashReportScreen = new CrashReportScreen(*display, this->prefs_, fileSystem);
+        this->setCurrentScreen(*crashReportScreen);
+        crashReportScreen->backCallback = [this, crashReportScreen, debugMenu]() {
+            debugMenu->setFirstLoad();
+            setCurrentScreen(*debugMenu);
+            delete crashReportScreen;
+        };
+        crashReportScreen->begin();
     }));
 
     debugMenu->addMenuItem(MenuItem("Reset Preferences", [this, debugMenu, display]() {

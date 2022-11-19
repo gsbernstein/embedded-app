@@ -15,6 +15,8 @@ public:
     void setAccessToken(std::string accessToken);
 
     auto beginClient(HTTPClient &httpClient, const String &urlPath) -> bool;
+    auto beginClient(HTTPClient &httpClient, const String &urlPath, const String &contentType)
+        -> bool;
 
     auto checkSync(const std::string &readablesSha, const std::vector<std::string> &placemarks,
                    CheckSyncResponse *resp) -> int;
@@ -26,6 +28,8 @@ public:
                           const std::function<void(int percentage)> &progressCallback) -> bool;
 
     auto uploadAndResetVoltageLog(FileSystem &fileSystem) -> int;
+
+    auto uploadCrashReport(File crashFile, const String &contentType) -> int;
 
 protected:
     static SindarinAPI *instance;

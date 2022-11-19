@@ -25,6 +25,11 @@ auto SindarinAPI::getInstance() -> SindarinAPI * {
 }
 
 auto SindarinAPI::beginClient(HTTPClient &httpClient, const String &urlPath) -> bool {
+    return beginClient(httpClient, urlPath, "application/json");
+}
+
+auto SindarinAPI::beginClient(HTTPClient &httpClient, const String &urlPath,
+                              const String &contentType) -> bool {
     if (!httpClient.begin(String(SINDARIN_SERVER_URL) + urlPath)) {
         // TODO: When can this happen?
         log_e("HTTPClient::begin failed");
@@ -32,7 +37,7 @@ auto SindarinAPI::beginClient(HTTPClient &httpClient, const String &urlPath) -> 
     }
     httpClient.setUserAgent("Sindarin/" + String(kVersionString) + " (" + String(kGitHash) + ")");
     httpClient.setFollowRedirects(HTTPC_FORCE_FOLLOW_REDIRECTS);
-    httpClient.addHeader("Content-Type", "application/json");
+    httpClient.addHeader("Content-Type", contentType.c_str());
     if (!accessToken_.empty()) {
         httpClient.addHeader("Authorization", "Tolkien " + String(accessToken_.c_str()));
     }
@@ -212,5 +217,16 @@ auto SindarinAPI::uploadAndResetVoltageLog(FileSystem &fileSystem) -> int {
 
     fileSystem.remove(jsonFilePath);
 
+    return httpCode;
+}
+
+auto SindarinAPI::uploadCrashReport(File crashFile, const String &contentType) -> int {
+    HTTPClient httpClient;
+    if (!beginClient(httpClient, "/coredumps/", contentType)) {
+        log_e("could not begin sindarin api client");
+        return -1;
+    }
+    auto httpCode = httpClient.sendRequest("POST", &crashFile, crashFile.size());
+    httpClient.end();
     return httpCode;
 }
