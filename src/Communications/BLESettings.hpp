@@ -29,7 +29,7 @@ protected:
     void writePageTurnerBatteryToCharacteristic(BLECharacteristic *characteristic,
                                                 const std::string &key);
     void disconnectPageTurnerForSeconds(const int seconds);
-    void writeWifiSSIDtoCharacteristic(BLECharacteristic *characteristic, std::string key);
+    void writeWifiSSIDtoCharacteristic(BLECharacteristic *characteristic, const std::string &key);
     void blinkLedAfterConnect(BLECharacteristic *characteristic, const std::string &key);
 
     class CharacteristicCallbacks : public BLECharacteristicCallbacks {
