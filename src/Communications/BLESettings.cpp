@@ -6,6 +6,7 @@
 
 #include "Misc/Platform.hpp"
 #include "Misc/StringUtil.hpp"
+#include "WiFi.hpp"
 #include "sindarin-debug.h"
 
 #define SETTINGS_CHARACTERISTIC_UUID "611f68af-5ffe-4944-9b8f-ef6773326268"
@@ -81,22 +82,30 @@ void BLESettings::blinkLedAfterConnect(BLECharacteristic *characteristic, const 
 
 void BLESettings::writeWifiSSIDtoCharacteristic(BLECharacteristic *characteristic,
                                                 std::string key) {
-    wifi_ap_record_t info;
+    // Check if wifi is already connected, and if so, don't disconnect at the end of this function
+    bool wifiConnected = NetworkConnected();
+    wifi_config_t conf;
 
-    if (!esp_wifi_sta_get_ap_info(&info)) {
+    if (GetWiFiCredentials(&conf) && strlen((const char *)conf.sta.ssid) > 0) {
         key.append("=");
-        key.append(reinterpret_cast<char *>(info.ssid));
+        key += (const char *)conf.sta.ssid;
         characteristic->setValue(key);
 
-        log_i("Connected to wifi, sharing ssid: %s %zu/%zu", key.c_str(), key.length(),
-              sizeof(key.c_str()));
+        log_i("GATT client reading wifi ssid, connected to wifi, sharing ssid: %s %zu/%zu",
+              key.c_str(), key.length(), sizeof(key.c_str()));
     } else {
         key.append("=");
         characteristic->setValue(key);
-        log_i("Not connected to wifi, share blank ssid: %s", key.c_str());
+        log_i("GATT client reading wifi ssid, not connected to wifi, share blank ssid: %s",
+              key.c_str());
     }
 
     characteristic->notify();
+
+    // Turn wifi back off if we weren't already using it
+    if (!wifiConnected) {
+        DisconnectWifi();
+    }
 }
 
 #endif
