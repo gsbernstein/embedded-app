@@ -84,7 +84,7 @@ void BLESettings::blinkLedAfterConnect(BLECharacteristic *characteristic, const 
 void BLESettings::writeWifiSSIDtoCharacteristic(BLECharacteristic *characteristic,
                                                 std::string key) {
     auto queue = DispatchGetCore0BackgroundQueue();
-    queue->dispatch([key, characteristic] {
+    queue->dispatch([this, key, characteristic] {
         // Check if wifi is already connected, and if so, don't disconnect at the end of this
         // function
         bool wifiConnected = NetworkConnected();
