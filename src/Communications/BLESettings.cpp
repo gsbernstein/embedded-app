@@ -4,6 +4,7 @@
 
 #include <utility>
 
+#include "Misc/Dispatch.hpp"
 #include "Misc/Platform.hpp"
 #include "Misc/StringUtil.hpp"
 #include "WiFi.hpp"
@@ -82,30 +83,33 @@ void BLESettings::blinkLedAfterConnect(BLECharacteristic *characteristic, const 
 
 void BLESettings::writeWifiSSIDtoCharacteristic(BLECharacteristic *characteristic,
                                                 std::string key) {
-    // Check if wifi is already connected, and if so, don't disconnect at the end of this function
-    bool wifiConnected = NetworkConnected();
-    wifi_config_t conf;
+    auto queue = DispatchGetCore0BackgroundQueue();
+    queue->dispatch([this, key, characteristic] {
+        // Check if wifi is already connected, and if so, don't disconnect at the end of this
+        // function
+        bool wifiConnected = NetworkConnected();
+        wifi_config_t conf;
 
-    if (GetWiFiCredentials(&conf) && strlen((const char *)conf.sta.ssid) > 0) {
-        key.append("=");
-        key += (const char *)conf.sta.ssid;
-        characteristic->setValue(key);
+        if (GetWiFiCredentials(&conf) && strlen((const char *)conf.sta.ssid) > 0) {
+            std::string value = StringFormat("%s=%s", key.c_str(), (const char *)conf.sta.ssid);
+            characteristic->setValue(value);
 
-        log_i("GATT client reading wifi ssid, connected to wifi, sharing ssid: %s %zu/%zu",
-              key.c_str(), key.length(), sizeof(key.c_str()));
-    } else {
-        key.append("=");
-        characteristic->setValue(key);
-        log_i("GATT client reading wifi ssid, not connected to wifi, share blank ssid: %s",
-              key.c_str());
-    }
+            log_i("GATT client reading wifi ssid, initializing wifi, sharing ssid: %s %zu/%zu",
+                  value.c_str(), value.length(), sizeof(value.c_str()));
+        } else {
+            std::string value = StringFormat("%s=", key.c_str());
+            characteristic->setValue(value);
+            log_i("GATT client reading wifi ssid, no wifi credentials, sharing blank ssid: %s",
+                  value.c_str());
+        }
 
-    characteristic->notify();
+        characteristic->notify();
 
-    // Turn wifi back off if we weren't already using it
-    if (!wifiConnected) {
-        DisconnectWifi();
-    }
+        // Turn wifi back off if we weren't already using it
+        if (!wifiConnected) {
+            DisconnectWifi();
+        }
+    });
 }
 
 #endif
