@@ -31,7 +31,13 @@ void FirmwareDownloader::downloadFirmware(
         // Skip calculating the readable shas and changed placemarks for now, the firmware info is
         // sent either way
         CheckSyncResponse response;
-        auto httpCode = SindarinAPI::getInstance()->checkSync("", {}, &response);
+        CheckSyncRequest request = CheckSyncRequest{
+            .readablesSha = "",
+            .placemarks = {},
+            .ptBattery = prefs_.lastPageTurnerBattery.get().value_or(0),
+            .ptBuild = prefs_.lastPageTurnerBuild.get().value_or(""),
+        };
+        auto httpCode = SindarinAPI::getInstance()->checkSync(request, &response);
         if (httpCode != HTTP_CODE_OK) {
             log_e("Failed to check sync (HTTP %d)", httpCode);
             progressCallback(FirmwareDownloadState{.state = FirmwareDownloadState::State::Failure,

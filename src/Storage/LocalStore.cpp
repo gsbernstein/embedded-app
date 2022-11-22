@@ -215,8 +215,14 @@ void LocalStore::syncFromRemote(
         auto readablesSha = this->calculateReadablesSha();
         auto placemarks = this->readablePlacemarksChanged();
         CheckSyncResponse checkSyncResponse;
-        auto httpCode =
-            SindarinAPI::getInstance()->checkSync(readablesSha, placemarks, &checkSyncResponse);
+        CheckSyncRequest request = CheckSyncRequest{
+            .readablesSha = readablesSha,
+            .placemarks = placemarks,
+            .ptBattery = this->prefs_.lastPageTurnerBattery.get().value_or(0),
+            .ptBuild = this->prefs_.lastPageTurnerBuild.get().value_or(""),
+        };
+
+        auto httpCode = SindarinAPI::getInstance()->checkSync(request, &checkSyncResponse);
         if (httpCode != HTTP_CODE_OK) {
             log_e("Failed to check sync (HTTP %d)", httpCode);
             progressCallback(ContentSyncState{.state = ContentSyncState::State::Failure,
@@ -327,7 +333,8 @@ void LocalStore::syncFromRemote(
 
         // Update the SHA and try again
         readablesSha = this->calculateReadablesSha();
-        SindarinAPI::getInstance()->checkSync(readablesSha, placemarks, &checkSyncResponse);
+        request.readablesSha = readablesSha,
+        SindarinAPI::getInstance()->checkSync(request, &checkSyncResponse);
 
         if (!this->save()) {
             log_e("Failed to save readables.json");
