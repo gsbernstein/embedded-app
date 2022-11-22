@@ -202,6 +202,10 @@ void LocalStore::syncFromRemote(
                                           .message = "No access token set"});
         return;
     }
+
+    // Uncomment below line to steal your access token for local development
+    // log_w("Access token: %s", token.value().c_str());
+
     SindarinAPI::getInstance()->setAccessToken(token.value());
     progressCallback(ContentSyncState{.state = ContentSyncState::State::CheckingSync});
 

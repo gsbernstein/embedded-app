@@ -4,6 +4,7 @@
 
 #include "FileDownload.hpp"
 #include "GitVersion.hpp"
+#include "Misc/Platform.hpp"
 #include "Misc/Power.hpp"
 #include "Misc/StringUtil.hpp"
 #include "Models/Json.hpp"
@@ -57,8 +58,8 @@ auto SindarinAPI::checkSync(const std::string &readablesSha,
     }
 
     httpClient.addHeader("Content-Type", "application/x-www-form-urlencoded");
-    auto body =
-        StringFormat("sha=%s&build=%s&git_hash=%s", readablesSha.c_str(), kVersionString, kGitHash);
+    auto body = StringFormat("sha=%s&build=%s&git_hash=%s&sn=%s", readablesSha.c_str(),
+                             kVersionString, kGitHash, GetSerialNumber().c_str());
     for (auto &placemark : placemarks) {
         body += placemark.c_str();
     }
