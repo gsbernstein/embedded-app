@@ -48,7 +48,7 @@ auto SindarinAPI::beginClient(HTTPClient &httpClient, const String &urlPath,
 
 void SindarinAPI::setAccessToken(std::string token) { accessToken_ = std::move(token); }
 
-auto SindarinAPI::checkSync(CheckSyncRequest req, CheckSyncResponse *resp) -> int {
+auto SindarinAPI::checkSync(const CheckSyncRequest &req, CheckSyncResponse *resp) -> int {
     HTTPClient httpClient;
 
     if (!beginClient(httpClient, "/sync/all/")) {

@@ -25,7 +25,7 @@ public:
     auto beginClient(HTTPClient &httpClient, const String &urlPath, const String &contentType)
         -> bool;
 
-    auto checkSync(CheckSyncRequest req, CheckSyncResponse *resp) -> int;
+    auto checkSync(const CheckSyncRequest &req, CheckSyncResponse *resp) -> int;
 
     // Get list of readables from the server
     auto getUserReadables(std::vector<UserReadable> *userReadables) -> int;
