@@ -8,6 +8,13 @@
 #include "Models/UserReadable.hpp"
 #include "Storage/FileSystem.hpp"
 
+struct CheckSyncRequest {
+    std::string readablesSha;
+    std::vector<std::string> placemarks;
+    int ptBattery;
+    std::string ptBuild;
+};
+
 class SindarinAPI {
 public:
     static auto getInstance() -> SindarinAPI *;
@@ -18,8 +25,7 @@ public:
     auto beginClient(HTTPClient &httpClient, const String &urlPath, const String &contentType)
         -> bool;
 
-    auto checkSync(const std::string &readablesSha, const std::vector<std::string> &placemarks,
-                   CheckSyncResponse *resp) -> int;
+    auto checkSync(const CheckSyncRequest &req, CheckSyncResponse *resp) -> int;
 
     // Get list of readables from the server
     auto getUserReadables(std::vector<UserReadable> *userReadables) -> int;

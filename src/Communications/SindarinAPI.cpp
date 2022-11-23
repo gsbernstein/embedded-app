@@ -4,6 +4,7 @@
 
 #include "FileDownload.hpp"
 #include "GitVersion.hpp"
+#include "Misc/Platform.hpp"
 #include "Misc/Power.hpp"
 #include "Misc/StringUtil.hpp"
 #include "Models/Json.hpp"
@@ -47,9 +48,7 @@ auto SindarinAPI::beginClient(HTTPClient &httpClient, const String &urlPath,
 
 void SindarinAPI::setAccessToken(std::string token) { accessToken_ = std::move(token); }
 
-auto SindarinAPI::checkSync(const std::string &readablesSha,
-                            const std::vector<std::string> &placemarks, CheckSyncResponse *resp)
-    -> int {
+auto SindarinAPI::checkSync(const CheckSyncRequest &req, CheckSyncResponse *resp) -> int {
     HTTPClient httpClient;
 
     if (!beginClient(httpClient, "/sync/all/")) {
@@ -57,9 +56,10 @@ auto SindarinAPI::checkSync(const std::string &readablesSha,
     }
 
     httpClient.addHeader("Content-Type", "application/x-www-form-urlencoded");
-    auto body =
-        StringFormat("sha=%s&build=%s&git_hash=%s", readablesSha.c_str(), kVersionString, kGitHash);
-    for (auto &placemark : placemarks) {
+    auto body = StringFormat("sha=%s&build=%s&git_hash=%s&sn=%s&pt_battery=%d&pt_build=%s",
+                             req.readablesSha.c_str(), kVersionString, kGitHash,
+                             GetSerialNumber().c_str(), req.ptBattery, req.ptBuild.c_str());
+    for (auto &placemark : req.placemarks) {
         body += placemark.c_str();
     }
 
