@@ -152,7 +152,7 @@ void TTRemoteInput::scanForDevice() {
     scan->setInterval(40);
     scan->setWindow(30);
     scan->setActiveScan(true);
-    scan->start((RESCAN_INTERVAL_MS - RESCAN_GAP_MS) / 1000, nullptr, false);
+    scan->start((int)(RESCAN_INTERVAL_MS / 1000), nullptr, false);
     lastScanMs_ = millis();
     digitalWrite(RED_LED, LED_OFF);
 }
