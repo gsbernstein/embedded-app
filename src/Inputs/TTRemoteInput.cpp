@@ -133,7 +133,12 @@ void TTRemoteInput::disconnectTemporarily(int seconds) {
 
     std::string dfuString = "DFU-";
     if (prefs_.lastPageTurnerBuild.get().has_value()) {
-        dfuString += prefs_.lastPageTurnerBuild.get().value();
+        std::string build = prefs_.lastPageTurnerBuild.get().value();
+        if (build.find("DFU-") == std::string::npos) {
+            dfuString += build;
+        } else {
+            dfuString = build;
+        }
     }
     prefs_.lastPageTurnerBuild.set(dfuString);
 }
