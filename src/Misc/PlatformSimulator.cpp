@@ -15,18 +15,22 @@ auto GetBatteryVoltageRight() -> float { return 0; }
 
 void SetCpuSpeedMhz(int speedMhz) {}
 
-void SetBacklight(int percent) {
-    LightingSetting = percent;
-    log_d("Setting backlight to %d%%", percent);
+void SetLeftScreenLight(int dutyCycle) {
+    LightingSetting = dutyCycle;
+    // log_d("Setting screen light to dutyCycle=%d", dutyCycle);
 }
 
-void SetRightBackLight(int percent) {
-    log_d("Setting right backlight to %d%% (but ignoring b/c Simulator)", percent);
+void SetLeftScreenLightFade(int dutyCycle, int fadeMs) {
+    LightingSetting = dutyCycle;
+    // log_d("Fading screen light to dutyCycle=%d", dutyCycle);
 }
 
-void SetLeftBackLight(int percent) {
-    LightingSetting = percent;
-    log_d("Setting left backlight to %d%%", percent);
+void SetRightScreenLight(int dutyCycle) {
+    // log_d("Setting right screen light to dutyCycle=%d (but ignoring b/c Simulator)", dutyCycle);
+}
+
+void SetRightScreenLightFade(int dutyCycle, int fadeMs) {
+    // log_d("Fading right screen light to dutyCycle=%d (but ignoring b/c Simulator)", dutyCycle);
 }
 
 auto GetRunTimeMs() -> uint32_t { return millis(); }

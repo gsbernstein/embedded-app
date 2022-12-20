@@ -8,7 +8,7 @@
 #define I2C_MASTER_TIMEOUT_MS 1000
 #define MMC5603_SENSOR_ADDR 0x30
 
-typedef struct {
+struct Mmc5603StatusValue {
     union {
         uint8_t raw;
         struct {
@@ -35,9 +35,9 @@ typedef struct {
             uint8_t measTDone : 1;
         };
     };
-} mmc5603_status_value;
+};
 
-typedef struct {
+struct Mmc5603Ctrl0Value {
     union {
         uint8_t raw;
         struct {
@@ -75,7 +75,7 @@ typedef struct {
             uint8_t cmmFreqEn : 1;
         };
     };
-} mmc5603_ctrl_0_value;
+};
 
 auto Mmc5603::registerReadByte(mmc5603_reg_t regAddr, uint8_t *data) -> esp_err_t {
     return i2c_master_write_read_device(i2cNum_, MMC5603_SENSOR_ADDR, (uint8_t *)&regAddr, 1, data,
@@ -98,7 +98,7 @@ auto Mmc5603::readProductId() -> uint8_t {
 }
 
 auto Mmc5603::readX20Bit() -> float {
-    mmc5603_ctrl_0_value ctrl0Value;
+    Mmc5603Ctrl0Value ctrl0Value;
     ctrl0Value.autoSrEn = 1;
     ctrl0Value.takeMeasM = 1;
     ESP_ERROR_CHECK(registerWriteByte(MMC5603_REG_CTRL_0, ctrl0Value.raw));
@@ -119,7 +119,7 @@ auto Mmc5603::readX20Bit() -> float {
 }
 
 auto Mmc5603::readX() -> float {
-    mmc5603_ctrl_0_value ctrl0Value;
+    Mmc5603Ctrl0Value ctrl0Value;
     ctrl0Value.autoSrEn = 1;
     ctrl0Value.takeMeasM = 1;
     ESP_ERROR_CHECK(registerWriteByte(MMC5603_REG_CTRL_0, ctrl0Value.raw));
@@ -139,7 +139,7 @@ auto Mmc5603::readX() -> float {
 }
 
 auto Mmc5603::readXYZ8Bit(Xyz8bit &out) -> bool {
-    mmc5603_ctrl_0_value ctrl0Value;
+    Mmc5603Ctrl0Value ctrl0Value;
     ctrl0Value.autoSrEn = 1;
     ctrl0Value.takeMeasM = 1;
     esp_err_t err;
@@ -170,7 +170,7 @@ auto Mmc5603::readXYZ8Bit(Xyz8bit &out) -> bool {
 }
 
 auto Mmc5603::readXZ8Bit(Xyz8bit &out) -> bool {
-    mmc5603_ctrl_0_value ctrl0Value;
+    Mmc5603Ctrl0Value ctrl0Value;
     ctrl0Value.autoSrEn = 1;
     ctrl0Value.takeMeasM = 1;
     esp_err_t err;

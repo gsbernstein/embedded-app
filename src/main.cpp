@@ -60,10 +60,8 @@ BLEImprov *bleWifi;
 TTRemoteInput ttRemoteInput(prefs);
 #endif
 
-#if USE_LTR329
-#include "Sensors/Ltr329Als.hpp"
-Ltr329Als lightSensor(0);
-#endif
+#include "Sensors/LightingController.hpp"
+LightingController lightingController;
 
 #if USE_MMC5603
 #include "Sensors/TempleCloseSensor.hpp"
@@ -117,6 +115,10 @@ void RadioTask(void *parameter) {
         templeCloseSensor.checkTemple();
 #endif
         vTaskDelay(1000 / portTICK_PERIOD_MS);
+        // This happens after the delay, so that the first check can run with a faster fade.
+        // TODO(john): Since LEDC doesn't work with the serial monitor connected, this is really
+        // noisy in the logs
+        lightingController.checkAmbientLight();
     }
     vTaskDelete(nullptr);
 }
@@ -216,18 +218,11 @@ extern "C" void app_main(void) { // NOLINT(readability-identifier-naming)
 #endif
     }
 
-#if USE_LTR329
-    auto partId = lightSensor.readPartId();
-    auto manufacturerId = lightSensor.readManufacturerId();
-    if (partId != 0xA0 || manufacturerId != 0x05) {
-        log_e("LTR329 ambient light sensor not found (partId: 0x%02X, manufacturerId: 0x%02X)",
-              partId, manufacturerId);
+    if (!lightingController.checkSensorAvailable()) {
         bootErrors.push_back({.type = BootError::Type::AmbientLight});
     } else {
-        log_i("LTR329 ambient light sensor found (partId: 0x%02X, manufacturerId: 0x%02X)", partId,
-              manufacturerId);
+        lightingController.begin();
     }
-#endif
 
 #if USE_MMC5603
     if (!templeCloseSensor.checkProductId()) {
@@ -235,9 +230,9 @@ extern "C" void app_main(void) { // NOLINT(readability-identifier-naming)
     } else {
         templeCloseSensor.setCallback([](bool open) {
             if (open) {
-                SetBacklight(prefs.backlight.get().value());
+                lightingController.enableLighting();
             } else {
-                SetBacklight(0);
+                lightingController.disableLighting();
             }
         });
     }
@@ -267,13 +262,6 @@ extern "C" void app_main(void) { // NOLINT(readability-identifier-naming)
         myDisplay.getDriver()->setVcom(prefs.vcom.get().value());
     }
 #endif
-
-    // If the saved prefs have a backlight of zero, turn on the lights anyways
-    // Default to 10% max (which is 50% of the way through the lighting setting)
-    if (prefs.backlight.get().value() == 0) {
-        prefs.backlight.set(10);
-    }
-    SetBacklight(prefs.backlight.get().value());
 
     switch (prefs.font.get().value()) {
     case PREFS_LUCIDA_REGULAR:
@@ -415,10 +403,15 @@ extern "C" void app_main(void) { // NOLINT(readability-identifier-naming)
     if (!fileSystem.begin()) {
         bootErrors.push_back({.type = BootError::Type::FileSystem});
     } else {
-        // file system started
-        // attempt to write any core dumps to disk for later upload
-        CrashReportWriter crashReportWriter(fileSystem, bootCount - 1);
-        crashReportWriter.writeCrashReportIfExists();
+        // This is a hack for now for debugging crashes while connected to the serial monitor --
+        // don't save (and thus delete crashes) when connected to USB. This means the boot count
+        // will be wrong once this is saved, but that's probably ok
+        if (!USBConnected()) {
+            // file system started
+            // attempt to write any core dumps to disk for later upload
+            CrashReportWriter crashReportWriter(fileSystem, bootCount - 1);
+            crashReportWriter.writeCrashReportIfExists();
+        }
     }
 
     if (!localStore.begin()) {
@@ -429,7 +422,7 @@ extern "C" void app_main(void) { // NOLINT(readability-identifier-naming)
 
     power.setup();
 
-    rootUi.setup(&myDisplay, localStore, fileSystem);
+    rootUi.setup(&myDisplay, localStore, fileSystem, lightingController);
 
     SHOW_HEAP();
 
@@ -441,6 +434,9 @@ extern "C" void app_main(void) { // NOLINT(readability-identifier-naming)
     xTaskCreatePinnedToCore(RadioTask, "Radio", 10000, nullptr, 1, nullptr, 0);
     // xTaskCreatePinnedToCore(StatsTask, "Stats", 5000, nullptr, 0, nullptr, 1);
     xTaskCreatePinnedToCore(PowerTask, "Power", 5000, nullptr, 0, &powerTaskHandle, 1);
+
+    // Begin fade-in on the lighting before rendering the UI
+    DispatchGetUiQueue()->dispatch([]() { lightingController.checkAmbientLight(300, 500); });
 
     // Render the first thing
     DispatchGetUiQueue()->dispatch([]() { UIInnerLoop(RemoteCommand::NONE); });
