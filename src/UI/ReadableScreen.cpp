@@ -65,7 +65,7 @@ void ReadableScreen::updateBookmarkStatus() {
 
     File bookmarkFile = fileSystem_.open(bookmarkPath.c_str(), FILE_READ, false);
     if (!bookmarkFile) {
-        log_e("Failed to open bookmark file: %s is the filename", bookmarkPath.c_str());
+        log_i("Failed to open bookmark file: %s is the filename", bookmarkPath.c_str());
         return;
     }
     Bookmark bookmark;
@@ -99,7 +99,7 @@ void ReadableScreen::writeOutBookmarkUpdate() {
     File bookmarkFile = fileSystem_.open(bookmarkPath.c_str(), FILE_APPEND, true);
 
     if (!bookmarkFile) {
-        log_e("Failed to open bookmark file: %s is the filename", bookmarkPath.c_str());
+        log_i("Failed to open bookmark file: %s is the filename", bookmarkPath.c_str());
         return;
     }
 
@@ -170,10 +170,11 @@ void ReadableScreen::renderIcons(DisplaySystem &display) {
 // Since this happens in a couple of places (animation as well as button press),
 // we have a helper method to do the work.
 void ReadableScreen::turnPage() {
+
     readable_.placePrev = readable_.place;
     readable_.place = newPlace_;
-    prefs_.readablePlace.set(readable_.placemarkUuid.c_str(), readable_.place);
-    prefs_.readablePlaceChanged.set(readable_.placemarkUuid.c_str(), true);
+    prefs_.readablePlace.set(readable_.shortenedUuid.c_str(), readable_.place);
+    prefs_.readablePlaceChanged.set(readable_.shortenedUuid.c_str(), true);
     speedLinesToSkip_ = 0;
 }
 
@@ -370,8 +371,8 @@ void ReadableScreen::processCommand(RemoteCommand command) {
     case RemoteCommand::CHANNEL_MINUS:
         if (pageSpeed_ == 0) {
             readable_.place = renderer_.getPreviousPlace();
-            prefs_.readablePlace.set(readable_.placemarkUuid.c_str(), readable_.place);
-            prefs_.readablePlaceChanged.set(readable_.placemarkUuid.c_str(), true);
+            prefs_.readablePlace.set(readable_.shortenedUuid.c_str(), readable_.place);
+            prefs_.readablePlaceChanged.set(readable_.shortenedUuid.c_str(), true);
             needsRerender = true;
         } else {
             pageSpeed_ = std::min(pageSpeed_ + PAGE_SPEED_INCREMENT, SLOWEST_PAGE_SPEED);
@@ -382,7 +383,7 @@ void ReadableScreen::processCommand(RemoteCommand command) {
         }
         break;
     case RemoteCommand::PLAY: // To allow the PT to long press east to change page without an enter
-                              // button
+                              // button, and undoing the bookmark first
     case RemoteCommand::ENTER:
         if (pageSpeed_ == 0) {
             turnPage();

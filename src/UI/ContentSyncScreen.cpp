@@ -64,6 +64,10 @@ void ContentSyncScreen::render(DisplaySystem &display) {
         display.drawSingleLineOfCenteredText("Done! Restarting...");
         break;
     }
+    case ContentSyncState::AlreadySynced: {
+        display.drawSingleLineOfCenteredText("No new books or articles.");
+        break;
+    }
     case ContentSyncState::Failure: {
         display.drawSingleLineOfCenteredText(state_.message);
         break;
@@ -120,7 +124,8 @@ void ContentSyncScreen::begin() {
             this->updateState(state);
             this->render(this->display_);
             if (state.state == ContentSyncState::Failure ||
-                state.state == ContentSyncState::Synced) {
+                state.state == ContentSyncState::Synced ||
+                state.state == ContentSyncState::AlreadySynced) {
                 delay(5000);
                 backCallback();
             }

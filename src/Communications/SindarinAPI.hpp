@@ -9,8 +9,11 @@
 #include "Storage/FileSystem.hpp"
 
 struct CheckSyncRequest {
-    std::string readablesSha;
-    std::vector<std::string> placemarks;
+    std::string readablesSince;
+    std::string articlesSince;
+    std::vector<std::string> readablePlacemarks;
+    std::vector<std::string> articlePlacemarks;
+    std::vector<std::string> articlesArchived;
     int ptBattery;
     std::string ptBuild;
 };

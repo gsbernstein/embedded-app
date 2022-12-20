@@ -8,6 +8,7 @@
 #include "Misc/Power.hpp"
 #include "Misc/StringUtil.hpp"
 #include "Models/Json.hpp"
+#include "Models/UserArticle.hpp"
 #include "Models/UserReadable.hpp"
 #include "UrlEncode.hpp"
 #include "Version.hpp"
@@ -56,19 +57,38 @@ auto SindarinAPI::checkSync(const CheckSyncRequest &req, CheckSyncResponse *resp
     }
 
     httpClient.addHeader("Content-Type", "application/x-www-form-urlencoded");
-    auto body = StringFormat("sha=%s&build=%s&git_hash=%s&sn=%s&pt_battery=%d&pt_build=%s",
-                             req.readablesSha.c_str(), kVersionString, kGitHash,
-                             GetSerialNumber().c_str(), req.ptBattery, req.ptBuild.c_str());
-    for (auto &placemark : req.placemarks) {
+    auto body = StringFormat("skip_content=false&build=%s&git_hash=%s&sn=%"
+                             "s&pt_battery=%d&pt_build=%s",
+                             kVersionString, kGitHash, GetSerialNumber().c_str(), req.ptBattery,
+                             req.ptBuild.c_str());
+    if (req.readablesSince.length() > 0) {
+        body += StringFormat("&readables_since=%s", req.readablesSince.c_str());
+    }
+    if (req.articlesSince.length() > 0) {
+        body += StringFormat("&articles_since=%s", req.articlesSince.c_str());
+    }
+    for (auto &placemark : req.readablePlacemarks) {
         body += placemark.c_str();
+    }
+    for (auto &placemark : req.articlePlacemarks) {
+        body += placemark.c_str();
+    }
+    for (auto &article : req.articlesArchived) {
+        body += article.c_str();
     }
 
     std::byte request[body.length()];
     memcpy(request, body.c_str(), body.length());
     int httpCode = httpClient.POST((uint8_t *)request, sizeof(request));
-    auto string = httpClient.getString();
-    auto *respJson = new SpiRamJsonDocument(string.length() * 2);
-    auto error = ArduinoJson::deserializeJson(*respJson, string);
+    log_d("Sync response http size: %d", httpClient.getSize());
+    auto *streamPtr = httpClient.getStreamPtr();
+    if (!streamPtr) {
+        log_e("Failed to get stream pointer for response.");
+        httpClient.end();
+        return 0;
+    }
+    auto *respJson = new SpiRamJsonDocument(1024 + httpClient.getSize() * 3);
+    auto error = ArduinoJson::deserializeJson(*respJson, *streamPtr);
     if (error.code() != DeserializationError::Ok) {
         log_e("Failed to deserialize sync response: %s", error.c_str());
         delete respJson;

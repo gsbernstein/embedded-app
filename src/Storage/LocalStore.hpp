@@ -1,9 +1,9 @@
 #pragma once
 
+#include <algorithm>
 #include <vector>
 
 #include "Misc/Dispatch.hpp"
-#include "Models/Placemark.hpp"
 #include "Models/Readable.hpp"
 #include "Storage/FileSystem.hpp"
 #include "Storage/PreferencesStore.hpp"
@@ -16,6 +16,7 @@ struct ContentSyncState {
         LoadingTasks,
         Syncing,
         Synced,
+        AlreadySynced,
         Failure,
     } state = Idle;
 
@@ -35,26 +36,38 @@ public:
         : fileSystem(fileSystem), prefs_(prefs){};
 
     auto begin() -> bool;
+    auto loadReadablesFromFile(std::vector<Readable> &readables, const std::string &path) -> bool;
 
     // Convenience methods
-    auto hasReadable(Readable &readable) -> bool;
+    auto readablesGroup(const std::vector<Readable> &readables) -> std::string;
+    auto hasReadable(const std::vector<Readable> &readables, const Readable &readable) -> bool;
     auto readables() -> std::vector<Readable> & { return readables_; };
-    void addReadable(const Readable &readable);
-    void removeReadable(const Readable &readable);
+    auto articles() -> std::vector<Readable> & { return articles_; };
+    void addReadable(std::vector<Readable> &readables, const Readable &readable);
+    void removeReadable(std::vector<Readable> &readables, const Readable &readable);
+    auto readablesSince() -> std::string;
+    auto articlesSince() -> std::string;
 
-    auto calculateReadablesSha() -> std::string;
-    auto readablePlacemarksChanged() -> std::vector<std::string>;
-    void mergePlacemarksFromServer(const std::vector<Placemark> &placemarks);
-    void resetReadablePlacemarkChanged();
+    auto changedReadablePlacemarkQueryParams(const std::vector<Readable> &readables)
+        -> std::vector<std::string>;
+    auto changedArticlesArchivedQueryParams(const std::vector<Readable> &articles)
+        -> std::vector<std::string>;
+    auto processReadablePlacemarksFromServer(const Readable &readable, const uint32_t placemark)
+        -> bool;
+    void resetReadablesPlacemarkChanged(const std::vector<Readable> &readables);
+    void resetArticlesArchivedChanged(const std::vector<Readable> &readables);
 
     void syncFromRemote(const std::function<void(ContentSyncState state)> &progressCallback);
-
-    auto save() -> bool;
+    void saveArticleFile(const Readable &readable);
+    void clearArticlesFile(bool restart = true);
+    void clearReadablesFile(bool restart = true);
+    auto saveReadables(const std::vector<Readable> &readables, const std::string &path) -> bool;
 
     FileSystem &fileSystem;
 
 private:
     std::vector<Readable> readables_;
+    std::vector<Readable> articles_;
 
     PreferencesStore &prefs_;
 };

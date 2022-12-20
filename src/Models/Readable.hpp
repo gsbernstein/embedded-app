@@ -4,6 +4,7 @@
 #include <string>
 #include <vector>
 
+#include "Misc/StringUtil.hpp"
 #include "Models/Author.hpp"
 #include "Models/Json.hpp"
 #include "Models/JsonSerializable.hpp"
@@ -17,8 +18,10 @@ public:
     ~Readable() override = default;
 
     std::string uuid;
-    std::string placemarkUuid;
+    std::string shortenedUuid;
     std::string title;
+    std::string content;
+    std::string url;
     std::string dateCreated;
     std::string dateModified;
     std::string datePublished;
@@ -34,19 +37,25 @@ public:
     uint32_t place{0}, placePrev{0};
 
     [[nodiscard]] auto file() const -> const ReadableFile & { return files[0]; }
-    [[nodiscard]] auto localFilePath() const -> std::string { return "/" + file().name; }
+    [[nodiscard]] auto localFilePath() const -> std::string {
+        if (files.size()) {
+            return StringFormat("/%s", file().name.c_str());
+        } else {
+            return StringFormat("/articles/%s.txt", uuid.c_str());
+        }
+    }
     [[nodiscard]] auto remoteUrl() const -> std::string { return file().file; }
 
     auto fromJson(const JsonObject &j) -> bool override {
         if (!j.containsKey("uuid") || !j.containsKey("title") || !j.containsKey("date_created") ||
-            !j.containsKey("date_modified") || !j.containsKey("authors") ||
-            !j.containsKey("files")) {
+            !j.containsKey("date_modified") || !j.containsKey("authors")) {
             log_w("Failed to parse Readable %s", DumpJson(j).c_str());
             return false;
         }
+        // log_d("Parsing Readable %s", DumpJson(j).c_str());
         uuid = j["uuid"].as<std::string>();
-        placemarkUuid = j["uuid"].as<std::string>();
-        placemarkUuid.resize(TRUNCATE_READABLE_UUID_FOR_PLACEMARK_BYTES);
+        shortenedUuid = j["uuid"].as<std::string>();
+        shortenedUuid.resize(TRUNCATE_READABLE_UUID_FOR_PLACEMARK_BYTES);
         title = j["title"].as<std::string>();
         dateCreated = j["date_created"].as<std::string>();
         dateModified = j["date_modified"].as<std::string>();
@@ -62,6 +71,9 @@ public:
             files.emplace_back();
             files.back().fromJson(file);
         }
+        // TODO: Instead of reading content, write it to disk immediately
+        content = j["content"].as<std::string>();
+
         return true;
     }
 };

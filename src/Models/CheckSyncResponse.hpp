@@ -2,7 +2,8 @@
 
 #include "Models/Firmware.hpp"
 #include "Models/JsonSerializable.hpp"
-#include "Models/Placemark.hpp"
+#include "Models/UserArticle.hpp"
+#include "Models/UserReadable.hpp"
 
 class CheckSyncResponse : JsonSerializable {
 public:
@@ -12,16 +13,36 @@ public:
     bool synced;
     std::string message;
     Firmware firmware;
-    std::vector<Placemark> placemarks;
+    std::vector<UserReadable> userReadables;
+    std::vector<UserArticle> userArticles;
+    std::string readablesSince;
+    std::string articlesSince;
 
     auto fromJson(const JsonObject &j) -> bool override {
         synced = j["synced"].as<bool>();
         message = j["message"].as<std::string>();
+        if (j.containsKey("readables_since")) {
+            readablesSince = j["readables_since"].as<std::string>();
+        } else {
+            readablesSince = "";
+        }
+        if (j.containsKey("articles_since")) {
+            articlesSince = j["articles_since"].as<std::string>();
+        } else {
+            articlesSince = "";
+        }
         firmware.fromJson(j["firmware"]);
-        placemarks.clear();
-        for (const auto &placemark : j["placemarks"].as<JsonArray>()) {
-            placemarks.emplace_back();
-            placemarks.back().fromJson(placemark);
+        userReadables.clear();
+        for (const auto &userReadable : j["readables"].as<JsonArray>()) {
+            userReadables.emplace_back();
+            userReadables.back().fromJson(userReadable);
+        }
+        userArticles.clear();
+        if (j.containsKey("articles")) {
+            for (const auto &userArticle : j["articles"].as<JsonArray>()) {
+                userArticles.emplace_back();
+                userArticles.back().fromJson(userArticle);
+            }
         }
         return true;
     }
