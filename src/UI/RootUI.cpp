@@ -24,6 +24,7 @@
 #include "UI/CrashReportScreen.hpp"
 #include "UI/DemoScreen.hpp"
 #include "UI/FirmwareUpdateScreen.hpp"
+#include "UI/LayoutTestScreen.hpp"
 #include "UI/LightingAdjustScreen.hpp"
 #include "UI/LineSpacingScreen.hpp"
 #include "UI/LoadingScreen.hpp"
@@ -167,6 +168,16 @@ void RootUI::setup(DisplaySystem *display, LocalStore &localStore, FileSystem &f
         setCurrentScreen(*settingsMenu);
     };
 
+    // settingsMenu->addMenuItem(MenuItem("Layout Example", [this, settingsMenu, display]() {
+    //     auto layoutTestScreen = new LayoutTestScreen(*display);
+    //     setCurrentScreen(*layoutTestScreen);
+    //     layoutTestScreen->backCallback = [this, layoutTestScreen, settingsMenu]() {
+    //         settingsMenu->setFirstLoad();
+    //         setCurrentScreen(*settingsMenu);
+    //         delete layoutTestScreen;
+    //     };
+    // }));
+
     settingsMenu->addMenuItem(
         MenuItem("Sync Content", [this, display, &localStore, settingsMenu, &lightingController]() {
             auto contentSyncScreen = new ContentSyncScreen(*display, localStore, this->prefs_);
@@ -216,16 +227,18 @@ void RootUI::setup(DisplaySystem *display, LocalStore &localStore, FileSystem &f
         };
     }));
 
-    settingsMenu->addMenuItem(MenuItem("Lighting", [this, settingsMenu, &lightingController]() {
-        auto lightingAdjustScreen = new LightingAdjustScreen(this->prefs_, lightingController);
-        this->display_->clearDisplay();
-        setCurrentScreen(*lightingAdjustScreen);
-        lightingAdjustScreen->backCallback = [this, lightingAdjustScreen, settingsMenu]() {
-            settingsMenu->setFirstLoad();
-            setCurrentScreen(*settingsMenu);
-            delete lightingAdjustScreen;
-        };
-    }));
+    settingsMenu->addMenuItem(
+        MenuItem("Lighting", [this, display, settingsMenu, &lightingController]() {
+            auto lightingAdjustScreen =
+                new LightingAdjustScreen(*display, this->prefs_, lightingController);
+            this->display_->clearDisplay();
+            setCurrentScreen(*lightingAdjustScreen);
+            lightingAdjustScreen->backCallback = [this, lightingAdjustScreen, settingsMenu]() {
+                settingsMenu->setFirstLoad();
+                setCurrentScreen(*settingsMenu);
+                delete lightingAdjustScreen;
+            };
+        }));
 
     settingsMenu->addMenuItem(MenuItem("Set Line Spacing", [this, settingsMenu, display]() {
         auto lineSpacingScreen = new LineSpacingScreen(*display, prefs_);
