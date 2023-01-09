@@ -23,9 +23,9 @@ auto LocalStore::begin() -> bool {
 
 auto LocalStore::loadReadablesFromFile(std::vector<Readable> &readables, const std::string &path)
     -> bool {
-    log_d("Loading %s from %s", readablesGroup(readables).c_str(), path.c_str());
+    log_d("Loading %ss from %s", readablesModelType(readables).c_str(), path.c_str());
     File readablesFile = fileSystem.open(path);
-    if (!readablesFile) {
+    if (!readablesFile || (int)readablesFile.size() == 0) {
         log_w("Failed to open %s", path.c_str());
         // Fail positively since it's ok to not have any when you first use the glasses
         return true;
@@ -33,13 +33,12 @@ auto LocalStore::loadReadablesFromFile(std::vector<Readable> &readables, const s
 
     // Grab a minimum amount of ram, even if the readables file is empty
     auto docSize = (int)readablesFile.size() * 2;
-    auto *doc = new SpiRamJsonDocument(docSize);
+    auto doc = std::make_unique<SpiRamJsonDocument>(docSize);
     auto error = deserializeJson(*doc, readablesFile);
     readablesFile.close();
 
     if (error.code() != DeserializationError::Ok) {
         log_e("Failed to deserialize readables file: %s", error.c_str());
-        delete doc;
         return false;
     }
 
@@ -77,12 +76,11 @@ auto LocalStore::loadReadablesFromFile(std::vector<Readable> &readables, const s
     }
 
     log_d("Loaded %zu readables from %s", readables.size(), path.c_str());
-    delete doc;
     return true;
 }
 
-auto LocalStore::readablesGroup(const std::vector<Readable> &readables) -> std::string {
-    return &readables == &articles_ ? "articles" : "readables";
+auto LocalStore::readablesModelType(const std::vector<Readable> &readables) -> std::string {
+    return &readables == &articles_ ? "article" : "readable";
 }
 
 auto LocalStore::hasReadable(const std::vector<Readable> &readables, const Readable &readable)
@@ -134,35 +132,44 @@ auto LocalStore::articlesSince() -> std::string {
 auto LocalStore::changedReadablePlacemarkQueryParams(const std::vector<Readable> &readables)
     -> std::vector<std::string> {
     std::vector<std::string> placemarks;
-    std::string group = this->readablesGroup(const_cast<std::vector<Readable> &>(readables));
+    std::string modelType =
+        this->readablesModelType(const_cast<std::vector<Readable> &>(readables));
+
     for (auto &readable : readables) {
         if (readable.localOnly) {
             continue;
         }
+
         bool changed = prefs_.readablePlaceChanged.get(readable.shortenedUuid.c_str());
         if (changed) {
             uint32_t place = prefs_.readablePlace.get(readable.shortenedUuid.c_str());
             log_i("Placemark on readable %s %s has changed to %d", readable.title.c_str(),
                   readable.uuid.c_str(), place);
-            placemarks.push_back(
-                StringFormat("&%s_placemark_%s=%d", group.c_str(), readable.uuid.c_str(), place));
+            placemarks.push_back(StringFormat("&%s_placemark_%s=%d", modelType.c_str(),
+                                              readable.uuid.c_str(), place));
         }
     }
 
     return placemarks;
 }
 
-auto LocalStore::changedArticlesArchivedQueryParams(const std::vector<Readable> &articles)
+auto LocalStore::changedReadablesArchivedQueryParams(const std::vector<Readable> &readables)
     -> std::vector<std::string> {
     std::vector<std::string> archived;
-    for (auto &article : articles) {
-        if (article.localOnly) {
+    std::string modelType =
+        this->readablesModelType(const_cast<std::vector<Readable> &>(readables));
+
+    for (auto &readable : readables) {
+        if (readable.localOnly) {
             continue;
         }
-        bool changed = prefs_.articleArchivedChanged.get(article.shortenedUuid.c_str());
+
+        bool changed = prefs_.readableArchivedChanged.get(readable.shortenedUuid.c_str());
         if (changed) {
-            log_i("Archived article %s %s", article.title.c_str(), article.uuid.c_str());
-            archived.push_back(StringFormat("&article_archived_%s=1", article.uuid.c_str()));
+            log_i("Archived %s %s %s", modelType.c_str(), readable.title.c_str(),
+                  readable.uuid.c_str());
+            archived.push_back(
+                StringFormat("&%s_archive_%s=1", modelType.c_str(), readable.uuid.c_str()));
         }
     }
 
@@ -201,18 +208,18 @@ void LocalStore::resetReadablesPlacemarkChanged(const std::vector<Readable> &rea
         if (!readable.localOnly && changed) {
             log_d("Resetting placemark changed for \"%s\" (now synced to server)",
                   readable.title.c_str());
-            prefs_.readablePlaceChanged.set(readable.shortenedUuid.c_str(), 0);
+            prefs_.readablePlaceChanged.set(readable.shortenedUuid.c_str(), false);
         }
     }
 }
 
-void LocalStore::resetArticlesArchivedChanged(const std::vector<Readable> &readables) {
+void LocalStore::resetReadablesArchivedChanged(const std::vector<Readable> &readables) {
     for (auto &readable : readables) {
-        bool changed = prefs_.articleArchivedChanged.get(readable.shortenedUuid.c_str());
+        bool changed = prefs_.readableArchivedChanged.get(readable.shortenedUuid.c_str());
         if (!readable.localOnly && changed) {
             log_d("Resetting article archive changed for \"%s\" (now synced to server)",
                   readable.title.c_str());
-            prefs_.articleArchivedChanged.set(readable.shortenedUuid.c_str(), 0);
+            prefs_.readableArchivedChanged.remove(readable.shortenedUuid.c_str());
         }
     }
 }
@@ -265,13 +272,15 @@ void LocalStore::syncFromRemote(
         auto articlesSince = this->articlesSince();
         auto readablePlacemarks = this->changedReadablePlacemarkQueryParams(readables_);
         auto articlePlacemarks = this->changedReadablePlacemarkQueryParams(articles_);
-        auto articlesArchived = this->changedArticlesArchivedQueryParams(articles_);
+        auto readablesArchived = this->changedReadablesArchivedQueryParams(readables_);
+        auto articlesArchived = this->changedReadablesArchivedQueryParams(articles_);
         CheckSyncResponse checkSyncResponse;
         CheckSyncRequest request = CheckSyncRequest{
             .readablesSince = readablesSince,
             .articlesSince = articlesSince,
             .readablePlacemarks = readablePlacemarks,
             .articlePlacemarks = articlePlacemarks,
+            .readablesArchived = readablesArchived,
             .articlesArchived = articlesArchived,
             .ptBattery = this->prefs_.lastPageTurnerBattery.get().value_or(0),
             .ptBuild = this->prefs_.lastPageTurnerBuild.get().value_or(""),
@@ -301,6 +310,8 @@ void LocalStore::syncFromRemote(
         // If out of sync, download any new readables.
         std::vector<Readable> readablesToDownload = {};
         std::vector<Readable> readablesToDelete = {};
+        std::vector<Readable> articlesToDelete = {};
+        std::vector<Readable> articlesToSave = {};
 
         // Now look through all the readables here, and download any that we don't have
         // already
@@ -327,6 +338,34 @@ void LocalStore::syncFromRemote(
             readablesToDownload.push_back(userReadable.readable);
         }
         this->resetReadablesPlacemarkChanged(readables_);
+        this->resetReadablesArchivedChanged(readables_);
+
+        // Look through all the articles, deleting archived ones and downloading new ones
+        for (auto &userReadable : checkSyncResponse.userArticles) {
+            log_d("Fetched user article: %s (%zu)", userReadable.readable.title.c_str(),
+                  userReadable.readable.content.size());
+            if (this->processReadablePlacemarksFromServer(userReadable.readable,
+                                                          userReadable.placemark)) {
+                log_i("Placemark for %s updated to %d", userReadable.readable.title.c_str(),
+                      userReadable.placemark);
+            }
+            if (userReadable.isArchived) {
+                log_i("Article %s is archived", userReadable.readable.title.c_str());
+                // TODO: Store these articles in an accessible archive instead of just deleting them
+                // and ignoring
+                articlesToDelete.push_back(userReadable.readable);
+                continue;
+            }
+            if (this->hasReadable(articles_, userReadable.readable)) {
+                // Should never get here as articlesSince should hide these articles
+                log_w("Already have %s", userReadable.readable.title.c_str());
+                continue;
+            }
+
+            articlesToSave.push_back(userReadable.readable);
+        }
+        this->resetReadablesPlacemarkChanged(articles_);
+        this->resetReadablesArchivedChanged(articles_);
 
         // TODO: Probably these should be set operations
         log_d("Readables to download: %zu", readablesToDownload.size());
@@ -348,7 +387,13 @@ void LocalStore::syncFromRemote(
                 .percentage = 0,
             });
         }
-        if (checkSyncResponse.userArticles.size() > 0) {
+        if (articlesToDelete.size() > 0) {
+            syncState.tasks.push_back(ContentSyncState::Task{
+                .message = "Delete: Archived articles",
+                .percentage = 0,
+            });
+        }
+        if (articlesToSave.size() > 0) {
             syncState.tasks.push_back(ContentSyncState::Task{
                 .message = "Get: Articles from Pocket",
                 .percentage = 0,
@@ -397,6 +442,23 @@ void LocalStore::syncFromRemote(
 
         progressCallback(syncState);
 
+        auto tasksIndex = readablesToDownload.size() + readablesToDelete.size();
+        if (articlesToDelete.size() > 0) {
+            tasksIndex += 1;
+
+            for (int i = 0; i < articlesToDelete.size(); i++) {
+                syncState.tasks[tasksIndex].percentage =
+                    (float(i + 1) / articlesToDelete.size()) * 100;
+
+                const auto &readable = articlesToDelete[i];
+                log_i("Deleting %s", readable.title.c_str());
+                this->fileSystem.remove(readable.localFilePath());
+                this->removeReadable(articles_, readable);
+            }
+        }
+
+        progressCallback(syncState);
+
         // Clear the articlesSince cache since it will be set at the end of a successful run.
         // If we fail, then the next content sync will not have a cutoff date
         if (checkSyncResponse.articlesSince != "") {
@@ -404,38 +466,15 @@ void LocalStore::syncFromRemote(
         }
 
         // Save the articles that are new
-        auto tasksIndex = readablesToDownload.size() + readablesToDelete.size();
-        for (int i = 0; i < checkSyncResponse.userArticles.size(); i++) {
-            auto &userReadable = checkSyncResponse.userArticles[i];
-
-            log_d("Fetched user article: %s (%zu)", userReadable.readable.title.c_str(),
-                  userReadable.readable.content.size());
-            if (this->processReadablePlacemarksFromServer(userReadable.readable,
-                                                          userReadable.placemark)) {
-                log_i("Placemark for %s updated to %d", userReadable.readable.title.c_str(),
-                      userReadable.placemark);
-            }
-            if (userReadable.isArchived) {
-                log_i("Readable %s is archived", userReadable.readable.title.c_str());
-                // TODO: Store these articles in an accessible archive instead of just deleting them
-                // and ignoring
-                continue;
-            }
-            if (this->hasReadable(articles_, userReadable.readable)) {
-                // Should never get here as articlesSince should hide these articles
-                log_w("Already have %s", userReadable.readable.title.c_str());
-                continue;
-            }
-
-            this->saveArticleFile(userReadable.readable);
-            this->addReadable(articles_, userReadable.readable);
-
-            syncState.tasks[tasksIndex].percentage =
-                (float(i) / checkSyncResponse.userArticles.size()) * 100;
+        for (int i = 0; i < articlesToSave.size(); i++) {
+            syncState.tasks[tasksIndex].percentage = (float(i + 1) / articlesToSave.size()) * 100;
             progressCallback(syncState);
+
+            auto &readable = articlesToSave[i];
+
+            this->saveArticleFile(readable);
+            this->addReadable(articles_, readable);
         }
-        this->resetReadablesPlacemarkChanged(articles_);
-        this->resetArticlesArchivedChanged(articles_);
 
         progressCallback(syncState);
 
@@ -494,13 +533,13 @@ void LocalStore::saveArticleFile(const Readable &readable) {
     }
 
     const char *title = readable.title.c_str();
-    size_t docSize = file.size();
     file.write((const uint8_t *)title, strlen(title));
     file.write('\n');
 
     StripHtml(readable.content, file);
 
     file.flush();
+    size_t docSize = file.size();
     file.close();
 
     log_d("Finished storing article %s, size %zu/%zu", readable.title.c_str(), docSize,
@@ -542,7 +581,7 @@ auto LocalStore::saveReadables(const std::vector<Readable> &readables, const std
     -> bool {
     // 2048 is probably a safe-ish upper bound per readable. I'm seeing about half that in my
     // testing so far
-    auto *doc = new SpiRamJsonDocument(2048 * std::max(1, (int)readables.size()));
+    auto doc = std::make_unique<SpiRamJsonDocument>(2048 * std::max(1, (int)readables.size()));
 
     // Create a key named readables of type array
     JsonArray readablesJson = doc->createNestedArray("readables");
@@ -565,7 +604,6 @@ auto LocalStore::saveReadables(const std::vector<Readable> &readables, const std
     }
 
     serializeJsonPretty(*doc, file);
-    delete doc;
     file.close();
 
     return true;

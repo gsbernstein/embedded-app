@@ -28,6 +28,7 @@
 #include "UI/FirmwareUpdateScreen.hpp"
 #include "UI/LayoutTestScreen.hpp"
 #include "UI/LightingAdjustScreen.hpp"
+#include "UI/LineMenuScreen.hpp"
 #include "UI/LineSpacingScreen.hpp"
 #include "UI/LoadingScreen.hpp"
 #include "UI/LogoScreen.hpp"
@@ -143,10 +144,24 @@ void RootUI::setup(DisplaySystem *display, LocalStore &localStore, FileSystem &f
     }
 
     for (Readable &r : readables) {
-        mainMenu->addMenuItem(MenuItem(r.title, [this, r, createReadableScreen]() {
+        bool archived = prefs_.readableArchivedChanged.get(r.shortenedUuid.c_str());
+        auto title = archived ? "Archived: " + r.title : r.title;
+
+        mainMenu->addMenuItem(MenuItem(title, [this, r, createReadableScreen, display, mainMenu]() {
             auto readableScreen = createReadableScreen(r);
             this->setCurrentScreen(*readableScreen);
+            readableScreen->backCallback = [this, r, display, readableScreen, mainMenu]() {
+                display->clearDisplay();
+                setCurrentScreen(*mainMenu);
+                bool archived = prefs_.readableArchivedChanged.get(r.shortenedUuid.c_str());
+                auto title = archived ? "Archived: " + r.title : r.title;
+                mainMenu->changeItemTitleAt(mainMenu->getCurrSelection(), title);
+                mainMenu->setFirstLoad();
+                mainMenu->render(*display);
+                delete readableScreen;
+            };
         }));
+
         if (currentReadable.has_value() && currentReadable.value() == r.uuid) {
             mainMenu->setCurrSelection(mainMenu->getNumItems() - 1);
         }
@@ -162,14 +177,23 @@ void RootUI::setup(DisplaySystem *display, LocalStore &localStore, FileSystem &f
             auto pocketMenu = new MenuScreen(this->power_, mainMenu->getMyStyle());
 
             for (const Readable &r : articles) {
-                pocketMenu->addMenuItem(MenuItem(r.title, [this, display, pocketMenu, r,
-                                                           createReadableScreen]() {
+                bool archived = prefs_.readableArchivedChanged.get(r.shortenedUuid.c_str());
+                auto title = archived ? "Archived: " + r.title : r.title;
+
+                pocketMenu->addMenuItem(MenuItem(title, [this, display, pocketMenu, r,
+                                                         createReadableScreen]() {
                     display->clearDisplay();
                     auto readableScreen = createReadableScreen(r);
                     setCurrentScreen(*readableScreen);
-                    readableScreen->backCallback = [this, display, readableScreen, pocketMenu]() {
+                    readableScreen->backCallback = [this, r, display, readableScreen,
+                                                    pocketMenu]() {
                         display->clearDisplay();
                         setCurrentScreen(*pocketMenu);
+                        bool archived = prefs_.readableArchivedChanged.get(r.shortenedUuid.c_str());
+                        auto title = archived ? "Archived: " + r.title : r.title;
+                        pocketMenu->changeItemTitleAt(pocketMenu->getCurrSelection(), title);
+                        pocketMenu->setFirstLoad();
+                        pocketMenu->render(*display);
                         delete readableScreen;
                     };
                 }));
@@ -178,6 +202,7 @@ void RootUI::setup(DisplaySystem *display, LocalStore &localStore, FileSystem &f
             setCurrentScreen(*pocketMenu);
             pocketMenu->backCallback = [this, mainMenu, pocketMenu, display]() {
                 display->clearDisplay();
+                mainMenu->setFirstLoad();
                 setCurrentScreen(*mainMenu);
                 delete pocketMenu;
             };

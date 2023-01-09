@@ -6,6 +6,7 @@
 #include "Sensors/LightingController.hpp"
 #include "Storage/PreferencesStore.hpp"
 #include "UI/ContainerScreen.hpp"
+#include "UI/LineMenuScreen.hpp"
 #include "UI/PopupMenuScreen.hpp"
 #include "UI/Screen.hpp"
 #include "config.h"
@@ -26,7 +27,8 @@ public:
 
         : renderer_(display), firstTimeRenderer_(display), readable_(readable), prefs_(prefs),
           popup_(display, power, renderer_, prefs_, readable_, lightingController),
-          fileSystem_(fileSystem), display_(display) {
+          archiveMenu_(power, readable_, prefs_, display), fileSystem_(fileSystem),
+          display_(display) {
         currentScreen_ = this;
         renderer_.setStream(stream);
         pageSpeed_ = prefs_.autoPilotSpeed.get().value();
@@ -43,9 +45,12 @@ public:
         // for the animation bits since we may end up coming back to this constructor after being
         // interrupted.
         newPlace_ = readable_.place;
+        atEnd_ = this->checkAtEnd();
 
-        log_d("Found place for %s = %d", readable_.shortenedUuid.c_str(), readable_.place);
+        log_d("Found place for %s = %d %s", readable_.shortenedUuid.c_str(), readable_.place,
+              atEnd_ ? "(at end)" : "");
         popup_.backCallback = [this]() { this->setCurrentScreen(*this); };
+        archiveMenu_.backCallback = [this]() { this->setCurrentScreen(*this); };
     }
 
     ~ReadableScreen() override = default;
@@ -73,12 +78,15 @@ protected:
 
     PopupMenuScreen popup_;
 
+    LineMenuScreen archiveMenu_;
+
     FileSystem &fileSystem_;
 
     bool inBookmark_ = false;
     bool ignoreNextPress_ = false;
 
     unsigned long newPlace_ = 0;
+    bool atEnd_ = false;
 
     bool shownIcons_ = false;
 
@@ -96,6 +104,7 @@ protected:
 private:
     void incrementReadingTime();
     void turnPage();
+    auto checkAtEnd() -> bool;
     uint32_t readingStartTime_;
     int numUps_ = 0;
 };

@@ -57,13 +57,16 @@ void MainMenuScreen::processCommand(RemoteCommand command) {
 
     switch (command) {
     case RemoteCommand::PREV:
-
-        prevSelection(true);
+        if (prevSelection(true)) {
+            firstLoad_ = true;
+        }
         needsRerender = true;
         break;
 
     case RemoteCommand::NEXT:
-        nextSelection(true);
+        if (nextSelection(true)) {
+            firstLoad_ = true;
+        }
         needsRerender = true;
 
         break;
