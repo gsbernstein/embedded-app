@@ -200,7 +200,6 @@ void ReadableScreen::turnPage() {
                 this->backCallback();
             }
         }));
-        archiveMenu_.setNeedsLayout();
         setCurrentScreen(archiveMenu_);
     } else {
         readable_.placePrev = readable_.place;
@@ -476,7 +475,33 @@ void ReadableScreen::processCommand(RemoteCommand command) {
             if (pageSpeed_ != 0) {
                 xTimerStop(DisplaySystem::animationTimer, 0);
             }
-            back();
+            if (readable_.isArticle()) {
+                bool archived = prefs_.readableArchivedChanged.get(readable_.shortenedUuid.c_str());
+                archiveMenu_.resetMenuItems();
+
+                archiveMenu_.addMenuItem(MenuItem("Main Menu", [this, back]() {
+                    log_i("Not archiving: %s", readable_.title.c_str());
+                    back();
+                }));
+                if (archived) {
+                    archiveMenu_.addMenuItem(MenuItem("Undo Archive", [this, back]() {
+                        log_i("Un-Archiving: %s", readable_.title.c_str());
+                        this->prefs_.readableArchivedChanged.remove(
+                            readable_.shortenedUuid.c_str());
+                        back();
+                    }));
+                } else {
+                    archiveMenu_.addMenuItem(MenuItem("Archive and Main Menu", [this, back]() {
+                        log_i("Archiving: %s", readable_.title.c_str());
+                        this->prefs_.readableArchivedChanged.set(readable_.shortenedUuid.c_str(),
+                                                                 true);
+                        back();
+                    }));
+                }
+                setCurrentScreen(archiveMenu_);
+            } else {
+                back();
+            }
         } else {
             numUps_++;
             if (numUps_ > 3) {
