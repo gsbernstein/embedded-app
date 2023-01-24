@@ -14,6 +14,7 @@
 #include "Displays/FakeEinkET013TT1.hpp"
 #include "Misc/Dispatch.hpp"
 #include "Storage/PreferencesStore.hpp"
+#include "sindarin-debug.h"
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include <stb_image_write.h>
 #define STB_IMAGE_IMPLEMENTATION
@@ -70,7 +71,7 @@ void StartFreeRtos(bool runAppMain) {
             // FreeRTOS-timed stuff like vTaskDelay
             xTaskCreate(appMainTask, "app_main", 10000, NULL, 1, NULL);
         }
-        std::cerr << "Starting FreeRTOS scheduler" << std::endl;
+        log_i("Starting FreeRTOS scheduler");
         vTaskStartScheduler();
     });
 }
@@ -78,25 +79,29 @@ void StartFreeRtos(bool runAppMain) {
 void StopFreeRtos() {
     vTaskEndScheduler();
     (*SchedulerThread).join();
-    std::cerr << "Stopped FreeRTOS scheduler" << std::endl;
+    log_i("Stopped FreeRTOS scheduler");
 }
 
-void WaitForDraw(long timeoutSeconds) {
+auto WaitForDraw(long timeoutSeconds) -> bool {
     struct timespec startTime;
     clock_gettime(CLOCK_MONOTONIC, &startTime);
 
     long elapsedTime = 0;
     uint8_t out;
+    useconds_t sleep = 1000;
     while (FakeEinkET013TT1RenderQueue == nullptr ||
            xQueueReceiveFromISR(FakeEinkET013TT1RenderQueue, &out, nullptr) == pdFALSE) {
         if (elapsedTime > timeoutSeconds) {
-            FAIL("Timed out waiting for draw");
+            UNSCOPED_INFO("Timed out waiting for draw " << FakeEinkET013TT1RenderQueue);
+            return false;
         }
-        usleep(1000);
+        usleep(sleep);
+        sleep = std::min(sleep * 2, (useconds_t)200000);
         struct timespec endTime;
         clock_gettime(CLOCK_MONOTONIC, &endTime); // get current time
         elapsedTime = endTime.tv_sec - startTime.tv_sec;
     }
+    return true;
 }
 
 void SendRemoteCommand(RemoteCommand command) {
@@ -116,7 +121,7 @@ auto GetDirectory() -> std::string {
 }
 
 // TODO: How do we use the test name also for the key
-auto AssertViewUnchanged(std::string key) -> ViewTestResult {
+auto CheckViewUnchanged(std::string key) -> ViewTestResult {
     auto directory = GetDirectory();
     ViewTestResult result = {
         .passed = false,
@@ -130,7 +135,7 @@ auto AssertViewUnchanged(std::string key) -> ViewTestResult {
     // Render out the FakeEinkET013TT1ParticlePositions to a png
     if (!stbi_write_png(result.renderedImagePath.c_str(), EinkET013TT1_PIXEL_WIDTH,
                         EinkET013TT1_PIXEL_HEIGHT, 1, FakeEinkET013TT1ParticlePositions, 0)) {
-        std::cerr << "Unable to save rendered image to " << result.renderedImagePath << std::endl;
+        log_e("Unable to save rendered image to %s", result.renderedImagePath.c_str());
     }
 
     // Load up the known-good png from the key
@@ -168,7 +173,7 @@ auto AssertViewUnchanged(std::string key) -> ViewTestResult {
         result.diffImagePath = directory + testRunPrefix + key + "_diff.png";
         if (!stbi_write_png(result.diffImagePath.c_str(), EinkET013TT1_PIXEL_WIDTH,
                             EinkET013TT1_PIXEL_HEIGHT, 1, diffData, 0)) {
-            std::cerr << "Unable to save diff image to " << result.diffImagePath << std::endl;
+            log_e("Unable to save diff image to %s", result.diffImagePath.c_str());
         }
 
         UNSCOPED_INFO("Images do not match:");
@@ -188,7 +193,6 @@ auto AssertViewUnchanged(std::string key) -> ViewTestResult {
     }
 
     stbi_image_free(data);
-    CHECK(result.passed);
     return result;
 }
 
@@ -204,7 +208,7 @@ std::shared_ptr<DisplayEinkET013TT1> createDisplay() {
 
 void SetupFileSystemMock(const std::string &directory) {
     auto path = GetDirectory() + directory;
-    std::cerr << "Setting filesystem prefix to " << path << std::endl;
+    log_i("Setting filesystem prefix to %s", path.c_str());
     strncpy(PosixFileSystemPrefix, path.c_str(), sizeof(PosixFileSystemPrefix) - 1);
 
     // Clear bookmarks & logs directories

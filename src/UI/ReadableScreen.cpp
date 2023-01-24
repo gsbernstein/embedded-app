@@ -6,7 +6,9 @@
 #include <utility>
 
 #include "Misc/Platform.hpp"
-#include "UI/Bitmaps/BenIconHacking.hpp"
+#include "UI/Bitmaps/Auto_Pilot_Icons.hpp"
+#include "UI/Bitmaps/Home.hpp"
+#include "UI/Bitmaps/Read_Gear.hpp"
 #include "sindarin-debug.h"
 
 // Two minutes per page currently
@@ -139,7 +141,7 @@ void ReadableScreen::renderIcons(DisplaySystem &display) {
 
     if (!prefs_.cesMode.get().value()) {
         // Up arrow - looks like a bookmark to indicate that's what you can do.
-        display.drawXBitmap(screenWidth / 2 - HOME2_WIDTH / 2, -HOME2_HEIGHT - 3, homE2Bits,
+        display.drawXBitmap(screenWidth / 2 - HOME2_WIDTH / 2, -HOME2_HEIGHT - 3, home2bits,
                             HOME2_WIDTH, HOME2_HEIGHT, display.fg);
 
         if (pageSpeed_ == 0) {
@@ -221,6 +223,8 @@ void ReadableScreen::render(DisplaySystem &display) {
     if (!needsRerender) {
         return;
     }
+
+    prefs_.lastReadableId.set(readable_.uuid);
 
     display.setFont(display.style.getFontFamily().readableFont);
 
@@ -471,6 +475,7 @@ void ReadableScreen::processCommand(RemoteCommand command) {
         break;
     case RemoteCommand::BACK:
     case RemoteCommand::PREV:
+        prefs_.lastReadableId.remove();
         if (!prefs_.cesMode.get().value()) {
             if (pageSpeed_ != 0) {
                 xTimerStop(DisplaySystem::animationTimer, 0);

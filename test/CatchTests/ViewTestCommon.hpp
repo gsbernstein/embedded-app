@@ -10,7 +10,9 @@ void StopFreeRtos();
 
 void SendRemoteCommand(RemoteCommand command);
 
-void WaitForDraw(long timeoutSeconds = 10);
+auto WaitForDraw(long timeoutSeconds = 10) -> bool;
+
+#define WAIT_FOR_DRAW() REQUIRE(WaitForDraw())
 
 // TODO: This struct is probably overkill
 struct ViewTestResult {
@@ -20,7 +22,9 @@ struct ViewTestResult {
     std::string diffImagePath;
 };
 
-auto AssertViewUnchanged(std::string key) -> ViewTestResult;
+auto CheckViewUnchanged(std::string key) -> ViewTestResult;
+
+#define ASSERT_VIEW_UNCHANGED(key) CHECK(CheckViewUnchanged(key).passed)
 
 std::shared_ptr<DisplayEinkET013TT1> createDisplay();
 
