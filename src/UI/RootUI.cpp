@@ -620,13 +620,13 @@ void RootUI::setup(DisplaySystem *display, LocalStore &localStore, FileSystem &f
 
     systemSettingsMenu->addMenuItem(
         MenuItem("Clear Books and Restart", [systemSettingsMenu, display, &localStore]() {
-            localStore.clearReadablesFile();
+            localStore.deleteReadables();
             systemSettingsMenu->showTemporaryMessage(*display, "Readables reset.");
         }));
 
     systemSettingsMenu->addMenuItem(
         MenuItem("Clear Articles and Restart", [systemSettingsMenu, display, &localStore]() {
-            localStore.clearArticlesFile();
+            localStore.deleteArticles();
             systemSettingsMenu->showTemporaryMessage(*display, "Articles reset.");
         }));
 
@@ -638,8 +638,8 @@ void RootUI::setup(DisplaySystem *display, LocalStore &localStore, FileSystem &f
         systemSettingsMenu->showTemporaryMessage(*display, "simprefs.ini deleted! Resetting...");
 #else
         nvs_flash_erase();
-        localStore.clearArticlesFile(false);
-        localStore.clearReadablesFile(false);
+        localStore.deleteArticles(false);
+        localStore.deleteReadables(false);
         log_w("NVS and FS cleared. Rebooting...");
         systemSettingsMenu->showTemporaryMessage(*display, "NVS cleared! Resetting...");
 #endif
