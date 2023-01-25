@@ -1,81 +1,51 @@
-# Sindarin Embedded Firmware
+# Sol Reader Glasses Firmware
 
-## Getting started
+All the embedded code that runs on the glasses themselves.
 
-Install platformio
+## Getting started (build with IDF.py)
 
-```bash
-brew install platformio
-```
-
-After cloning this project from GitHub you'll need to pull the most recent submodules if you want to build the IDF builds.
+After cloning this repo from GitHub you'll need to pull the most recent submodules. You'll need to rerun this command periodically to get the latest changes whenever the submodules change.
 
 ```bash
 git submodule update --init --recursive
 ```
 
-VSCode provides a nice platformio IDE. Download VSCode and get the PlatformIO IDE extension.
+The primary way to build the firmware itself is with Espressif's official esp-idf toolchain. We use a [fork of esp-idf](http://github.com/sindarin-inc/esp-idf) that has some patches included. In some other directory (not in this repo), run:
 
-## Upload and Monitor
+```sh
+git clone -b sindarin/v4.4.3 --recursive git@github.com:sindarin-inc/esp-idf.git
+cd esp-idf
+./install.sh esp32s3
+```
 
-You can use the "Upload and Monitor" project tasks under PlatformIO Icon (left bar) -> Project Tasks -> sol3dev -> General -> Upload and Monitor
-
-Note: You'll probably get a boot loop after uploading because of the flash memory size detected as 0. You'll need to apply [my IDF patch](https://github.com/espressif/esp-idf/pull/9381) to fix flashes > 512mbit in the bootloader. Find `spi_flash_chip_generic.c` (probably in `~/.platformio/packages/framework-espidf/components/spi_flash/spi_flash_chip_generic.c`) and apply my change from that PR. You'll also very likely need to apply the changes from [this commit](https://github.com/espressif/esp-idf/commit/04959af6354ba28b5559f39ccb339b49521dc114) (this will no longer be necessary once these fixes are mainlined into IDF and included in PlatformIO's IDF).
-
-## Add Readables to SPIFFS
-
-To put Readables on the device, you'll need to collect some readables. Perhaps from the [sindarin-inc/readables](https://github.com/sindarin-inc/readables) repo. Just download the Readables you want and put them in a directory in the root of this repo named `data`.
-
-Then you'll need to build and upload the filesystem. You can do this in VSCode from PlatformIO Icon (left bar) -> Project Tasks -> sol3dev -> Platform -> Upload Filesystem Image. Or you can do this at the command line with `pio run -t uploadfs`.
-
-Note: If you don't see these options in your PlatformIO bar in VSCode, try restarting VSCode.
-
-## Upload Over-the-Air (OTA)
-
-You can upload the firmware and filesystem over-the-air. You'll need to make sure to connect to WiFi. Then you can use this to upload the firwmare OTA:
+Now from the root of this repo, you can run (replace `/YOUR/PATH/TO` with the path where you put `esp-idf`):
 
 ```bash
-pio run -t upload --upload-port sindarin.local
+source /YOUR/PATH/TO/esp-idf/export.sh
+idf.py set-target esp32s3
+idf.py build flash monitor
 ```
 
-An this to upload the SPIFFS image:
+This will build the latest firmware, flash it to the device, and open a serial monitor. You can also use `idf.py menuconfig` to configure the build if you need to change build options.
 
-```
-pio run -t uploadfs-ota --upload-port sindarin.local
-```
+See also the official [esp-idf installation instructions](https://docs.espressif.com/projects/esp-idf/en/v4.4.3/esp32s3/get-started/index.html) for more details
 
-## Git Setup
+## Install recommended tools
 
-You probably want to ignore formatting changes when using `git blame`. After cloning, you can tell Git to ignore certain commits with:
+* Visual Studio Code (`brew install visual-studio-code`)
+* PlatformIO (`brew install platformio`) - we don't typically build the firmware with this but it's needed for the simulator, tests, and clang-tidy.
+* clang-format (`brew install clang-format`)
+* clang-tidy (`brew install llvm`)
 
-```bash
-git config blame.ignoreRevsFile .git-blame-ignore-revs
-```
-
-## Reformat Code
+## Reformat code with `clang-format`
 
 Make sure you have `clang-format` installed (`brew install clang-format`). Then if you're using VSCode, and install the recommended workspace extensions, your code should be formatted automatically for you on save (or with shift-option-f). Alternately you can force formatting of all code with:
 
 ```bash
 find src -iname "*.hpp" -o -iname "*.h" -o -iname "*.cpp" -o -iname "*.c" | xargs clang-format -i
-
-## Using ESP-IDF Menuconfig
-
-You can use the ESP-IDF menuconfig using
-
-```
-pio run -t menuconfig
 ```
 
-You may need to first update to a more modern version of `flex`
-
-```
-brew install flex
-export PATH="/opt/homebrew/opt/flex/bin:$PATH"
-pio run -t menuconfig
-```
-
-## Clang-tidy
+## Static analysis and cleanup with `clang-tidy`
 
 You can run clang-tidy to do some more advance C++ static analysis and fixes. Make sure you install `clang-tidy` (included with `brew install llvm`) and then run the following to automatically fix things:
 
@@ -85,37 +55,31 @@ You can run clang-tidy to do some more advance C++ static analysis and fixes. Ma
 
 Issues that will be fixed automatically will be fixed by clang-tidy, warnings will mark any suggestions that clang-tidy couldn't fix directly.
 
-## Simulator!
+## Test code locally with the Simulator
 
 The simulator compiles in <3s from a clean build, and even less on an incremental build. This makes it super fast for us to iterate on anything that doesn't need the physical hardware.
 
-You'll need SDL2 & openssl for it to work: `brew install sdl2 sdl2_image openssl`. But then you can just hit the upload button in VSCode+PlatformIO and it should build and run! We haven't figured out how to get VSCode to properly debug the binary yet, but for now you can use the command line: `pio run -e simulator && lldb .pio/build/simulator/program`. Enjoy!
+You'll need SDL2 & openssl for it to work: `brew install sdl2 sdl2_image openssl`. Then you can run `pio run -e simulator -t upload` to run it. You can alternately hit the upload button in VSCode+PlatformIO and it should build and run! You can also debug with lldb at the command line: `pio run -e simulator && lldb .pio/build/simulator/program`.
 
-To run any of the testsuite stuff, you'll need a very specific version of the `sdl2_image` package (2.0.5), because latest versions have a bug in reading in RGB values from pngs that we haven't debugged and fixed yet. Do a `brew info sdl2_image` -- if it's not 2.0.5, then do the following:
+### Extract your Sol cloud access token to download content onto the Simulator
 
-`brew uninstall sdl2_image`
-
-`find $(brew --prefix) -name sdl2_image.rb`
-
-That should show you where the current formula lives. Replace that file with the formula found in `lib/Simulator/sdl2_image.rb`
-
-The magic incatation to do it all is:
-
-`find $(brew --prefix) -name sdl2_image.rb | xargs -I {} cp lib/Simulator/sdl2_image.rb {}`
-
-Then run: `brew install sdl2_image`
-
-You can then confirm you have version 2.0.5 with `brew info sdl2_image`
-
-### To use WiFi, extract your Sol cloud access token
-
-Add the line:
+Run the simulator at least once to create your `simprefs.ini` file. Then add the line to that file:
 
 ```
 cloud-token=<TOKEN>
 ```
 
-to `simprefs.ini` with the access token from the monitor when syncing content on a non-simulator dev board or glasses.
+You can get your access token by monitoring logs on the dev board or glasses when pairing with the app. Then you can run "Sync Content" from the simulator just like you would on the glasses.
+
+## Run automated unit tests
+
+This repo has unit tests using [Catch2](https://github.com/catchorg/Catch2). Run them with
+
+```sh
+pio run -e tests -t upload
+```
+
+The test suite has some simple unit tests as well as view tests. View tests run the app, and record the rendered screens and compare them with known good versions to indicate if anything has changed unexpectedly. If views change the failure messages will tell you how to update the known-good images if necessary.
 
 ## Erasing / Resetting Non-Volatile Storage (NVS)
 
@@ -125,36 +89,25 @@ You can erase NVS/Preferences from the command line using esptool. You can eithe
 esptool.py erase_flash
 ```
 
-Or you can erase a region. The appropriate flash region comes from [`externalflash.csv`](https://github.com/sindarin-inc/embedded-app/blob/main/externalflash.csv), and it may be worth a check there to confirm this documentation is still up to date.
+Or you can erase a region. The appropriate flash region comes from `esp32s3-64MB.csv`, and it may be worth a check there to confirm this documentation is still up to date. For example, this probably erases NVS:
 
 ```bash
 esptool.py erase_region 0x9000 0x5000
 ```
 
-## Core dumps
+## Extract crash info from core dumps
 
-You can save the most recent core dump when connected over serial. This probably only works if you still have the `.elf` from the crashing version, though more experimentation is needed. Use the following command:
+You can save the most recent core dump when connected over serial. This only works if you still have the `.elf` from the crashing version. With glasses connected, use the following command:
 
 ```bash
-espcoredump.py -p /dev/tty.usb* info_corefile .pio/build/sol3dev/firmware.elf
+espcoredump.py -p /dev/tty.usb* info_corefile build/embedded-app.elf
 ```
+
+Note that if you weren't connected to USB when the crash happened, we may queue the trace to get sent to the server, and it will be unavailable to `espcoredump.py`
 
 See also the [Core Dump docs](https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-guides/core_dump.html).
 
-## Build with IDF
-
-This repo also supports building with IDF.py. You need to first download and set up IDF through the [usual channels](https://docs.espressif.com/projects/esp-idf/en/v4.4.1/esp32/get-started/index.html). Ideally match the version of IDF used in PlatformIO (see the `common:idf` section in `platformio.ini`).
-
-You'll also need to apply [my IDF patch](https://github.com/espressif/esp-idf/pull/9381) to fix Winbond flashes > 512mbit in the bootloader.
-
-Then you can build the firmware with:
-
-```bash
-idf.py set-target esp32s3
-idf.py build flash monitor
-```
-
-## Debugging with OpenOCD
+## Debug with OpenOCD
 
 You can use OpenOCD to debug the firmware on the ESP32-S3 using the built-in JTAG interface. Because OpenOCD out of the box does not support >16MB flash chips until [John's PR](https://github.com/espressif/openocd-esp32/pull/245/files) is merged, you'll need to build a custom version of OpenOCD from [sindarin-inc/openocd-esp32:larger-flashes](https://github.com/sindarin-inc/openocd-esp32/tree/larger-flashes).
 
@@ -205,8 +158,6 @@ xtensa-esp32s3-elf-gdb -x scripts/gdbinit build/embedded-app.elf
 
 A _very_ useful GDB command is `catch throw` which sets a breakpoint at any C++ exceptions. You might also try `break filename.cpp:55` to set a breakpoint at a file and line number. Then use `continue` (or `c`) to continue execution until the breakpoint is hit. [Here's a handy GDB cheat sheet](https://users.ece.utexas.edu/~adnan/gdb-refcard.pdf).
 
-TODO: It would be really nice to get this running in VSCode.
-
 ## Hooking up OpenOCD to VSCode
 
 It's possible to use connect to OpenOCD from inside VSCode. You'll need to add a block like this to your `launch.json` file:
@@ -243,6 +194,8 @@ It's possible to use connect to OpenOCD from inside VSCode. You'll need to add a
 ```
 
 Run the `openocd -f board/esp32s3-builtin.cfg` command in the terminal, as above, then hit the "Run -> Start Debugging" button in VSCode. You should see the debugger connect and stop at the `app_main` function.
+
+TODO: This is kinda clunky and it'd be nice to have this easier to setup and run.
 
 ## Flashing the device serial number at the factory
 
