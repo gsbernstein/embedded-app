@@ -316,12 +316,6 @@ void LocalStore::syncFromRemote(
             return;
         }
 
-        // Clear the readablesSince cache since it will be set at the end of a successful run.
-        // If we fail, then the next content sync will not have a cutoff date
-        if (checkSyncResponse.readablesSince != "") {
-            this->prefs_.lastReadablesSince.set("");
-        }
-
         progressCallback(ContentSyncState{.state = ContentSyncState::State::LoadingTasks});
 
         // If out of sync, download any new readables.
@@ -342,14 +336,22 @@ void LocalStore::syncFromRemote(
                 log_i("Placemark for %s updated to %d", userReadable.readable.title.c_str(),
                       userReadable.placemark);
             }
+
+            auto hasReadable = this->hasReadable(readables_, userReadable.readable);
             if (userReadable.isArchived) {
-                log_w("Readable %s is archived, will delete", userReadable.readable.title.c_str());
+                log_i("Readable \"%s\" is archived, will delete",
+                      userReadable.readable.title.c_str());
                 // TODO: Store these articles in an accessible archive instead of just deleting them
                 // and ignoring
-                readablesToDelete.push_back(userReadable.readable);
+                if (hasReadable) {
+                    readablesToDelete.push_back(userReadable.readable);
+                } else {
+                    log_i("Already deleted \"%s\" %s", userReadable.readable.title.c_str(),
+                          userReadable.readable.uuid.c_str());
+                }
                 continue;
-            }
-            if (this->hasReadable(readables_, userReadable.readable)) {
+            } else if (hasReadable) {
+                // Should never get here as readablesSince should hide these articles
                 log_w("Already have \"%s\" %s", userReadable.readable.title.c_str(),
                       userReadable.readable.uuid.c_str());
                 continue;
@@ -362,8 +364,9 @@ void LocalStore::syncFromRemote(
 
         // Look through all the articles, deleting archived ones and downloading new ones
         for (auto &userReadable : checkSyncResponse.userArticles) {
-            log_d("Fetched user article: %s (%zu)", userReadable.readable.title.c_str(),
-                  (size_t)userReadable.readable.content.size());
+            log_d("Fetched user article: %s (%zu bytes, placemark: %d)",
+                  userReadable.readable.title.c_str(), (size_t)userReadable.readable.content.size(),
+                  userReadable.placemark);
             SHOW_HEAP();
 
             if (this->processReadablePlacemarksFromServer(userReadable.readable,
@@ -371,32 +374,52 @@ void LocalStore::syncFromRemote(
                 log_i("Placemark for %s updated to %d", userReadable.readable.title.c_str(),
                       userReadable.placemark);
             }
-            SHOW_HEAP();
+
+            auto hasReadable = this->hasReadable(articles_, userReadable.readable);
             if (userReadable.isArchived) {
-                log_i("Article \"%s\" is archived", userReadable.readable.title.c_str());
+                log_i("Article \"%s\" is archived, will delete",
+                      userReadable.readable.title.c_str());
                 // TODO: Store these articles in an accessible archive instead of just deleting them
                 // and ignoring
-                articlesToDelete.push_back(userReadable.readable);
+                if (hasReadable) {
+                    articlesToDelete.push_back(userReadable.readable);
+                } else {
+                    log_i("Already deleted \"%s\" %s", userReadable.readable.title.c_str(),
+                          userReadable.readable.uuid.c_str());
+                }
                 continue;
-            }
-            SHOW_HEAP();
-            if (this->hasReadable(articles_, userReadable.readable)) {
+            } else if (hasReadable) {
                 // Should never get here as articlesSince should hide these articles
                 log_w("Already have \"%s\" %s", userReadable.readable.title.c_str(),
                       userReadable.readable.uuid.c_str());
                 continue;
             }
 
-            SHOW_HEAP();
             articlesToSave.push_back(userReadable.readable);
         }
         this->resetReadablesPlacemarkChanged(articles_);
         this->resetReadablesArchivedChanged(articles_);
 
         // TODO: Probably these should be set operations
+        SHOW_HEAP();
         log_d("Readables to download: %zu", readablesToDownload.size());
         log_d("Readables to delete: %zu", readablesToDelete.size());
         log_d("Articles to delete: %zu", articlesToDelete.size());
+
+        if (readablesToDownload.size() == 0 && readablesToDelete.size() == 0 &&
+            articlesToDelete.size() == 0 && articlesToSave.size() == 0) {
+            log_i("No new content to download");
+            progressCallback(ContentSyncState{.state = ContentSyncState::State::AlreadySynced});
+            return;
+        }
+
+        // Clear the readablesSince cache since it will be set at the end of a successful run.
+        // If we fail, then the next content sync will not have a cutoff date
+        if (checkSyncResponse.readablesSince != "") {
+            log_d("Clearing readablesSince cache since it will be set at the end of a "
+                  "successful run");
+            this->prefs_.lastReadablesSince.set("");
+        }
 
         ContentSyncState syncState = {.state = ContentSyncState::State::Syncing};
         syncState.tasks.reserve(readablesToDownload.size());
@@ -491,6 +514,8 @@ void LocalStore::syncFromRemote(
         // Clear the articlesSince cache since it will be set at the end of a successful run.
         // If we fail, then the next content sync will not have a cutoff date
         if (checkSyncResponse.articlesSince != "") {
+            log_d("Clearing articlesSince cache since it will be set at the end of a successful "
+                  "run.");
             this->prefs_.lastArticlesSince.set("");
         }
 
