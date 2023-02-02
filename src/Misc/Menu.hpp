@@ -1,6 +1,7 @@
 #ifndef MENU_SYSTEM_H
 #define MENU_SYSTEM_H
 
+#include <functional>
 #include <string>
 #include <utility>
 #include <vector>

@@ -74,6 +74,9 @@ void RootUI::setup(DisplaySystem *display, LocalStore &localStore, FileSystem &f
                                     const Readable &readable) -> ReadableScreen * {
         // TODO: Would be better to not allocate / delete these all the time
         auto stream = fileSystem.newRendererStream(readable.localFilePath().c_str());
+        if (!stream) {
+            stream = fileSystem.newGzipRendererStream(readable.compressedLocalFilePath().c_str());
+        }
         auto *readableScreen = new ReadableScreen(stream, *display, readable, this->prefs_,
                                                   this->power_, fileSystem, lightingController);
 
@@ -903,6 +906,51 @@ void RootUI::setup(DisplaySystem *display, LocalStore &localStore, FileSystem &f
         };
         (*voltageLogScreen).begin();
     }));
+
+    debugSettingsMenu->addMenuItem(
+        MenuItem("Set Gzip Readables", [this, display, debugSettingsMenu]() {
+            auto gzipReadablesMenu = new MenuScreen(this->power_, debugSettingsMenu->getMyStyle());
+
+            auto gzipSettingToString = [](bool compression) -> std::string {
+                if (compression) {
+                    return "Compression is ON";
+                }
+                return "Compression is OFF";
+            };
+
+            gzipReadablesMenu->setExtraText(
+                gzipSettingToString(this->prefs_.gzipReadables.get().value_or(false)));
+
+            auto confirmMessage = [gzipReadablesMenu, display]() {
+                gzipReadablesMenu->showTemporaryMessage(*display, "Compression Set", 200, false);
+                gzipReadablesMenu->backCallback();
+            };
+
+            gzipReadablesMenu->addMenuItem(MenuItem("Compression: Off", [confirmMessage, this]() {
+                this->prefs_.gzipReadables.set(false);
+                confirmMessage();
+            }));
+            gzipReadablesMenu->addMenuItem(MenuItem("Compression: On", [confirmMessage, this]() {
+                this->prefs_.gzipReadables.set(true);
+                confirmMessage();
+            }));
+
+            int menuIndex = 0;
+            if (prefs_.gzipReadables.get().value_or(false)) {
+                menuIndex = 1;
+            } else {
+                menuIndex = 0;
+            }
+
+            gzipReadablesMenu->setCurrSelection(menuIndex);
+
+            setCurrentScreen(*gzipReadablesMenu);
+            gzipReadablesMenu->backCallback = [this, gzipReadablesMenu, debugSettingsMenu]() {
+                debugSettingsMenu->setFirstLoad();
+                setCurrentScreen(*debugSettingsMenu);
+                delete gzipReadablesMenu;
+            };
+        }));
 
     oldMenu->addMenuItem(MenuItem("Calibration Screen Run Through", [this, oldMenu]() {
         auto calibrationScreen = new CalibrationScreen();
