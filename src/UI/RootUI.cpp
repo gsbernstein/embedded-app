@@ -528,23 +528,29 @@ void RootUI::setup(DisplaySystem *display, LocalStore &localStore, FileSystem &f
             firmwareUpdateScreen->begin();
         }));
 
-    FileList coreDumpFiles;
-    fileSystem.listDir("/coredumps", coreDumpFiles);
+    auto countCoreDumps = [&fileSystem]() -> int {
+        FileList coreDumpFiles;
+        fileSystem.listDir("/coredumps", coreDumpFiles);
+        return coreDumpFiles.size();
+    };
 
-    std::string crashMenuName = StringFormat("Send Crash Report (%d)", coreDumpFiles.size());
+    std::string crashMenuName = StringFormat("Send Crash Report (%d)", countCoreDumps());
 
-    systemSettingsMenu->addMenuItem(MenuItem(crashMenuName, [this, systemSettingsMenu, display,
-                                                             &fileSystem]() {
-        auto crashReportScreen = new CrashReportScreen(*display, this->prefs_, fileSystem);
-        this->setCurrentScreen(*crashReportScreen);
-        crashReportScreen->backCallback = [this, display, crashReportScreen, systemSettingsMenu]() {
-            systemSettingsMenu->setFirstLoad();
-            setCurrentScreen(*systemSettingsMenu);
-            systemSettingsMenu->render(*display);
-            delete crashReportScreen;
-        };
-        crashReportScreen->begin();
-    }));
+    systemSettingsMenu->addMenuItem(
+        MenuItem(crashMenuName, [this, systemSettingsMenu, display, &fileSystem, countCoreDumps]() {
+            auto crashReportScreen = new CrashReportScreen(*display, this->prefs_, fileSystem);
+            this->setCurrentScreen(*crashReportScreen);
+            crashReportScreen->backCallback = [this, display, crashReportScreen, systemSettingsMenu,
+                                               countCoreDumps]() {
+                systemSettingsMenu->setFirstLoad();
+                systemSettingsMenu->updateCurrItemTitle(
+                    StringFormat("Send Crash Report (%d)", countCoreDumps()));
+                setCurrentScreen(*systemSettingsMenu);
+                systemSettingsMenu->render(*display);
+                delete crashReportScreen;
+            };
+            crashReportScreen->begin();
+        }));
 
     systemSettingsMenu->addMenuItem(MenuItem("Batteries and Temperature", [this, display,
                                                                            systemSettingsMenu]() {
