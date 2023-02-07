@@ -131,7 +131,7 @@ public:
             uint64_t addressValue;
             esp_err_t err = nvs_get_u64(prefs.nvsHandle, this->key_, &addressValue);
             if (err != ESP_OK) {
-                log_e("nvs_get_i64 fail: %s %s", this->key_, esp_err_to_name(err));
+                // Fail silently if the key doesn't exist
                 return;
             }
             this->value_ = BLEAddress(addressValue);
@@ -167,7 +167,7 @@ public:
             if constexpr (std::is_same_v<T, int> || std::is_same_v<T, bool> ||
                           std::is_same_v<T, uint32_t>) {
                 int32_t value = 0;
-                esp_err_t err = nvs_get_i32(this->prefs.nvsHandle, key, &value);
+                nvs_get_i32(this->prefs.nvsHandle, key, &value);
                 // Fail silently if the key doesn't exist
                 return value;
             } else {
