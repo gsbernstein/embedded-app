@@ -6,7 +6,7 @@
 #include "Communications/SindarinAPI.hpp"
 #include "Communications/WiFi.hpp"
 #include "Misc/Crypto.hpp"
-#include "Misc/GUnzipFile.hpp"
+#include "Misc/GUnzipStream.hpp"
 #include "Misc/StringUtil.hpp"
 #include "Models/Json.hpp"
 #include "sindarin-debug.h"
@@ -72,11 +72,14 @@ auto LocalStore::loadReadablesFromFile(ReadablesVector &readables, const std::st
             log_w("Couldn't find readable with path %s", readable.localFilePath().c_str());
             continue;
         } else {
+            int fileSize = -1;
             auto file = fileSystem.open(readable.localFilePath());
-            if (!file) {
+            if (file) {
+                fileSize = file.size();
+                file.close();
+            } else {
                 log_w("Failed to open readable %s", readable.localFilePath().c_str());
-
-                // try compressed file
+                // try opening the compressed file
                 auto cf = fileSystem.open(readable.compressedLocalFilePath());
                 if (!cf) {
                     log_w("Failed to open compressed readable %s",
@@ -84,19 +87,12 @@ auto LocalStore::loadReadablesFromFile(ReadablesVector &readables, const std::st
                     continue;
                 }
 
-                file = GUnzipFile::openGzFile(cf);
-                if (!file) {
-                    log_w("failed to open GUnzipFile for %s",
-                          readable.compressedLocalFilePath().c_str());
-                    continue;
-                }
+                GUnzipStream gzStream(cf);
+                fileSize = gzStream.size();
             }
-            // If the filesize is wrong, ignore it so we redownload it
-            auto fileSize = file.size();
-            file.close();
 
-            if (readable.files.size() && fileSize != readable.file().size) {
-                log_w("File size mismatch for %s (%zu on disk vs %d in local store), ignoring",
+            if (fileSize >= 0 && readable.files.size() && fileSize != readable.file().size) {
+                log_w("File size mismatch for %s (%d on disk vs %d in local store), ignoring",
                       readable.localFilePath().c_str(), fileSize, readable.file().size);
                 continue;
             }
@@ -128,9 +124,8 @@ auto LocalStore::hasReadable(const ReadablesVector &readables, const Readable &r
 
                 auto cf = fileSystem.open(r->compressedLocalFilePath());
                 if (cf) {
-                    file = GUnzipFile::openGzFile(cf);
-                    fileSize = file.size();
-                    file.close();
+                    GUnzipStream gs(cf);
+                    fileSize = gs.size();
                 } else {
                     log_w("failed to open compressed file %s",
                           r->compressedLocalFilePath().c_str());
@@ -139,7 +134,7 @@ auto LocalStore::hasReadable(const ReadablesVector &readables, const Readable &r
 
             if (&readables == &readables_) {
                 if (fileSize >= 0 && fileSize != readable.file().size) {
-                    log_w("File size mismatch for %s (%zu on disk vs %d in local store), ignoring",
+                    log_w("File size mismatch for %s (%d on disk vs %d in local store), ignoring",
                           readable.localFilePath().c_str(), fileSize, readable.file().size);
                     return false;
                 } else {
