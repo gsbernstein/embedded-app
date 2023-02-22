@@ -9,7 +9,7 @@
 #include "Bitmaps/Logo.hpp"
 #include "Communications/HtmlCleaner.hpp"
 #include "Communications/SindarinAPI.hpp"
-#include "Communications/WiFi.hpp"
+#include "Communications/SindarinWiFi.hpp"
 #include "GitVersion.hpp"
 #include "Inputs/RemoteInput.hpp"
 #include "Misc/MenuStyle.hpp"
@@ -870,7 +870,7 @@ void RootUI::setup(DisplaySystem *display, LocalStore &localStore, FileSystem &f
             }
         };
 
-        wifiPowerMenu->setExtraText(powerToString(GetWiFiPower()));
+        wifiPowerMenu->setExtraText(powerToString(SindarinWiFi.GetWiFiPower()));
 
         auto confirmMessage = [this, wifiPowerMenu, display](wifi_power_t power) {
             this->prefs_.wifiPower.set(power);
@@ -879,28 +879,28 @@ void RootUI::setup(DisplaySystem *display, LocalStore &localStore, FileSystem &f
         };
 
         wifiPowerMenu->addMenuItem(MenuItem("Max (19.5dBm)", [confirmMessage]() {
-            SetWiFiPower(WIFI_POWER_19_5dBm);
+            SindarinWiFi.SetWiFiPower(WIFI_POWER_19_5dBm);
             confirmMessage(WIFI_POWER_19_5dBm);
         }));
         wifiPowerMenu->addMenuItem(MenuItem("High (17dBm)", [confirmMessage]() {
-            SetWiFiPower(WIFI_POWER_17dBm);
+            SindarinWiFi.SetWiFiPower(WIFI_POWER_17dBm);
             confirmMessage(WIFI_POWER_17dBm);
         }));
         wifiPowerMenu->addMenuItem(MenuItem("Medium (11dBm)", [confirmMessage]() {
-            SetWiFiPower(WIFI_POWER_11dBm);
+            SindarinWiFi.SetWiFiPower(WIFI_POWER_11dBm);
             confirmMessage(WIFI_POWER_11dBm);
         }));
         wifiPowerMenu->addMenuItem(MenuItem("Low (5dBm)", [confirmMessage]() {
-            SetWiFiPower(WIFI_POWER_5dBm);
+            SindarinWiFi.SetWiFiPower(WIFI_POWER_5dBm);
             confirmMessage(WIFI_POWER_5dBm);
         }));
         wifiPowerMenu->addMenuItem(MenuItem("Min (-1dBm)", [confirmMessage]() {
-            SetWiFiPower(WIFI_POWER_MINUS_1dBm);
+            SindarinWiFi.SetWiFiPower(WIFI_POWER_MINUS_1dBm);
             confirmMessage(WIFI_POWER_MINUS_1dBm);
         }));
 
         int menuIndex = 0;
-        switch (GetWiFiPower()) {
+        switch (SindarinWiFi.GetWiFiPower()) {
         case WIFI_POWER_17dBm:
             menuIndex = 1;
             break;
