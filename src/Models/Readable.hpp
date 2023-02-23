@@ -28,6 +28,7 @@ public:
     std::string datePublished;
     std::vector<Author> authors;
     std::vector<ReadableFile> files;
+    std::string readableType;
     // TODO: source
     // TODO: categories
 
@@ -39,14 +40,14 @@ public:
 
     [[nodiscard]] auto file() const -> const ReadableFile & { return files[0]; }
     [[nodiscard]] auto localFilePath() const -> std::string {
-        if (files.size()) {
+        if (!isArticle()) {
             return StringFormat("/%s", file().name.c_str());
         } else {
             return StringFormat("/articles/%s.txt", uuid.c_str());
         }
     }
     [[nodiscard]] auto compressedLocalFilePath() const -> std::string {
-        if (files.size()) {
+        if (!isArticle()) {
             return StringFormat("/%s.gz", file().name.c_str());
         } else {
             return StringFormat("/articles/%s.txt.gz", uuid.c_str());
@@ -54,16 +55,13 @@ public:
     }
     [[nodiscard]] auto remoteUrl() const -> std::string { return file().fileProxied; }
     [[nodiscard]] auto isArticle() const -> bool {
-        if (files.size()) {
-            return false;
-        } else {
-            return true;
-        }
+        return readableType.compare("pocket_article") == 0;
     }
 
     auto fromJson(const JsonObject &j) -> bool override {
         if (!j.containsKey("uuid") || !j.containsKey("title") || !j.containsKey("date_created") ||
             !j.containsKey("date_modified") || !j.containsKey("authors")) {
+
             log_w("Failed to parse Readable %s", DumpJson(j).c_str());
             return false;
         }
@@ -81,8 +79,12 @@ public:
             authors.emplace_back();
             authors.back().fromJson(author);
         }
+
+        readableType = j["readable_type"].as<std::string>();
         files.clear();
         for (const auto &file : j["files"].as<JsonArray>()) {
+            // files handled differently for articles, record if it is an article
+            file["readable_type"] = readableType;
             files.emplace_back();
             files.back().fromJson(file);
         }
