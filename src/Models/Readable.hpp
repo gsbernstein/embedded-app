@@ -9,6 +9,7 @@
 #include "Models/Author.hpp"
 #include "Models/Json.hpp"
 #include "Models/JsonSerializable.hpp"
+#include "Models/ReadableBookmark.hpp"
 #include "Models/ReadableFile.hpp"
 
 #define TRUNCATE_READABLE_UUID_FOR_PLACEMARK_BYTES 8
@@ -28,6 +29,7 @@ public:
     std::string datePublished;
     std::vector<Author> authors;
     std::vector<ReadableFile> files;
+    std::vector<ReadableBookmark> bookmarks;
     std::string readableType;
     // TODO: source
     // TODO: categories
@@ -45,6 +47,9 @@ public:
         } else {
             return StringFormat("/articles/%s.txt", uuid.c_str());
         }
+    }
+    [[nodiscard]] auto bookmarkFilePath() const -> std::string {
+        return StringFormat("/bookmarks/%s-bookmark.txt", uuid.c_str());
     }
     [[nodiscard]] auto compressedLocalFilePath() const -> std::string {
         if (!isArticle()) {
@@ -78,6 +83,11 @@ public:
         for (const auto &author : j["authors"].as<JsonArray>()) {
             authors.emplace_back();
             authors.back().fromJson(author);
+        }
+        bookmarks.clear();
+        for (const auto &bookmark : j["bookmarks"].as<JsonArray>()) {
+            bookmarks.emplace_back();
+            bookmarks.back().fromJson(bookmark);
         }
 
         readableType = j["readable_type"].as<std::string>();
