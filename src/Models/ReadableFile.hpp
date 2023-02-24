@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Misc/SpiramAllocator.hpp"
 #include "Models/Json.hpp"
 #include "Models/JsonSerializable.hpp"
 
@@ -9,20 +10,20 @@ public:
     ~ReadableFile() override = default;
 
     std::string uuid;
-    std::string name;
+    SpiramString name;
     int size;
-    std::string filetype;
-    std::string uploadedAt;
-    std::string shaHash;
+    SpiramString filetype;
+    SpiramString uploadedAt;
+    SpiramString shaHash;
     //! URL to download the file
-    std::string file;
-    std::string fileProxied;
-    std::string readableType;
+    SpiramString file;
+    SpiramString fileProxied;
+    SpiramString readableType;
 
     auto fromJson(const JsonObject &j) -> bool override {
 
         readableType = j["readable_type"].as<std::string>();
-        if (readableType.compare("pocket_article") == 0) {
+        if (readableType == "pocket_article" || readableType == "email_article") {
             if (!j.containsKey("file") || !j.containsKey("size")) {
                 log_w("Failed to parse article ReadableFile %s", DumpJson(j).c_str());
                 return false;
