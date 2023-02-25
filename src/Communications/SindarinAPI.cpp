@@ -142,19 +142,29 @@ auto SindarinAPI::syncBookmarks(const char *bookmarksJson, const int bookmarksSi
 }
 
 auto SindarinAPI::downloadReadable(const Readable &readable, FileSystem &fileSystem,
-                                   const std::function<void(int percentage)> &progressCallback,
-                                   bool gzip) -> bool {
+                                   const std::string &path,
+                                   const std::function<void(int percentage)> &progressCallback)
+    -> bool {
     bool success = false;
     // auto remoteUrl = readable.remoteUrl();
     auto file = readable.file();
     auto remoteUrl = file.fileProxied;
-    auto localPath = readable.localFilePath();
     auto fileSize = file.size;
 
-    gzip = gzip && file.filetype != "epub";
+    // Create the directory if necessary
+    // Grab the dir from the path
+    auto dir = path.substr(0, path.find_last_of('/'));
+    if (!fileSystem.exists(dir)) {
+        log_d("Creating directory %s", dir.c_str());
+        if (!fileSystem.createDir(dir)) {
+            log_e("Could not create %s directory", dir.c_str());
+            return false;
+        }
+    }
 
+    bool gzip = HasSuffix(path, ".gz");
     success = DownloadFile(
-        remoteUrl.c_str(), fileSystem, localPath.c_str(), fileSize,
+        remoteUrl.c_str(), fileSystem, path.c_str(), fileSize,
         [progressCallback](float percentage) { progressCallback(percentage); }, gzip);
 
     return success;

@@ -59,6 +59,11 @@ auto DownloadFile(const char *url,
         int readLen = readWrite(client, totalReadLen);
         if (readLen <= 0) {
             log_w("Error read data (readLen == 0)");
+            if (!client.connected) {
+                log_w("Connection closed, bailing out");
+                client.close();
+                return false;
+            }
         }
 
         totalReadLen += readLen;
@@ -128,9 +133,6 @@ auto DownloadFile(const char *url, FileSystem &fileSystem, const char *path, int
     -> bool {
 
     std::string fullPath(path);
-    if (gzip) {
-        fullPath.append(".gz");
-    }
 
     SHOW_HEAP();
     // TODO: Support resuming?
