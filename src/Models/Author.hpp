@@ -2,6 +2,7 @@
 
 #include <string>
 
+#include "Misc/SpiramAllocator.hpp"
 #include "Models/JsonSerializable.hpp"
 
 class Author : public JsonSerializable {
@@ -10,8 +11,8 @@ public:
     ~Author() override = default;
 
     std::string uuid;
-    std::string name;
-    std::string description;
+    SpiramString name;
+    SpiramString description;
 
     auto fromJson(const JsonObject &j) -> bool override {
         if (!j.containsKey("uuid") || !j.containsKey("name") || !j.containsKey("description")) {

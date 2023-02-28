@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Misc/SpiramAllocator.hpp"
 #include "Models/Json.hpp"
 #include "Models/JsonSerializable.hpp"
 
@@ -9,22 +10,33 @@ public:
     ~ReadableFile() override = default;
 
     std::string uuid;
-    std::string name;
+    SpiramString name;
     int size;
-    std::string filetype;
-    std::string uploadedAt;
-    std::string shaHash;
+    SpiramString filetype;
+    SpiramString uploadedAt;
+    SpiramString shaHash;
     //! URL to download the file
-    std::string file;
-    std::string fileProxied;
+    SpiramString file;
+    SpiramString fileProxied;
+    SpiramString readableType;
 
     auto fromJson(const JsonObject &j) -> bool override {
-        if (!j.containsKey("uuid") || !j.containsKey("name") || !j.containsKey("size") ||
-            !j.containsKey("filetype") || !j.containsKey("uploaded_at") ||
-            !j.containsKey("sha_hash")) {
-            log_w("Failed to parse ReadableFile with JSON %s", DumpJson(j).c_str());
-            return false;
+
+        readableType = j["readable_type"].as<std::string>();
+        if (readableType == "pocket_article" || readableType == "email_article") {
+            if (!j.containsKey("file") || !j.containsKey("size")) {
+                log_w("Failed to parse article ReadableFile %s", DumpJson(j).c_str());
+                return false;
+            }
+        } else {
+            if (!j.containsKey("uuid") || !j.containsKey("name") || !j.containsKey("size") ||
+                !j.containsKey("filetype") || !j.containsKey("uploaded_at") ||
+                !j.containsKey("sha_hash")) {
+                log_w("Failed to parse ReadableFile %s", DumpJson(j).c_str());
+                return false;
+            }
         }
+
         uuid = j["uuid"].as<std::string>();
         name = j["name"].as<std::string>();
         size = j["size"];
@@ -32,7 +44,12 @@ public:
         uploadedAt = j["uploaded_at"].as<std::string>();
         shaHash = j["sha_hash"].as<std::string>();
         file = j["file"].as<std::string>();
-        fileProxied = j["file_proxied"].as<std::string>();
+
+        if (j.containsKey("file_proxied")) {
+            fileProxied = j["file_proxied"].as<std::string>();
+        } else {
+            fileProxied = file;
+        }
         return true;
     }
 };

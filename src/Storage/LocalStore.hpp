@@ -56,17 +56,27 @@ public:
         -> std::vector<std::string>;
     auto changedReadablesArchivedQueryParams(const ReadablesVector &readables)
         -> std::vector<std::string>;
+    auto changedReadablesBookmarksJson() -> std::pair<char *, int>;
     auto processReadablePlacemarksFromServer(const Readable &readable, const uint32_t placemark)
         -> bool;
+    auto processReadableBookmarksFromServer(const Readable &readable,
+                                            const std::string bookmarkRange) -> bool;
     void resetReadablesPlacemarkChanged(const ReadablesVector &readables);
     void resetReadablesArchivedChanged(const ReadablesVector &readables);
+    void resetReadablesBookmarksChanged(const ReadablesVector &readables);
 
     void syncFromRemote(const std::function<void(ContentSyncState state)> &progressCallback);
-    auto saveArticleFile(const Readable &readable) -> bool;
     void deleteReadables(bool restart = true);
     void deleteArticles(bool restart = true);
     void deleteReadableFiles(const ReadablesVector &readables, bool restart);
     auto saveReadables(const ReadablesVector &readables, const std::string &path) -> bool;
+
+    // Methods for interacting with readable files on disk
+    [[nodiscard]] auto readableFilePathForWriting(const Readable &readable) const -> std::string;
+    // When reading, we will take whatever readable file type that's available
+    [[nodiscard]] auto readableFilePathForReading(const Readable &readable) const -> std::string;
+    [[nodiscard]] auto readableGetUncompressedSize(const Readable &readable) const -> int;
+    void readableFilePurge(const Readable &readable);
 
     FileSystem &fileSystem;
 

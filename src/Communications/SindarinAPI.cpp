@@ -8,7 +8,6 @@
 #include "Misc/Power.hpp"
 #include "Misc/StringUtil.hpp"
 #include "Models/Json.hpp"
-#include "Models/UserArticle.hpp"
 #include "Models/UserReadable.hpp"
 #include "UrlEncode.hpp"
 #include "Version.hpp"
@@ -43,10 +42,11 @@ auto SindarinAPI::checkSync(const CheckSyncRequest &req, CheckSyncResponse *resp
                       HTTP_METHOD_POST);
     setAuth(client);
 
-    auto body = StringFormat("build=%s&git_hash=%s&sn=%"
-                             "s&pt_battery=%d&pt_build=%s&skip_content=%s",
-                             kVersionString, kGitHash, GetSerialNumber().c_str(), req.ptBattery,
-                             req.ptBuild.c_str(), req.skipContent ? "true" : "false");
+    auto body =
+        StringFormat("build=%s&git_hash=%s&sn=%"
+                     "s&pt_battery=%d&pt_build=%s&skip_content=%s&sleep_reason=%d",
+                     kVersionString, kGitHash, GetSerialNumber().c_str(), req.ptBattery,
+                     req.ptBuild.c_str(), req.skipContent ? "true" : "false", req.sleepReason);
     if (req.readablesSince.length() > 0) {
         body += StringFormat("&readables_since=%s", req.readablesSince.c_str());
     }
@@ -103,17 +103,68 @@ auto SindarinAPI::checkSync(const CheckSyncRequest &req, CheckSyncResponse *resp
     return httpCode;
 }
 
+auto SindarinAPI::syncBookmarks(const char *bookmarksJson, const int bookmarksSize) -> int {
+    SyncBookmarksResponse resp;
+    HttpClient client(SINDARIN_SERVER_URL "/user/bookmarks/", "application/json", HTTP_METHOD_POST);
+    setAuth(client);
+
+    client.open(bookmarksSize);
+    int writeLength = client.write(bookmarksJson, bookmarksSize);
+    if (writeLength < bookmarksSize) {
+        log_e("HttpClient failed to write (writeLength=%d)", writeLength);
+        return 0;
+    }
+
+    int contentLength = client.fetchHeaders();
+    int httpCode = client.getStatusCode();
+    auto stream = client.makeReadStream();
+
+    SHOW_HEAP();
+
+    auto respJson = std::make_unique<SpiRamJsonDocument>(1024 + contentLength * 3);
+    auto error = ArduinoJson::deserializeJson(*respJson, *stream);
+
+    SHOW_HEAP();
+
+    if (error.code() != DeserializationError::Ok) {
+        log_e("Failed to deserialize sync bookmarks response: %s (length=%d)", error.c_str(),
+              contentLength);
+        return 0;
+    }
+
+    SHOW_HEAP();
+
+    resp.fromJson(respJson->as<JsonObject>());
+
+    SHOW_HEAP();
+
+    return httpCode;
+}
+
 auto SindarinAPI::downloadReadable(const Readable &readable, FileSystem &fileSystem,
-                                   const std::function<void(int percentage)> &progressCallback,
-                                   bool gzip) -> bool {
+                                   const std::string &path,
+                                   const std::function<void(int percentage)> &progressCallback)
+    -> bool {
     bool success = false;
     // auto remoteUrl = readable.remoteUrl();
-    auto remoteUrl = readable.file().fileProxied;
-    auto localPath = readable.localFilePath();
-    auto fileSize = readable.file().size;
+    auto file = readable.file();
+    auto remoteUrl = file.fileProxied;
+    auto fileSize = file.size;
 
+    // Create the directory if necessary
+    // Grab the dir from the path
+    auto dir = path.substr(0, path.find_last_of('/'));
+    if (!fileSystem.exists(dir)) {
+        log_d("Creating directory %s", dir.c_str());
+        if (!fileSystem.createDir(dir)) {
+            log_e("Could not create %s directory", dir.c_str());
+            return false;
+        }
+    }
+
+    bool gzip = HasSuffix(path, ".gz");
     success = DownloadFile(
-        remoteUrl.c_str(), fileSystem, localPath.c_str(), fileSize,
+        remoteUrl.c_str(), fileSystem, path.c_str(), fileSize,
         [progressCallback](float percentage) { progressCallback(percentage); }, gzip);
 
     return success;

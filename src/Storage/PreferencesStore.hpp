@@ -21,6 +21,12 @@ enum FONT_CHOICES {
     PREFS_TAHOMA_LARGE = 4,
 };
 
+enum SLEEP_REASON {
+    SLEEP_REASON_NONE = 0,
+    SLEEP_REASON_INACTIVITY = 1,
+    SLEEP_REASON_TEMPLES_CLOSED = 2,
+};
+
 class PreferencesStore {
 public:
     template <typename T>
@@ -113,7 +119,10 @@ public:
             this->writeToStorage(this->key_, value);
         }
 
-        void remove() { this->deleteFromStorage(this->key_); }
+        void remove() {
+            this->deleteFromStorage(this->key_);
+            this->value_.reset();
+        }
 
     protected:
         bool loaded_ = false;
@@ -201,15 +210,17 @@ public:
           lastPageTurnerBuild(*this, "pt-build"), lastArticlesSince(*this, "articles-since"),
           lastReadablesSince(*this, "readables-since"), readablePlace(*this, "-p"),
           readablePlaceChanged(*this, "-pc"), readableArchivedChanged(*this, "-ar"),
-          lastPageTurnerBattery(*this, "pt-battery"), invertSetting(*this, "invert"),
-          vcom(*this, "vcom"), font(*this, "font"), rectX(*this, "rectX"), rectY(*this, "rectY"),
-          rectW(*this, "rectW"), rectH(*this, "rectH"), lineSpacing(*this, "line-space"),
-          demoMode(*this, "demo"), wordCount(*this, "word-count"),
-          totalReadingTimeSeconds(*this, "tot-rd-time"), bootCount(*this, "boot-count"),
-          firstRead(*this, "first-read"), autoPilotSpeed(*this, "auto-speed"),
-          firstAutopilotRead(*this, "fst-auto-rd"), cesMode(*this, "ces"), emcMode(*this, "emc"),
-          lastBatteryReport(*this, "last-batt"), wifiPower(*this, "wifi-power"),
-          gzipReadables(*this, "gzip-readables"){};
+          readableBookmarksChanged(*this, "-bm"), lastPageTurnerBattery(*this, "pt-battery"),
+          invertSetting(*this, "invert"), vcom(*this, "vcom"), font(*this, "font"),
+          rectX(*this, "rectX"), rectY(*this, "rectY"), rectW(*this, "rectW"),
+          rectH(*this, "rectH"), lineSpacing(*this, "line-space"), demoMode(*this, "demo"),
+          wordCount(*this, "word-count"), totalReadingTimeSeconds(*this, "tot-rd-time"),
+          bootCount(*this, "boot-count"), firstRead(*this, "first-read"),
+          autoPilotSpeed(*this, "auto-speed"), firstAutopilotRead(*this, "fst-auto-rd"),
+          cesMode(*this, "ces"), emcMode(*this, "emc"), lastBatteryReport(*this, "last-batt"),
+          wifiPower(*this, "wifi-power"), morningNewspaperTime(*this, "morning-news"),
+          eveningNewspaperTime(*this, "evening-news"), solTimeZone(*this, "time-zone"),
+          sleepReason(*this, "sleep-reason"){};
 
     auto begin() -> bool {
         if (started_) {
@@ -254,6 +265,7 @@ public:
     KeyedPrefsItem<uint32_t> readablePlace;
     KeyedPrefsItem<bool> readablePlaceChanged;
     KeyedPrefsItem<bool> readableArchivedChanged;
+    KeyedPrefsItem<bool> readableBookmarksChanged;
     PrefsItem<int> lastPageTurnerBattery;
     PrefsItem<bool> invertSetting;
     PrefsItem<int> vcom;
@@ -274,7 +286,10 @@ public:
     PrefsItem<bool> emcMode;
     PrefsItem<int> lastBatteryReport;
     PrefsItem<int> wifiPower;
-    PrefsItem<bool> gzipReadables;
+    PrefsItem<int> morningNewspaperTime;
+    PrefsItem<int> eveningNewspaperTime;
+    PrefsItem<int> solTimeZone;
+    PrefsItem<int> sleepReason;
 
 protected:
     bool started_;

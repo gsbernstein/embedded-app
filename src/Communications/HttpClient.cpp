@@ -18,6 +18,33 @@ HttpClient::HttpClient(const char *url, const char *contentType, esp_http_client
         .user_agent = userAgent_.c_str(),
         .method = method,
         .timeout_ms = 30000,
+        .event_handler = [](esp_http_client_event_t *event) -> esp_err_t {
+            auto thisPtr = (HttpClient *)event->user_data;
+            switch (event->event_id) {
+            case HTTP_EVENT_ERROR:
+                log_e("HTTP_EVENT_ERROR");
+                thisPtr->connected = false;
+                break;
+            case HTTP_EVENT_ON_CONNECTED:
+                log_d("HTTP_EVENT_ON_CONNECTED");
+                thisPtr->connected = true;
+                break;
+            case HTTP_EVENT_HEADERS_SENT:
+            case HTTP_EVENT_ON_HEADER:
+            case HTTP_EVENT_ON_DATA:
+                break;
+            case HTTP_EVENT_ON_FINISH:
+                log_d("HTTP_EVENT_ON_FINISH");
+                thisPtr->connected = false;
+                break;
+            case HTTP_EVENT_DISCONNECTED:
+                log_d("HTTP_EVENT_DISCONNECTED");
+                thisPtr->connected = false;
+                break;
+            }
+            return ESP_OK;
+        },
+        .user_data = (void *)this,
         .crt_bundle_attach = esp_crt_bundle_attach,
     };
     client_ = esp_http_client_init(&config);
