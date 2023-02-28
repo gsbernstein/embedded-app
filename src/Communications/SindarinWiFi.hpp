@@ -18,22 +18,13 @@
 //-----------------------------------------------------------------------------
 // Includes
 //-----------------------------------------------------------------------------
-#include "WiFi/WiFi.h"
+#include "Communications/WiFi/WiFiESP.hpp"
 #include <esp_wifi.h>
 #include "IPAddress.h"
 
-/*
-#include <functional>
-#include <esp_wifi.h>
-#include "IPAddress.h"
-#include "esp_err.h"
-#include "esp_event.h"
-#include "WiFiType.h"
-#include "esp_smartconfig.h"
-#include "wifi_provisioning/manager.h"
-*/
-
-
+//-----------------------------------------------------------------------------
+// Defines
+//-----------------------------------------------------------------------------
 
 
 
@@ -77,7 +68,7 @@ public:
 
     auto GetLocalIP() -> IPAddress;
 
-    auto GetStatus() -> wl_status_t;
+    auto GetStatus() -> wifiesp_status_t;
 
     auto GetMode() -> wifi_mode_t;
     auto SetMode(wifi_mode_t mode) -> bool;

@@ -129,7 +129,7 @@ void BLEImprov::loop() {
         return;
     } else if (this->state_ == STATE_CONNECTING) {
         uint32_t now = millis();
-        if (SindarinWiFi.GetStatus() == WL_CONNECTED) {
+        if (SindarinWiFi.GetStatus() == WIFIESP_STATUS_CONNECTED) {
             std::string ip = SindarinWiFi.GetLocalIP().toString().c_str();
             std::vector<uint8_t> response = improv::build_rpc_response(improv::WIFI_SETTINGS, {ip});
             log_d("Reporting RPC result to client");
@@ -150,7 +150,7 @@ void BLEImprov::loop() {
         // https://github.com/sindarin-inc/embedded-app/commit/131a40ac99ca0be289887eadbe8da8cd1bdc2d45
 
         // Set WiFi to station mode and disconnect from an AP if it was previously connected
-        SindarinWiFi.SetMode(WIFI_STA);
+        SindarinWiFi.SetMode(WIFI_MODE_STA);
         SindarinWiFi.DisconnectWiFi();
 
         int err = SindarinWiFi.ScanNetworks(asyncScan);

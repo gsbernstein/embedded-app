@@ -71,7 +71,7 @@ CSindarinWiFi::CSindarinWiFi() {
 //------------------------------------------------------------------------------
 auto CSindarinWiFi::GetWiFiCredentials(wifi_config_t *conf) -> bool {
     // Needs to be called before we can get the WiFi config
-    if (!WiFi.enableSTA(true)) {
+    if (!WiFiESP.enableSTA(true)) {
         log_e("STA enable failed!");
         return false;
     }
@@ -118,7 +118,7 @@ auto CSindarinWiFi::HasWiFiCredentials() -> bool {
 //______________________________________________________________________________
 //------------------------------------------------------------------------------
 auto CSindarinWiFi::ScanNetworks(bool asyncScan) -> int16_t {
-    return WiFi.scanNetworks(asyncScan);
+    return WiFiESP.scanNetworks(asyncScan);
 }
 
 //______________________________________________________________________________
@@ -133,7 +133,7 @@ auto CSindarinWiFi::ScanNetworks(bool asyncScan) -> int16_t {
 //______________________________________________________________________________
 //------------------------------------------------------------------------------
 auto CSindarinWiFi::ScanComplete() -> int16_t {
-    return WiFi.scanComplete();
+    return WiFiESP.scanComplete();
 }
 
 //______________________________________________________________________________
@@ -148,7 +148,7 @@ auto CSindarinWiFi::ScanComplete() -> int16_t {
 //______________________________________________________________________________
 //------------------------------------------------------------------------------
 auto CSindarinWiFi::GetSSID(uint8_t i) -> String {
-    return WiFi.SSID(i);
+    return WiFiESP.SSID(i);
 }
 
 //______________________________________________________________________________
@@ -163,7 +163,7 @@ auto CSindarinWiFi::GetSSID(uint8_t i) -> String {
 //______________________________________________________________________________
 //------------------------------------------------------------------------------
 auto CSindarinWiFi::GetRSSI(uint8_t i) -> int32_t {
-    return WiFi.RSSI(i);
+    return WiFiESP.RSSI(i);
 }
 
 //______________________________________________________________________________
@@ -178,7 +178,7 @@ auto CSindarinWiFi::GetRSSI(uint8_t i) -> int32_t {
 //______________________________________________________________________________
 //------------------------------------------------------------------------------
 auto CSindarinWiFi::GetEncryptionType(uint8_t i) -> wifi_auth_mode_t {
-    return WiFi.encryptionType(i);
+    return WiFiESP.encryptionType(i);
 }
 
 
@@ -200,7 +200,7 @@ void CSindarinWiFi::ConnectWiFi(const std::string &ssid, const std::string &pass
 
     // I'm not sure, but it might be that WiFi sleep before connecting to an AP could
     // be problematic.
-    // if (!WiFi.setSleep(true)) {
+    // if (!WiFiESP.setSleep(true)) {
     //     log_e("Failed to enable WiFi sleep");
     // }
 
@@ -208,16 +208,16 @@ void CSindarinWiFi::ConnectWiFi(const std::string &ssid, const std::string &pass
     wifi_config_t conf;
     GetWiFiCredentials(&conf);
     log_i("Found WiFi credentials for %s. Attempting connection", (const char *)conf.sta.ssid);
-    WiFi.setHostname(HOSTNAME);
+    WiFiESP.setHostname(HOSTNAME);
     if (ssid.empty()) {
-        WiFi.begin();
+        WiFiESP.begin();
     } else {
-        WiFi.begin(ssid.c_str(), password.c_str());
+        WiFiESP.begin(ssid.c_str(), password.c_str());
     }
-    log_d("WiFi TX Power was %d", WiFi.getTxPower());
-    WiFi.setTxPower(_wiFiPower);
-    log_d("WiFi TX Power is now %d", WiFi.getTxPower());
-    WiFi.setAutoReconnect(true);
+    log_d("WiFi TX Power was %d", WiFiESP.getTxPower());
+    WiFiESP.setTxPower(_wiFiPower);
+    log_d("WiFi TX Power is now %d", WiFiESP.getTxPower());
+    WiFiESP.setAutoReconnect(true);
 }
 
 //______________________________________________________________________________
@@ -284,9 +284,9 @@ auto CSindarinWiFi::ConnectWiFiWithTimeout(int timeoutMs) -> bool {
 //------------------------------------------------------------------------------
 void CSindarinWiFi::DisconnectWiFi() {
     log_i("Disconnecting WiFi");
-    WiFi.setAutoReconnect(false);
-    WiFi.disconnect();
-    WiFi.mode(WIFI_OFF);
+    WiFiESP.setAutoReconnect(false);
+    WiFiESP.disconnect();
+    WiFiESP.mode(WIFI_MODE_NULL);
 }
 
 //______________________________________________________________________________
@@ -301,7 +301,7 @@ void CSindarinWiFi::DisconnectWiFi() {
 //______________________________________________________________________________
 //------------------------------------------------------------------------------
 auto CSindarinWiFi::Connected() -> bool {
-    return WiFi.isConnected();
+    return WiFiESP.isConnected();
 }
 
 
@@ -318,22 +318,7 @@ auto CSindarinWiFi::Connected() -> bool {
 //------------------------------------------------------------------------------
 auto CSindarinWiFi::GetLocalIP() -> IPAddress
 {
-    return WiFi.localIP();
-
-/*
-    IPAddress nAddr;
-    nAddr.dword = 0;
-
-    if(Connected())
-    {
-	    esp_netif_ip_info_t nEspIP;
-        if(esp_netif_get_ip_info(get_esp_interface_netif(ESP_IF_WIFI_STA), &nEspIP) != ESP_OK){
-    	    log_e("Netif Get IP Failed!");
-    	    return nAddr;
-    }
-    // Got here must have gotten real ip
-    nAppr.dword = nEspIP.ip.addr;
-*/    
+	return WiFiESP.localIP();
 }
 
 //______________________________________________________________________________
@@ -343,19 +328,13 @@ auto CSindarinWiFi::GetLocalIP() -> IPAddress
 
     \brief  Return Connection status
     \param  N/A
-    \return wl_status_t
+    \return wifiesp_status_t
 */
 //______________________________________________________________________________
 //------------------------------------------------------------------------------
-wl_status_t CSindarinWiFi::GetStatus()
+wifiesp_status_t CSindarinWiFi::GetStatus()
 {
-    return WiFi.status();
-/*    
-    if(!_sta_status_group){
-        return _sta_status;
-    }
-    return (wl_status_t)xEventGroupClearBits(_sta_status_group, 0);
-*/    
+    return WiFiESP.status();
 }
 
 //______________________________________________________________________________
@@ -371,15 +350,7 @@ wl_status_t CSindarinWiFi::GetStatus()
 //------------------------------------------------------------------------------
 auto CSindarinWiFi::GetMode() -> wifi_mode_t
 {
-    return WiFi.getMode();
-/*    
-    wifi_mode_t mode;
-    if(esp_wifi_get_mode(&mode) != ESP_OK){
-        log_w("WiFi not started");
-        return WIFI_MODE_NULL;
-    }
-    return mode;
-*/    
+    return WiFiESP.getMode();
 }
 
 //______________________________________________________________________________
@@ -395,55 +366,7 @@ auto CSindarinWiFi::GetMode() -> wifi_mode_t
 //------------------------------------------------------------------------------
 bool CSindarinWiFi::SetMode(wifi_mode_t mode)
 {
-    return WiFi.mode(mode);
-/*
-    wifi_mode_t cm = GetMode();
-    if(cm == mode) {
-        return true;
-    }
-    if(!cm && mode){
-        if(!wifiLowLevelInit(_persistent)){
-            return false;
-        }
-    } else if(cm && !mode){
-        return espWiFiStop();
-    }
-
-    esp_err_t err;
-    if(m & WIFI_MODE_STA){
-    	err = set_esp_interface_hostname(ESP_IF_WIFI_STA, get_esp_netif_hostname());
-        if(err){
-            log_e("Could not set hostname! %d", err);
-            return false;
-        }
-    }
-    err = esp_wifi_set_mode(m);
-    if(err){
-        log_e("Could not set mode! %d", err);
-        return false;
-    }
-    if(_long_range){
-        if(m & WIFI_MODE_STA){
-            err = esp_wifi_set_protocol(WIFI_IF_STA, WIFI_PROTOCOL_LR);
-            if(err != ESP_OK){
-                log_e("Could not enable long range on STA! %d", err);
-                return false;
-            }
-        }
-        if(m & WIFI_MODE_AP){
-            err = esp_wifi_set_protocol(WIFI_IF_AP, WIFI_PROTOCOL_LR);
-            if(err != ESP_OK){
-                log_e("Could not enable long range on AP! %d", err);
-                return false;
-            }
-        }
-    }
-    if(!espWiFiStart()){
-        return false;
-    }
-
-    return true;
-*/    
+    return WiFiESP.mode(mode);
 }
 
 
