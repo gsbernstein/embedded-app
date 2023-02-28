@@ -258,7 +258,7 @@ extern "C" void app_main(void) { // NOLINT(readability-identifier-naming)
                         }
                         digitalWrite(BLUE_LED, LED_OFF);
                         runningContentSync = false;
-                        DisconnectWifi();
+                        SindarinWiFi.DisconnectWiFi();
                         log_i("Going to sleep after content sync");
                         PowerManager::getInstance().powerOff();
                     }
@@ -347,7 +347,7 @@ extern "C" void app_main(void) { // NOLINT(readability-identifier-naming)
                                 PowerManager::getInstance().powerOff();
                             }
                             runningContentSync = false;
-                            DisconnectWifi();
+                            SindarinWiFi.DisconnectWiFi();
                         }
                     });
                 }

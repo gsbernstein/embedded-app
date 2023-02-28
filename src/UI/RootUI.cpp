@@ -840,13 +840,14 @@ void RootUI::setup(DisplaySystem *display, LocalStore &localStore, FileSystem &f
         auto confirmMessage = [this, timeZoneMenu, display](int solTimeZone) {
             this->prefs_.solTimeZone.set(solTimeZone);
             timeZoneMenu->showTemporaryMessage(*display, "Setting Clock & Time Zone", 200, false);
-            if (!ConnectWifi()) {
+            SindarinWiFi.ConnectWiFi();
+            if (!SindarinWiFi.Connected()) {
                 log_e("Couldn't connect to wifi, not setting clock");
             } else {
                 log_i("Setting time from internet");
                 SolClock theClock = SolClock::getInstance();
                 theClock.setClockTimeFromInternet();
-                DisconnectWifi();
+                SindarinWiFi.DisconnectWiFi();
             }
             timeZoneMenu->backCallback();
         };
