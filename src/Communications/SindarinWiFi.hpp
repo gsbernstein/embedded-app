@@ -43,39 +43,39 @@ public:
     CSindarinWiFi();
 
     // Credentials
-    auto GetWiFiCredentials(wifi_config_t *conf) -> bool;
-    auto HasWiFiCredentials() -> bool;
+    auto getWiFiCredentials(wifi_config_t *conf) -> bool;
+    auto hasWiFiCredentials() -> bool;
 
     // Scanning
-    auto ScanNetworks(bool asyncScan) -> int16_t;
-    auto ScanComplete() -> int16_t;
-    auto GetSSID(uint8_t i) -> String;
-    auto GetRSSI(uint8_t i) -> int32_t;
-    auto GetEncryptionType(uint8_t i) -> wifi_auth_mode_t;
+    auto scanNetworks(bool asyncScan) -> int16_t;
+    auto scanComplete() -> int16_t;
+    auto getSsid(uint8_t i) -> String;
+    auto getRssi(uint8_t i) -> int32_t;
+    auto getEncryptionType(uint8_t i) -> wifi_auth_mode_t;
 
     // Connection
-    void ConnectWiFi(const std::string &ssid = "", const std::string &password = "");
-    auto ConnectWiFiIfCredentialsExist() -> bool;
-    auto ConnectWiFiWithTimeout(int timeoutMs = 20000) -> bool;
-    void DisconnectWiFi();
-    auto Connected() -> bool;
+    void connectWiFi(const std::string &ssid = "", const std::string &password = "");
+    auto connectWiFiIfCredentialsExist() -> bool;
+    auto connectWiFiWithTimeout(int timeoutMs = 20000) -> bool;
+    void disconnectWiFi();
+    auto connected() -> bool;
 
     // Settings
-    void SetWiFiPower(wifi_power_t power) { _wiFiPower = power; }
-    auto GetWiFiPower() -> wifi_power_t { return _wiFiPower; }
+    void setWiFiPower(wifi_power_t power) { wiFiPower_ = power; }
+    auto getWiFiPower() -> wifi_power_t { return wiFiPower_; }
 
-    auto GetLocalIP() -> IPAddress;
+    auto getLocalIp() -> IPAddress;
 
-    auto GetStatus() -> wifiesp_status_t;
+    auto getStatus() -> wifiesp_status_t;
 
-    auto GetMode() -> wifi_mode_t;
-    auto SetMode(wifi_mode_t mode) -> bool;
+    auto getMode() -> wifi_mode_t;
+    auto setMode(wifi_mode_t mode) -> bool;
 
 protected:
     //---------------------------------
     // Variables
     //---------------------------------
-    wifi_power_t _wiFiPower = WIFI_POWER_19_5dBm;
+    wifi_power_t wiFiPower_ = WIFI_POWER_19_5dBm;
 
     //---------------------------------
     // Functions
@@ -83,4 +83,4 @@ protected:
 };
 
 // Global Object
-extern CSindarinWiFi SindarinWiFi;
+extern CSindarinWiFi sindarinWiFi;

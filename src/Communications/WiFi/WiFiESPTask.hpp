@@ -31,19 +31,19 @@
 //-----------------------------------------------------------------------------
 
 /// Post an Event to the task
-extern "C" esp_err_t WiFiESPTask_PostEvent(wifiesp_event_t *data);
+extern "C" auto WiFiEspTaskPostEvent(wifiesp_event_t *data) -> esp_err_t;
 
 /// Start the Network Task
-extern "C" bool WiFiESPTask_StartNetworkEventTask();
+extern "C" auto WiFiEspTaskStartNetworkEventTask() -> bool;
 
 /// Set Event Status Bit
-extern "C" int WiFiESPTask_SetEventStatusBits(int bits);
+extern "C" auto WiFiEspTaskSetEventStatusBits(int bits) -> int;
 
 /// Clear Event Status Bit
-extern "C" int WiFiESPTask_ClearEventStatusBits(int bits);
+extern "C" auto WiFiEspTaskClearEventStatusBits(int bits) -> int;
 
 /// Get Event Status Bit
-extern "C" int WiFiESPTask_GetEventStatusBits();
+extern "C" auto WiFiEspTaskGetEventStatusBits() -> int;
 
 /// Wait for an Event Status Bit
-extern "C" int WiFiESPTask_WaitEventStatusBits(int bits, uint32_t timeout_ms);
+extern "C" auto WiFiEspTaskWaitEventStatusBits(int bits, uint32_t timeoutMs) -> int;

@@ -116,29 +116,29 @@ typedef enum {
 
 // Wifi Event Information
 typedef union {
-    wifi_event_sta_scan_done_t wifi_scan_done;
-    wifi_event_sta_authmode_change_t wifi_sta_authmode_change;
-    wifi_event_sta_connected_t wifi_sta_connected;
-    wifi_event_sta_disconnected_t wifi_sta_disconnected;
-    wifi_event_sta_wps_er_pin_t wps_er_pin;
-    wifi_event_sta_wps_fail_reason_t wps_fail_reason;
-    wifi_event_ap_probe_req_rx_t wifi_ap_probereqrecved;
-    wifi_event_ap_staconnected_t wifi_ap_staconnected;
-    wifi_event_ap_stadisconnected_t wifi_ap_stadisconnected;
-    wifi_event_ftm_report_t wifi_ftm_report;
-    ip_event_ap_staipassigned_t wifi_ap_staipassigned;
-    ip_event_got_ip_t got_ip;
-    ip_event_got_ip6_t got_ip6;
-    smartconfig_event_got_ssid_pswd_t sc_got_ssid_pswd;
-    esp_eth_handle_t eth_connected;
-    wifi_sta_config_t prov_cred_recv;
-    wifi_prov_sta_fail_reason_t prov_fail_reason;
+    wifi_event_sta_scan_done_t wifiScanDone;
+    wifi_event_sta_authmode_change_t wifiStaAuthmodeChange;
+    wifi_event_sta_connected_t wifiStaConnected;
+    wifi_event_sta_disconnected_t wifiStaDisconnected;
+    wifi_event_sta_wps_er_pin_t wpsErPin;
+    wifi_event_sta_wps_fail_reason_t wpsFailReason;
+    wifi_event_ap_probe_req_rx_t wifiApProbereqrecved;
+    wifi_event_ap_staconnected_t wifiApStaconnected;
+    wifi_event_ap_stadisconnected_t wifiApStadisconnected;
+    wifi_event_ftm_report_t wifiFtmReport;
+    ip_event_ap_staipassigned_t wifiApStaipassigned;
+    ip_event_got_ip_t gotIp;
+    ip_event_got_ip6_t gotIp6;
+    smartconfig_event_got_ssid_pswd_t scGotSsidPswd;
+    esp_eth_handle_t ethConnected;
+    wifi_sta_config_t provCredRecv;
+    wifi_prov_sta_fail_reason_t provFailReason;
 } wifiesp_event_info_t;
 
 // Wifi Event Type
 typedef struct {
-    wifiesp_event_id_t event_id;
-    wifiesp_event_info_t event_info;
+    wifiesp_event_id_t eventId;
+    wifiesp_event_info_t eventInfo;
 } wifiesp_event_t;
 
 // Define Event Callback function pointer

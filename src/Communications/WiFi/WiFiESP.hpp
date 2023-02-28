@@ -45,84 +45,85 @@ public:
     CWiFiESP();
 
     // Modes
-    bool mode(wifi_mode_t);
-    wifi_mode_t getMode();
-    bool enableSTA(bool enable);
+    auto mode(wifi_mode_t) -> bool;
+    auto getMode() -> wifi_mode_t;
+    auto enableSTA(bool enable) -> bool;
 
     // Scan
-    int16_t scanNetworks(bool async = false, bool show_hidden = false, bool passive = false,
-                         uint32_t max_ms_per_chan = 300, uint8_t channel = 0);
-    static void _scanDoneCB();
-    int16_t scanComplete();
+    auto scanNetworks(bool async = false, bool showHidden = false, bool passive = false,
+                      uint32_t maxMsPerChan = 300, uint8_t channel = 0) -> int16_t;
+    static void scanDoneCb();
+    auto scanComplete() -> int16_t;
     void scanDelete();
     // Scan Information
-    void *getScanInfoByIndex(int i);
-    bool getNetworkInfo(uint8_t networkItem, String &ssid, uint8_t &encryptionType, int32_t &RSSI,
-                        uint8_t *&BSSID, int32_t &channel);
-    String SSID(uint8_t networkItem);
-    wifi_auth_mode_t encryptionType(uint8_t networkItem);
-    int32_t RSSI(uint8_t networkItem);
-    uint8_t *BSSID(uint8_t networkItem);
-    String BSSIDstr(uint8_t networkItem);
-    int32_t scan_channel(uint8_t networkItem);
+    auto getScanInfoByIndex(int i) -> void *;
+    auto getNetworkInfo(uint8_t networkItem, String &ssid, uint8_t &encryptionType, int32_t &rssi,
+                        uint8_t *&bssid, int32_t &channel) -> bool;
+    auto ssid(uint8_t networkItem) -> String;
+    auto encryptionType(uint8_t networkItem) -> wifi_auth_mode_t;
+    auto rssi(uint8_t networkItem) -> int32_t;
+    auto bssid(uint8_t networkItem) -> uint8_t *;
+    auto bssiDstr(uint8_t networkItem) -> String;
+    auto scanChannel(uint8_t networkItem) -> int32_t;
 
     // Sleep
-    bool setSleep(bool enabled);
-    bool setSleep(wifi_ps_type_t sleepType);
-    wifi_ps_type_t getSleep();
+    auto setSleep(bool enabled) -> bool;
+    auto setSleep(wifi_ps_type_t sleepType) -> bool;
+    auto getSleep() -> wifi_ps_type_t;
 
     // Power
-    bool setTxPower(wifi_power_t power);
-    wifi_power_t getTxPower();
+    auto setTxPower(wifi_power_t power) -> bool;
+    auto getTxPower() -> wifi_power_t;
 
     // Hostname
-    const char *getHostname();
-    bool setHostname(const char *hostname);
-    bool hostname(const String &aHostname) { return setHostname(aHostname.c_str()); }
+    auto getHostname() -> const char *;
+    auto setHostname(const char *hostname) -> bool;
+    auto hostname(const String &aHostname) -> bool { return setHostname(aHostname.c_str()); }
 
     // Start Wifi
-    wifiesp_status_t begin(const char *wpa2_ssid, wifiesp_wpa2_auth_method_t method,
-                           const char *wpa2_identity = NULL, const char *wpa2_username = NULL,
-                           const char *wpa2_password = NULL, const char *ca_pem = NULL,
-                           const char *client_crt = NULL, const char *client_key = NULL,
-                           int32_t channel = 0, const uint8_t *bssid = 0, bool connect = true);
-    wifiesp_status_t begin(const char *ssid, const char *passphrase = NULL, int32_t channel = 0,
-                           const uint8_t *bssid = NULL, bool connect = true);
-    wifiesp_status_t begin(char *ssid, char *passphrase = NULL, int32_t channel = 0,
-                           const uint8_t *bssid = NULL, bool connect = true);
-    wifiesp_status_t begin();
+    auto begin(const char *wpa2Ssid, wifiesp_wpa2_auth_method_t method,
+               const char *wpa2Identity = nullptr, const char *wpa2Username = nullptr,
+               const char *wpa2Password = nullptr, const char *caPem = nullptr,
+               const char *clientCrt = nullptr, const char *clientKey = nullptr,
+               int32_t channel = 0, const uint8_t *bssid = nullptr, bool connect = true)
+        -> wifiesp_status_t;
+    auto begin(const char *ssid, const char *passphrase = nullptr, int32_t channel = 0,
+               const uint8_t *bssid = nullptr, bool connect = true) -> wifiesp_status_t;
+    auto begin(char *ssid, char *passphrase = nullptr, int32_t channel = 0,
+               const uint8_t *bssid = nullptr, bool connect = true) -> wifiesp_status_t;
+    auto begin() -> wifiesp_status_t;
 
     // Auto Reconnect
-    bool setAutoReconnect(bool autoReconnect);
-    bool getAutoReconnect();
+    auto setAutoReconnect(bool autoReconnect) -> bool;
+    auto getAutoReconnect() -> bool;
 
     // Connection
-    bool reconnect();
-    bool disconnect(bool wifioff = false, bool eraseap = false);
-    bool isConnected();
-    IPAddress localIP();
+    auto reconnect() -> bool;
+    auto disconnect(bool wifioff = false, bool eraseap = false) -> bool;
+    auto isConnected() -> bool;
+    auto localIP() -> IPAddress;
 
     // STA Status
-    static void _setStatus(wifiesp_status_t status);
-    static wifiesp_status_t status();
+    static void setStatus(wifiesp_status_t status);
+    static auto status() -> wifiesp_status_t;
 
     // Event Callback
-    static esp_err_t _eventCallback(wifiesp_event_t *event);
+    static auto eventCallback(wifiesp_event_t *event) -> esp_err_t;
     // Events
-    wifi_event_id_t onEvent(wifiesp_event_cb_t cbEvent,
-                            wifiesp_event_id_t event = WIFIESP_EVENT_MAX);
-    wifi_event_id_t onEvent(wifiesp_event_func_cb_t cbEvent,
-                            wifiesp_event_id_t event = WIFIESP_EVENT_MAX);
-    wifi_event_id_t onEvent(wifiesp_event_cb_sys_t cbEvent,
-                            wifiesp_event_id_t event = WIFIESP_EVENT_MAX);
+    auto onEvent(wifiesp_event_cb_t cbEvent, wifiesp_event_id_t event = WIFIESP_EVENT_MAX)
+        -> wifi_event_id_t;
+    auto onEvent(const wifiesp_event_func_cb_t &cbEvent,
+                 wifiesp_event_id_t event = WIFIESP_EVENT_MAX) -> wifi_event_id_t;
+    auto onEvent(wifiesp_event_cb_sys_t cbEvent, wifiesp_event_id_t event = WIFIESP_EVENT_MAX)
+        -> wifi_event_id_t;
     void removeEvent(wifiesp_event_cb_t cbEvent, wifiesp_event_id_t event = WIFIESP_EVENT_MAX);
     void removeEvent(wifiesp_event_cb_sys_t cbEvent, wifiesp_event_id_t event = WIFIESP_EVENT_MAX);
     void removeEvent(wifi_event_id_t id);
 
     // Wait Status Bits
-    static int waitEventStatusBits(int bits, uint32_t timeout_ms);
+    static auto waitEventStatusBits(int bits, uint32_t timeoutMs) -> int;
     // Get Network Inferace
-    static esp_interface_t get_esp_netif_interface(esp_netif_t *esp_netif);
+    static auto getEspNetifInterface(esp_netif_t *espNetif) -> esp_interface_t;
 
 protected:
     //---------------------------------
@@ -130,55 +131,56 @@ protected:
     //---------------------------------
 
     // Init
-    bool lowLevelInitDone = false;
-    bool _esp_wifi_started = false;
+    bool lowLevelInitDone_ = false;
+    bool espWifiStarted_ = false;
 
-    bool _persistent = true;
-    bool _long_range = false;
-    bool _autoReconnect = true;
+    bool persistent_ = true;
+    bool longRange_ = false;
+    bool autoReconnect_ = true;
 
     //---------------------------------
     // Functions
     //---------------------------------
 
     // Init
-    bool tcpipInit();
-    bool wifiLowLevelInit(bool persistent);
-    bool wifiLowLevelDeinit();
-    bool espWiFiStart();
-    bool espWiFiStop();
+    auto tcpipInit() -> bool;
+    auto wifiLowLevelInit(bool persistent) -> bool;
+    auto wifiLowLevelDeinit() -> bool;
+    auto espWiFiStart() -> bool;
+    auto espWiFiStop() -> bool;
 
     // Event Status Bits
-    static int setEventStatusBits(int bits);
-    static int clearEventStatusBits(int bits);
-    static int getEventStatusBits();
+    static auto setEventStatusBits(int bits) -> int;
+    static auto clearEventStatusBits(int bits) -> int;
+    static auto getEventStatusBits() -> int;
 
     // Network Interface
-    void add_esp_interface_netif(esp_interface_t interface, esp_netif_t *esp_netif);
-    esp_netif_t *get_esp_interface_netif(esp_interface_t interface);
-    esp_err_t set_esp_interface_hostname(esp_interface_t interface, const char *hostname);
-    esp_err_t set_esp_interface_ip(esp_interface_t interface, IPAddress local_ip = IPAddress(),
-                                   IPAddress gateway = IPAddress(), IPAddress subnet = IPAddress());
-    esp_err_t set_esp_interface_dns(esp_interface_t interface, IPAddress main_dns = IPAddress(),
-                                    IPAddress backup_dns = IPAddress(),
-                                    IPAddress fallback_dns = IPAddress());
-    static const char *get_esp_netif_hostname();
-    static void set_esp_netif_hostname(const char *name);
+    void addEspInterfaceNetif(esp_interface_t interface, esp_netif_t *espNetif);
+    auto getEspInterfaceNetif(esp_interface_t interface) -> esp_netif_t *;
+    auto setEspInterfaceHostname(esp_interface_t interface, const char *hostname) -> esp_err_t;
+    auto setEspInterfaceIp(esp_interface_t interface, IPAddress localIp = IPAddress(),
+                           const IPAddress &gateway = IPAddress(), IPAddress subnet = IPAddress())
+        -> esp_err_t;
+    auto setEspInterfaceDns(esp_interface_t interface, const IPAddress &mainDns = IPAddress(),
+                            const IPAddress &backupDns = IPAddress(),
+                            const IPAddress &fallbackDns = IPAddress()) -> esp_err_t;
+    static auto getEspNetifHostname() -> const char *;
+    static void setEspNetifHostname(const char *name);
 
     // Helper functions
-    static size_t _wifi_strncpy(char *dst, const char *src, size_t dst_len);
+    static auto wifiStrncpy(char *dst, const char *src, size_t dstLen) -> size_t;
     // STA Helpers
-    static bool sta_config_equal(const wifi_config_t &lhs, const wifi_config_t &rhs);
-    static void wifi_sta_config(wifi_config_t *wifi_config, const char *ssid = NULL,
-                                const char *password = NULL, const uint8_t *bssid = NULL,
-                                uint8_t channel = 0,
-                                wifi_scan_method_t scan_method = WIFI_ALL_CHANNEL_SCAN,
-                                wifi_sort_method_t sort_method = WIFI_CONNECT_AP_BY_SIGNAL,
-                                uint16_t listen_interval = 0, bool pmf_required = false);
+    static auto staConfigEqual(const wifi_config_t &lhs, const wifi_config_t &rhs) -> bool;
+    static void wifiStaConfig(wifi_config_t *wifiConfig, const char *ssid = nullptr,
+                              const char *password = nullptr, const uint8_t *bssid = nullptr,
+                              uint8_t channel = 0,
+                              wifi_scan_method_t scanMethod = WIFI_ALL_CHANNEL_SCAN,
+                              wifi_sort_method_t sortMethod = WIFI_CONNECT_AP_BY_SIGNAL,
+                              uint16_t listenInterval = 0, bool pmfRequired = false);
 };
 
 //-----------------------------------------------------------------------------
 // Extern Object
 //-----------------------------------------------------------------------------
 // Global Object
-extern CWiFiESP WiFiESP;
+extern CWiFiESP wiFiEsp;

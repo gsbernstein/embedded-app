@@ -77,8 +77,8 @@ void SolClock::getClockTime(uint8_t &hours, uint8_t &minutes) {
 
 void SolClock::setClockTimeFromInternet() {
 #if !SIMULATOR
-    SindarinWiFi.ConnectWiFi();
-    if (!SindarinWiFi.Connected()) {
+    sindarinWiFi.connectWiFi();
+    if (!sindarinWiFi.connected()) {
         log_i("Failed to connect wifi");
         return;
     }
@@ -102,7 +102,7 @@ void SolClock::setClockTimeFromInternet() {
     strftime(strftimeBuf, sizeof(strftimeBuf), "%c", &timeinfo);
     log_i("The current date/time is: %s", strftimeBuf);
 
-    SindarinWiFi.DisconnectWiFi();
+    sindarinWiFi.disconnectWiFi();
 #else
     log_i("Not setting clock time from internet in simulator");
 #endif

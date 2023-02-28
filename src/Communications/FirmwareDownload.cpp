@@ -97,7 +97,7 @@ void FirmwareDownloader::downloadFirmware(
 
         if (!success) {
             log_e("Failed to download firmware");
-            if (!SindarinWiFi.Connected()) {
+            if (!sindarinWiFi.connected()) {
                 progressCallback(
                     FirmwareDownloadState{.state = FirmwareDownloadState::State::Failure,
                                           .message = "Failed: WiFi disconnected!"});

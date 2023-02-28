@@ -23,13 +23,12 @@
 #include "sdkconfig.h"
 #include "sindarin-debug.h"
 // Std Libs
+#include <cinttypes>
+#include <cstdint>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
 #include <functional>
-#include <inttypes.h>
-#include <stdbool.h>
-#include <stdint.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 #include <vector>
 // Base Wifi
 #include "IPAddress.h"
@@ -58,11 +57,11 @@ ESP_EVENT_DEFINE_BASE(WIFIESP_TASK_EVENTS);
 // Statics
 //-----------------------------------------------------------------------------
 // Task Handler
-static TaskHandle_t _wifiesp_event_task_handle = NULL;
+static TaskHandle_t _wifiesp_event_task_handle = nullptr;
 // Event Queue
 static xQueueHandle _wifiesp_event_queue;
 // Event Group
-static EventGroupHandle_t _wifiesp_event_group = NULL;
+static EventGroupHandle_t _wifiesp_event_group = nullptr;
 
 //______________________________________________________________________________
 //------------------------------------------------------------------------------
@@ -75,7 +74,7 @@ static EventGroupHandle_t _wifiesp_event_group = NULL;
 */
 //______________________________________________________________________________
 //------------------------------------------------------------------------------
-static const char *GetAuthModeStr(int authmode) {
+static auto getAuthModeStr(int authmode) -> const char * {
     switch (authmode) {
     case WIFI_AUTH_OPEN:
         return ("OPEN");
@@ -112,12 +111,12 @@ static const char *GetAuthModeStr(int authmode) {
 */
 //______________________________________________________________________________
 //------------------------------------------------------------------------------
-esp_err_t WiFiESPTask_PostEvent(wifiesp_event_t *data) {
-    if (data == NULL) {
+auto WiFiEspTaskPostEvent(wifiesp_event_t *data) -> esp_err_t {
+    if (data == nullptr) {
         return ESP_FAIL;
     }
-    wifiesp_event_t *event = (wifiesp_event_t *)malloc(sizeof(wifiesp_event_t));
-    if (event == NULL) {
+    auto *event = (wifiesp_event_t *)malloc(sizeof(wifiesp_event_t));
+    if (event == nullptr) {
         log_e("WiFi ESP Event Malloc Failed!");
         return ESP_FAIL;
     }
@@ -140,17 +139,17 @@ esp_err_t WiFiESPTask_PostEvent(wifiesp_event_t *data) {
 */
 //______________________________________________________________________________
 //------------------------------------------------------------------------------
-static void WiFiESPTask_EventTask(void *arg) {
-    wifiesp_event_t *data = NULL;
+static void wiFiEspTaskEventTask(void *arg) {
+    wifiesp_event_t *data = nullptr;
     for (;;) {
         if (xQueueReceive(_wifiesp_event_queue, &data, portMAX_DELAY) == pdTRUE) {
-            CWiFiESP::_eventCallback(data);
+            CWiFiESP::eventCallback(data);
             free(data);
-            data = NULL;
+            data = nullptr;
         }
     }
-    vTaskDelete(NULL);
-    _wifiesp_event_task_handle = NULL;
+    vTaskDelete(nullptr);
+    _wifiesp_event_task_handle = nullptr;
 }
 
 //______________________________________________________________________________
@@ -164,227 +163,224 @@ static void WiFiESPTask_EventTask(void *arg) {
 */
 //______________________________________________________________________________
 //------------------------------------------------------------------------------
-static void WiFiESPTask_EventCB(void *arg, esp_event_base_t event_base, int32_t event_id,
-                                void *event_data) {
-    wifiesp_event_t wifiesp_event;
-    wifiesp_event.event_id = WIFIESP_EVENT_MAX;
+static void wiFiEspTaskEventCb(void *arg, esp_event_base_t eventBase, int32_t eventId,
+                               void *eventData) {
+    wifiesp_event_t wifiespEvent;
+    wifiespEvent.eventId = WIFIESP_EVENT_MAX;
 
     /*
      * STA
      * */
-    if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_START) {
+    if (eventBase == WIFI_EVENT && eventId == WIFI_EVENT_STA_START) {
         log_v("STA Started");
-        wifiesp_event.event_id = WIFIESP_EVENT_WIFI_STA_START;
-    } else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_STOP) {
+        wifiespEvent.eventId = WIFIESP_EVENT_WIFI_STA_START;
+    } else if (eventBase == WIFI_EVENT && eventId == WIFI_EVENT_STA_STOP) {
         log_v("STA Stopped");
-        wifiesp_event.event_id = WIFIESP_EVENT_WIFI_STA_STOP;
-    } else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_AUTHMODE_CHANGE) {
-        wifi_event_sta_authmode_change_t *event = (wifi_event_sta_authmode_change_t *)event_data;
-        log_v("STA Auth Mode Changed: From: %s, To: %s", GetAuthModeStr(event->old_mode),
-              GetAuthModeStr(event->new_mode));
-        wifiesp_event.event_id = WIFIESP_EVENT_WIFI_STA_AUTHMODE_CHANGE;
-        memcpy(&wifiesp_event.event_info.wifi_sta_authmode_change, event_data,
+        wifiespEvent.eventId = WIFIESP_EVENT_WIFI_STA_STOP;
+    } else if (eventBase == WIFI_EVENT && eventId == WIFI_EVENT_STA_AUTHMODE_CHANGE) {
+        auto *event = (wifi_event_sta_authmode_change_t *)eventData;
+        log_v("STA Auth Mode Changed: From: %s, To: %s", getAuthModeStr(event->old_mode),
+              getAuthModeStr(event->new_mode));
+        wifiespEvent.eventId = WIFIESP_EVENT_WIFI_STA_AUTHMODE_CHANGE;
+        memcpy(&wifiespEvent.eventInfo.wifiStaAuthmodeChange, eventData,
                sizeof(wifi_event_sta_authmode_change_t));
-    } else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_CONNECTED) {
-        wifi_event_sta_connected_t *event = (wifi_event_sta_connected_t *)event_data;
+    } else if (eventBase == WIFI_EVENT && eventId == WIFI_EVENT_STA_CONNECTED) {
+        auto *event = (wifi_event_sta_connected_t *)eventData;
         log_v("STA Connected: SSID: %s, BSSID: " MACSTR ", Channel: %u, Auth: %s", event->ssid,
-              MAC2STR(event->bssid), event->channel, GetAuthModeStr(event->authmode));
-        wifiesp_event.event_id = WIFIESP_EVENT_WIFI_STA_CONNECTED;
-        memcpy(&wifiesp_event.event_info.wifi_sta_connected, event_data,
+              MAC2STR(event->bssid), event->channel, getAuthModeStr(event->authmode));
+        wifiespEvent.eventId = WIFIESP_EVENT_WIFI_STA_CONNECTED;
+        memcpy(&wifiespEvent.eventInfo.wifiStaConnected, eventData,
                sizeof(wifi_event_sta_connected_t));
-    } else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_DISCONNECTED) {
-        wifi_event_sta_disconnected_t *event = (wifi_event_sta_disconnected_t *)event_data;
+    } else if (eventBase == WIFI_EVENT && eventId == WIFI_EVENT_STA_DISCONNECTED) {
+        auto *event = (wifi_event_sta_disconnected_t *)eventData;
         log_v("STA Disconnected: SSID: %s, BSSID: " MACSTR ", Reason: %u", event->ssid,
               MAC2STR(event->bssid), event->reason);
-        wifiesp_event.event_id = WIFIESP_EVENT_WIFI_STA_DISCONNECTED;
-        memcpy(&wifiesp_event.event_info.wifi_sta_disconnected, event_data,
+        wifiespEvent.eventId = WIFIESP_EVENT_WIFI_STA_DISCONNECTED;
+        memcpy(&wifiespEvent.eventInfo.wifiStaDisconnected, eventData,
                sizeof(wifi_event_sta_disconnected_t));
-    } else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP) {
-        ip_event_got_ip_t *event = (ip_event_got_ip_t *)event_data;
+    } else if (eventBase == IP_EVENT && eventId == IP_EVENT_STA_GOT_IP) {
+        auto *event = (ip_event_got_ip_t *)eventData;
         log_v("STA Got %sIP:" IPSTR, event->ip_changed ? "New " : "Same ",
               IP2STR(&event->ip_info.ip));
-        wifiesp_event.event_id = WIFIESP_EVENT_WIFI_STA_GOT_IP;
-        memcpy(&wifiesp_event.event_info.got_ip, event_data, sizeof(ip_event_got_ip_t));
-    } else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_LOST_IP) {
+        wifiespEvent.eventId = WIFIESP_EVENT_WIFI_STA_GOT_IP;
+        memcpy(&wifiespEvent.eventInfo.gotIp, eventData, sizeof(ip_event_got_ip_t));
+    } else if (eventBase == IP_EVENT && eventId == IP_EVENT_STA_LOST_IP) {
         log_v("STA IP Lost");
-        wifiesp_event.event_id = WIFIESP_EVENT_WIFI_STA_LOST_IP;
+        wifiespEvent.eventId = WIFIESP_EVENT_WIFI_STA_LOST_IP;
 
         /*
          * SCAN
          * */
-    } else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_SCAN_DONE) {
-        wifi_event_sta_scan_done_t *event = (wifi_event_sta_scan_done_t *)event_data;
+    } else if (eventBase == WIFI_EVENT && eventId == WIFI_EVENT_SCAN_DONE) {
+        auto *event = (wifi_event_sta_scan_done_t *)eventData;
         log_v("SCAN Done: ID: %u, Status: %u, Results: %u", event->scan_id, event->status,
               event->number);
-        wifiesp_event.event_id = WIFIESP_EVENT_WIFI_SCAN_DONE;
-        memcpy(&wifiesp_event.event_info.wifi_scan_done, event_data,
-               sizeof(wifi_event_sta_scan_done_t));
+        wifiespEvent.eventId = WIFIESP_EVENT_WIFI_SCAN_DONE;
+        memcpy(&wifiespEvent.eventInfo.wifiScanDone, eventData, sizeof(wifi_event_sta_scan_done_t));
 
         /*
          * AP
          * */
-    } else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_AP_START) {
+    } else if (eventBase == WIFI_EVENT && eventId == WIFI_EVENT_AP_START) {
         log_v("AP Started");
-        wifiesp_event.event_id = WIFIESP_EVENT_WIFI_AP_START;
-    } else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_AP_STOP) {
+        wifiespEvent.eventId = WIFIESP_EVENT_WIFI_AP_START;
+    } else if (eventBase == WIFI_EVENT && eventId == WIFI_EVENT_AP_STOP) {
         log_v("AP Stopped");
-        wifiesp_event.event_id = WIFIESP_EVENT_WIFI_AP_STOP;
-    } else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_AP_PROBEREQRECVED) {
-        wifi_event_ap_probe_req_rx_t *event = (wifi_event_ap_probe_req_rx_t *)event_data;
+        wifiespEvent.eventId = WIFIESP_EVENT_WIFI_AP_STOP;
+    } else if (eventBase == WIFI_EVENT && eventId == WIFI_EVENT_AP_PROBEREQRECVED) {
+        auto *event = (wifi_event_ap_probe_req_rx_t *)eventData;
         log_v("AP Probe Request: RSSI: %d, MAC: " MACSTR, event->rssi, MAC2STR(event->mac));
-        wifiesp_event.event_id = WIFIESP_EVENT_WIFI_AP_PROBEREQRECVED;
-        memcpy(&wifiesp_event.event_info.wifi_ap_probereqrecved, event_data,
+        wifiespEvent.eventId = WIFIESP_EVENT_WIFI_AP_PROBEREQRECVED;
+        memcpy(&wifiespEvent.eventInfo.wifiApProbereqrecved, eventData,
                sizeof(wifi_event_ap_probe_req_rx_t));
-    } else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_AP_STACONNECTED) {
-        wifi_event_ap_staconnected_t *event = (wifi_event_ap_staconnected_t *)event_data;
+    } else if (eventBase == WIFI_EVENT && eventId == WIFI_EVENT_AP_STACONNECTED) {
+        auto *event = (wifi_event_ap_staconnected_t *)eventData;
         log_v("AP Station Connected: MAC: " MACSTR ", AID: %d", MAC2STR(event->mac), event->aid);
-        wifiesp_event.event_id = WIFIESP_EVENT_WIFI_AP_STACONNECTED;
-        memcpy(&wifiesp_event.event_info.wifi_ap_staconnected, event_data,
+        wifiespEvent.eventId = WIFIESP_EVENT_WIFI_AP_STACONNECTED;
+        memcpy(&wifiespEvent.eventInfo.wifiApStaconnected, eventData,
                sizeof(wifi_event_ap_staconnected_t));
-    } else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_AP_STADISCONNECTED) {
-        wifi_event_ap_stadisconnected_t *event = (wifi_event_ap_stadisconnected_t *)event_data;
+    } else if (eventBase == WIFI_EVENT && eventId == WIFI_EVENT_AP_STADISCONNECTED) {
+        auto *event = (wifi_event_ap_stadisconnected_t *)eventData;
         log_v("AP Station Disconnected: MAC: " MACSTR ", AID: %d", MAC2STR(event->mac), event->aid);
-        wifiesp_event.event_id = WIFIESP_EVENT_WIFI_AP_STADISCONNECTED;
-        memcpy(&wifiesp_event.event_info.wifi_ap_stadisconnected, event_data,
+        wifiespEvent.eventId = WIFIESP_EVENT_WIFI_AP_STADISCONNECTED;
+        memcpy(&wifiespEvent.eventInfo.wifiApStadisconnected, eventData,
                sizeof(wifi_event_ap_stadisconnected_t));
-    } else if (event_base == IP_EVENT && event_id == IP_EVENT_AP_STAIPASSIGNED) {
-        ip_event_ap_staipassigned_t *event = (ip_event_ap_staipassigned_t *)event_data;
+    } else if (eventBase == IP_EVENT && eventId == IP_EVENT_AP_STAIPASSIGNED) {
+        auto *event = (ip_event_ap_staipassigned_t *)eventData;
         log_v("AP Station IP Assigned:" IPSTR, IP2STR(&event->ip));
-        wifiesp_event.event_id = WIFIESP_EVENT_WIFI_AP_STAIPASSIGNED;
-        memcpy(&wifiesp_event.event_info.wifi_ap_staipassigned, event_data,
+        wifiespEvent.eventId = WIFIESP_EVENT_WIFI_AP_STAIPASSIGNED;
+        memcpy(&wifiespEvent.eventInfo.wifiApStaipassigned, eventData,
                sizeof(ip_event_ap_staipassigned_t));
 
         /*
          * ETH
          * */
-    } else if (event_base == ETH_EVENT && event_id == ETHERNET_EVENT_CONNECTED) {
+    } else if (eventBase == ETH_EVENT && eventId == ETHERNET_EVENT_CONNECTED) {
         log_v("Ethernet Link Up");
-        esp_eth_handle_t eth_handle = *(esp_eth_handle_t *)event_data;
-        (void)eth_handle;
-        wifiesp_event.event_id = WIFIESP_EVENT_ETH_CONNECTED;
-        memcpy(&wifiesp_event.event_info.eth_connected, event_data, sizeof(esp_eth_handle_t));
-    } else if (event_base == ETH_EVENT && event_id == ETHERNET_EVENT_DISCONNECTED) {
+        esp_eth_handle_t ethHandle = *(esp_eth_handle_t *)eventData;
+        (void)ethHandle;
+        wifiespEvent.eventId = WIFIESP_EVENT_ETH_CONNECTED;
+        memcpy(&wifiespEvent.eventInfo.ethConnected, eventData, sizeof(esp_eth_handle_t));
+    } else if (eventBase == ETH_EVENT && eventId == ETHERNET_EVENT_DISCONNECTED) {
         log_v("Ethernet Link Down");
-        wifiesp_event.event_id = WIFIESP_EVENT_ETH_DISCONNECTED;
-    } else if (event_base == ETH_EVENT && event_id == ETHERNET_EVENT_START) {
+        wifiespEvent.eventId = WIFIESP_EVENT_ETH_DISCONNECTED;
+    } else if (eventBase == ETH_EVENT && eventId == ETHERNET_EVENT_START) {
         log_v("Ethernet Started");
-        wifiesp_event.event_id = WIFIESP_EVENT_ETH_START;
-    } else if (event_base == ETH_EVENT && event_id == ETHERNET_EVENT_STOP) {
+        wifiespEvent.eventId = WIFIESP_EVENT_ETH_START;
+    } else if (eventBase == ETH_EVENT && eventId == ETHERNET_EVENT_STOP) {
         log_v("Ethernet Stopped");
-        wifiesp_event.event_id = WIFIESP_EVENT_ETH_STOP;
-    } else if (event_base == IP_EVENT && event_id == IP_EVENT_ETH_GOT_IP) {
-        ip_event_got_ip_t *event = (ip_event_got_ip_t *)event_data;
+        wifiespEvent.eventId = WIFIESP_EVENT_ETH_STOP;
+    } else if (eventBase == IP_EVENT && eventId == IP_EVENT_ETH_GOT_IP) {
+        auto *event = (ip_event_got_ip_t *)eventData;
         log_v("Ethernet got %sip:" IPSTR, event->ip_changed ? "new" : "",
               IP2STR(&event->ip_info.ip));
-        wifiesp_event.event_id = WIFIESP_EVENT_ETH_GOT_IP;
-        memcpy(&wifiesp_event.event_info.got_ip, event_data, sizeof(ip_event_got_ip_t));
+        wifiespEvent.eventId = WIFIESP_EVENT_ETH_GOT_IP;
+        memcpy(&wifiespEvent.eventInfo.gotIp, eventData, sizeof(ip_event_got_ip_t));
 
         /*
          * IPv6
          * */
-    } else if (event_base == IP_EVENT && event_id == IP_EVENT_GOT_IP6) {
-        ip_event_got_ip6_t *event = (ip_event_got_ip6_t *)event_data;
-        esp_interface_t iface = CWiFiESP::get_esp_netif_interface(event->esp_netif);
+    } else if (eventBase == IP_EVENT && eventId == IP_EVENT_GOT_IP6) {
+        auto *event = (ip_event_got_ip6_t *)eventData;
+        esp_interface_t iface = CWiFiESP::getEspNetifInterface(event->esp_netif);
         log_v("IF[%d] Got IPv6: IP Index: %d, Zone: %d, " IPV6STR, iface, event->ip_index,
               event->ip6_info.ip.zone, IPV62STR(event->ip6_info.ip));
-        memcpy(&wifiesp_event.event_info.got_ip6, event_data, sizeof(ip_event_got_ip6_t));
+        memcpy(&wifiespEvent.eventInfo.gotIp6, eventData, sizeof(ip_event_got_ip6_t));
         if (iface == ESP_IF_WIFI_STA) {
-            wifiesp_event.event_id = WIFIESP_EVENT_WIFI_STA_GOT_IP6;
+            wifiespEvent.eventId = WIFIESP_EVENT_WIFI_STA_GOT_IP6;
         } else if (iface == ESP_IF_WIFI_AP) {
-            wifiesp_event.event_id = WIFIESP_EVENT_WIFI_AP_GOT_IP6;
+            wifiespEvent.eventId = WIFIESP_EVENT_WIFI_AP_GOT_IP6;
         } else if (iface == ESP_IF_ETH) {
-            wifiesp_event.event_id = WIFIESP_EVENT_ETH_GOT_IP6;
+            wifiespEvent.eventId = WIFIESP_EVENT_ETH_GOT_IP6;
         }
 
         /*
          * WPS
          * */
-    } else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_WPS_ER_SUCCESS) {
-        wifiesp_event.event_id = WIFIESP_EVENT_WPS_ER_SUCCESS;
-    } else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_WPS_ER_FAILED) {
-        wifi_event_sta_wps_fail_reason_t *event = (wifi_event_sta_wps_fail_reason_t *)event_data;
+    } else if (eventBase == WIFI_EVENT && eventId == WIFI_EVENT_STA_WPS_ER_SUCCESS) {
+        wifiespEvent.eventId = WIFIESP_EVENT_WPS_ER_SUCCESS;
+    } else if (eventBase == WIFI_EVENT && eventId == WIFI_EVENT_STA_WPS_ER_FAILED) {
+        auto *event = (wifi_event_sta_wps_fail_reason_t *)eventData;
         (void)event;
-        wifiesp_event.event_id = WIFIESP_EVENT_WPS_ER_FAILED;
-        memcpy(&wifiesp_event.event_info.wps_fail_reason, event_data,
+        wifiespEvent.eventId = WIFIESP_EVENT_WPS_ER_FAILED;
+        memcpy(&wifiespEvent.eventInfo.wpsFailReason, eventData,
                sizeof(wifi_event_sta_wps_fail_reason_t));
-    } else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_WPS_ER_TIMEOUT) {
-        wifiesp_event.event_id = WIFIESP_EVENT_WPS_ER_TIMEOUT;
-    } else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_WPS_ER_PIN) {
-        wifi_event_sta_wps_er_pin_t *event = (wifi_event_sta_wps_er_pin_t *)event_data;
+    } else if (eventBase == WIFI_EVENT && eventId == WIFI_EVENT_STA_WPS_ER_TIMEOUT) {
+        wifiespEvent.eventId = WIFIESP_EVENT_WPS_ER_TIMEOUT;
+    } else if (eventBase == WIFI_EVENT && eventId == WIFI_EVENT_STA_WPS_ER_PIN) {
+        auto *event = (wifi_event_sta_wps_er_pin_t *)eventData;
         (void)event;
-        wifiesp_event.event_id = WIFIESP_EVENT_WPS_ER_PIN;
-        memcpy(&wifiesp_event.event_info.wps_er_pin, event_data,
-               sizeof(wifi_event_sta_wps_er_pin_t));
-    } else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_WPS_ER_PBC_OVERLAP) {
-        wifiesp_event.event_id = WIFIESP_EVENT_WPS_ER_PBC_OVERLAP;
+        wifiespEvent.eventId = WIFIESP_EVENT_WPS_ER_PIN;
+        memcpy(&wifiespEvent.eventInfo.wpsErPin, eventData, sizeof(wifi_event_sta_wps_er_pin_t));
+    } else if (eventBase == WIFI_EVENT && eventId == WIFI_EVENT_STA_WPS_ER_PBC_OVERLAP) {
+        wifiespEvent.eventId = WIFIESP_EVENT_WPS_ER_PBC_OVERLAP;
 
         /*
          * FTM
          * */
-    } else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_FTM_REPORT) {
-        wifi_event_ftm_report_t *event = (wifi_event_ftm_report_t *)event_data;
+    } else if (eventBase == WIFI_EVENT && eventId == WIFI_EVENT_FTM_REPORT) {
+        auto *event = (wifi_event_ftm_report_t *)eventData;
         (void)event;
-        wifiesp_event.event_id = WIFIESP_EVENT_WIFI_FTM_REPORT;
-        memcpy(&wifiesp_event.event_info.wifi_ftm_report, event_data,
-               sizeof(wifi_event_ftm_report_t));
+        wifiespEvent.eventId = WIFIESP_EVENT_WIFI_FTM_REPORT;
+        memcpy(&wifiespEvent.eventInfo.wifiFtmReport, eventData, sizeof(wifi_event_ftm_report_t));
 
         /*
          * SMART CONFIG
          * */
-    } else if (event_base == SC_EVENT && event_id == SC_EVENT_SCAN_DONE) {
+    } else if (eventBase == SC_EVENT && eventId == SC_EVENT_SCAN_DONE) {
         log_v("SC Scan Done");
-        wifiesp_event.event_id = WIFIESP_EVENT_SC_SCAN_DONE;
-    } else if (event_base == SC_EVENT && event_id == SC_EVENT_FOUND_CHANNEL) {
+        wifiespEvent.eventId = WIFIESP_EVENT_SC_SCAN_DONE;
+    } else if (eventBase == SC_EVENT && eventId == SC_EVENT_FOUND_CHANNEL) {
         log_v("SC Found Channel");
-        wifiesp_event.event_id = WIFIESP_EVENT_SC_FOUND_CHANNEL;
-    } else if (event_base == SC_EVENT && event_id == SC_EVENT_GOT_SSID_PSWD) {
-        smartconfig_event_got_ssid_pswd_t *event = (smartconfig_event_got_ssid_pswd_t *)event_data;
+        wifiespEvent.eventId = WIFIESP_EVENT_SC_FOUND_CHANNEL;
+    } else if (eventBase == SC_EVENT && eventId == SC_EVENT_GOT_SSID_PSWD) {
+        auto *event = (smartconfig_event_got_ssid_pswd_t *)eventData;
         log_v("SC: SSID: %s, Password: %s", (const char *)event->ssid,
               (const char *)event->password);
-        wifiesp_event.event_id = WIFIESP_EVENT_SC_GOT_SSID_PSWD;
-        memcpy(&wifiesp_event.event_info.sc_got_ssid_pswd, event_data,
+        wifiespEvent.eventId = WIFIESP_EVENT_SC_GOT_SSID_PSWD;
+        memcpy(&wifiespEvent.eventInfo.scGotSsidPswd, eventData,
                sizeof(smartconfig_event_got_ssid_pswd_t));
 
-    } else if (event_base == SC_EVENT && event_id == SC_EVENT_SEND_ACK_DONE) {
+    } else if (eventBase == SC_EVENT && eventId == SC_EVENT_SEND_ACK_DONE) {
         log_v("SC Send Ack Done");
-        wifiesp_event.event_id = WIFIESP_EVENT_SC_SEND_ACK_DONE;
+        wifiespEvent.eventId = WIFIESP_EVENT_SC_SEND_ACK_DONE;
 
         /*
          * Provisioning
          * */
-    } else if (event_base == WIFI_PROV_EVENT && event_id == WIFI_PROV_INIT) {
+    } else if (eventBase == WIFI_PROV_EVENT && eventId == WIFI_PROV_INIT) {
         log_v("Provisioning Initialized!");
-        wifiesp_event.event_id = WIFIESP_EVENT_PROV_INIT;
-    } else if (event_base == WIFI_PROV_EVENT && event_id == WIFI_PROV_DEINIT) {
+        wifiespEvent.eventId = WIFIESP_EVENT_PROV_INIT;
+    } else if (eventBase == WIFI_PROV_EVENT && eventId == WIFI_PROV_DEINIT) {
         log_v("Provisioning Uninitialized!");
-        wifiesp_event.event_id = WIFIESP_EVENT_PROV_DEINIT;
-    } else if (event_base == WIFI_PROV_EVENT && event_id == WIFI_PROV_START) {
+        wifiespEvent.eventId = WIFIESP_EVENT_PROV_DEINIT;
+    } else if (eventBase == WIFI_PROV_EVENT && eventId == WIFI_PROV_START) {
         log_v("Provisioning Start!");
-        wifiesp_event.event_id = WIFIESP_EVENT_PROV_START;
-    } else if (event_base == WIFI_PROV_EVENT && event_id == WIFI_PROV_END) {
+        wifiespEvent.eventId = WIFIESP_EVENT_PROV_START;
+    } else if (eventBase == WIFI_PROV_EVENT && eventId == WIFI_PROV_END) {
         log_v("Provisioning End!");
         wifi_prov_mgr_deinit();
-        wifiesp_event.event_id = WIFIESP_EVENT_PROV_END;
-    } else if (event_base == WIFI_PROV_EVENT && event_id == WIFI_PROV_CRED_RECV) {
-        wifi_sta_config_t *event = (wifi_sta_config_t *)event_data;
+        wifiespEvent.eventId = WIFIESP_EVENT_PROV_END;
+    } else if (eventBase == WIFI_PROV_EVENT && eventId == WIFI_PROV_CRED_RECV) {
+        auto *event = (wifi_sta_config_t *)eventData;
         log_v("Provisioned Credentials: SSID: %s, Password: %s", (const char *)event->ssid,
               (const char *)event->password);
-        wifiesp_event.event_id = WIFIESP_EVENT_PROV_CRED_RECV;
-        memcpy(&wifiesp_event.event_info.prov_cred_recv, event_data, sizeof(wifi_sta_config_t));
-    } else if (event_base == WIFI_PROV_EVENT && event_id == WIFI_PROV_CRED_FAIL) {
-        wifi_prov_sta_fail_reason_t *reason = (wifi_prov_sta_fail_reason_t *)event_data;
+        wifiespEvent.eventId = WIFIESP_EVENT_PROV_CRED_RECV;
+        memcpy(&wifiespEvent.eventInfo.provCredRecv, eventData, sizeof(wifi_sta_config_t));
+    } else if (eventBase == WIFI_PROV_EVENT && eventId == WIFI_PROV_CRED_FAIL) {
+        auto *reason = (wifi_prov_sta_fail_reason_t *)eventData;
         log_e("Provisioning Failed: Reason : %s",
               (*reason == WIFI_PROV_STA_AUTH_ERROR) ? "Authentication Failed" : "AP Not Found");
-        wifiesp_event.event_id = WIFIESP_EVENT_PROV_CRED_FAIL;
-        memcpy(&wifiesp_event.event_info.prov_fail_reason, event_data,
+        wifiespEvent.eventId = WIFIESP_EVENT_PROV_CRED_FAIL;
+        memcpy(&wifiespEvent.eventInfo.provFailReason, eventData,
                sizeof(wifi_prov_sta_fail_reason_t));
-    } else if (event_base == WIFI_PROV_EVENT && event_id == WIFI_PROV_CRED_SUCCESS) {
+    } else if (eventBase == WIFI_PROV_EVENT && eventId == WIFI_PROV_CRED_SUCCESS) {
         log_v("Provisioning Success!");
-        wifiesp_event.event_id = WIFIESP_EVENT_PROV_CRED_SUCCESS;
+        wifiespEvent.eventId = WIFIESP_EVENT_PROV_CRED_SUCCESS;
     }
 
-    if (wifiesp_event.event_id < WIFIESP_EVENT_MAX) {
-        WiFiESPTask_PostEvent(&wifiesp_event);
+    if (wifiespEvent.eventId < WIFIESP_EVENT_MAX) {
+        WiFiEspTaskPostEvent(&wifiespEvent);
     }
 }
 
@@ -399,7 +395,7 @@ static void WiFiESPTask_EventCB(void *arg, esp_event_base_t event_base, int32_t 
 */
 //______________________________________________________________________________
 //------------------------------------------------------------------------------
-bool WiFiESPTask_StartNetworkEventTask() {
+auto WiFiEspTaskStartNetworkEventTask() -> bool {
     if (!_wifiesp_event_group) {
         _wifiesp_event_group = xEventGroupCreate();
         if (!_wifiesp_event_group) {
@@ -423,8 +419,8 @@ bool WiFiESPTask_StartNetworkEventTask() {
     }
 
     if (!_wifiesp_event_task_handle) {
-        xTaskCreateUniversal(WiFiESPTask_EventTask, "wifiesp_events", WIFIESP_TASK_STACKSIZE, NULL,
-                             ESP_TASKD_EVENT_PRIO - 1, &_wifiesp_event_task_handle,
+        xTaskCreateUniversal(wiFiEspTaskEventTask, "wifiesp_events", WIFIESP_TASK_STACKSIZE,
+                             nullptr, ESP_TASKD_EVENT_PRIO - 1, &_wifiesp_event_task_handle,
                              WIFIESP_TASK_CORENUMBER);
         if (!_wifiesp_event_task_handle) {
             log_e("Network Event Task Start Failed!");
@@ -432,32 +428,32 @@ bool WiFiESPTask_StartNetworkEventTask() {
         }
     }
 
-    if (esp_event_handler_instance_register(WIFI_EVENT, ESP_EVENT_ANY_ID, &WiFiESPTask_EventCB,
-                                            NULL, NULL)) {
+    if (esp_event_handler_instance_register(WIFI_EVENT, ESP_EVENT_ANY_ID, &wiFiEspTaskEventCb,
+                                            nullptr, nullptr)) {
         log_e("event_handler_instance_register for WIFI_EVENT Failed!");
         return false;
     }
 
-    if (esp_event_handler_instance_register(IP_EVENT, ESP_EVENT_ANY_ID, &WiFiESPTask_EventCB, NULL,
-                                            NULL)) {
+    if (esp_event_handler_instance_register(IP_EVENT, ESP_EVENT_ANY_ID, &wiFiEspTaskEventCb,
+                                            nullptr, nullptr)) {
         log_e("event_handler_instance_register for IP_EVENT Failed!");
         return false;
     }
 
-    if (esp_event_handler_instance_register(SC_EVENT, ESP_EVENT_ANY_ID, &WiFiESPTask_EventCB, NULL,
-                                            NULL)) {
+    if (esp_event_handler_instance_register(SC_EVENT, ESP_EVENT_ANY_ID, &wiFiEspTaskEventCb,
+                                            nullptr, nullptr)) {
         log_e("event_handler_instance_register for SC_EVENT Failed!");
         return false;
     }
 
-    if (esp_event_handler_instance_register(ETH_EVENT, ESP_EVENT_ANY_ID, &WiFiESPTask_EventCB, NULL,
-                                            NULL)) {
+    if (esp_event_handler_instance_register(ETH_EVENT, ESP_EVENT_ANY_ID, &wiFiEspTaskEventCb,
+                                            nullptr, nullptr)) {
         log_e("event_handler_instance_register for ETH_EVENT Failed!");
         return false;
     }
 
-    if (esp_event_handler_instance_register(WIFI_PROV_EVENT, ESP_EVENT_ANY_ID, &WiFiESPTask_EventCB,
-                                            NULL, NULL)) {
+    if (esp_event_handler_instance_register(WIFI_PROV_EVENT, ESP_EVENT_ANY_ID, &wiFiEspTaskEventCb,
+                                            nullptr, nullptr)) {
         log_e("event_handler_instance_register for WIFI_PROV_EVENT Failed!");
         return false;
     }
@@ -476,7 +472,7 @@ bool WiFiESPTask_StartNetworkEventTask() {
 */
 //______________________________________________________________________________
 //------------------------------------------------------------------------------
-int WiFiESPTask_SetEventStatusBits(int bits) {
+auto WiFiEspTaskSetEventStatusBits(int bits) -> int {
     if (!_wifiesp_event_group) {
         return 0;
     }
@@ -494,7 +490,7 @@ int WiFiESPTask_SetEventStatusBits(int bits) {
 */
 //______________________________________________________________________________
 //------------------------------------------------------------------------------
-int WiFiESPTask_ClearEventStatusBits(int bits) {
+auto WiFiEspTaskClearEventStatusBits(int bits) -> int {
     if (!_wifiesp_event_group) {
         return 0;
     }
@@ -512,7 +508,7 @@ int WiFiESPTask_ClearEventStatusBits(int bits) {
 */
 //______________________________________________________________________________
 //------------------------------------------------------------------------------
-int WiFiESPTask_GetEventStatusBits() {
+auto WiFiEspTaskGetEventStatusBits() -> int {
     if (!_wifiesp_event_group) {
         return 0;
     }
@@ -531,7 +527,7 @@ int WiFiESPTask_GetEventStatusBits() {
 */
 //______________________________________________________________________________
 //------------------------------------------------------------------------------
-int WiFiESPTask_WaitEventStatusBits(int bits, uint32_t timeout_ms) {
+auto WiFiEspTaskWaitEventStatusBits(int bits, uint32_t timeoutMs) -> int {
     if (!_wifiesp_event_group) {
         return 0;
     }
@@ -539,6 +535,6 @@ int WiFiESPTask_WaitEventStatusBits(int bits, uint32_t timeout_ms) {
                                bits,                 // The bits within the event group to wait for.
                                pdFALSE, // BIT_0 and BIT_4 should be cleared before returning.
                                pdTRUE,  // Don't wait for both bits, either bit will do.
-                               timeout_ms / portTICK_PERIOD_MS) &
+                               timeoutMs / portTICK_PERIOD_MS) &
            bits; // Wait a maximum of 100ms for either bit to be set.
 }

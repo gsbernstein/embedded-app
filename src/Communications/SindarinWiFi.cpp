@@ -27,7 +27,7 @@
 // Object
 //-----------------------------------------------------------------------------
 // Create Object
-CSindarinWiFi SindarinWiFi;
+CSindarinWiFi sindarinWiFi;
 
 //______________________________________________________________________________
 //------------------------------------------------------------------------------
@@ -55,9 +55,9 @@ CSindarinWiFi::CSindarinWiFi() {
 */
 //______________________________________________________________________________
 //------------------------------------------------------------------------------
-auto CSindarinWiFi::GetWiFiCredentials(wifi_config_t *conf) -> bool {
+auto CSindarinWiFi::getWiFiCredentials(wifi_config_t *conf) -> bool {
     // Needs to be called before we can get the WiFi config
-    if (!WiFiESP.enableSTA(true)) {
+    if (!wiFiEsp.enableSTA(true)) {
         log_e("STA enable failed!");
         return false;
     }
@@ -86,9 +86,9 @@ auto CSindarinWiFi::GetWiFiCredentials(wifi_config_t *conf) -> bool {
 */
 //______________________________________________________________________________
 //------------------------------------------------------------------------------
-auto CSindarinWiFi::HasWiFiCredentials() -> bool {
+auto CSindarinWiFi::hasWiFiCredentials() -> bool {
     wifi_config_t conf;
-    return GetWiFiCredentials(&conf);
+    return getWiFiCredentials(&conf);
 }
 
 //______________________________________________________________________________
@@ -102,8 +102,8 @@ auto CSindarinWiFi::HasWiFiCredentials() -> bool {
 */
 //______________________________________________________________________________
 //------------------------------------------------------------------------------
-auto CSindarinWiFi::ScanNetworks(bool asyncScan) -> int16_t {
-    return WiFiESP.scanNetworks(asyncScan);
+auto CSindarinWiFi::scanNetworks(bool asyncScan) -> int16_t {
+    return wiFiEsp.scanNetworks(asyncScan);
 }
 
 //______________________________________________________________________________
@@ -117,7 +117,7 @@ auto CSindarinWiFi::ScanNetworks(bool asyncScan) -> int16_t {
 */
 //______________________________________________________________________________
 //------------------------------------------------------------------------------
-auto CSindarinWiFi::ScanComplete() -> int16_t { return WiFiESP.scanComplete(); }
+auto CSindarinWiFi::scanComplete() -> int16_t { return wiFiEsp.scanComplete(); }
 
 //______________________________________________________________________________
 //------------------------------------------------------------------------------
@@ -130,7 +130,7 @@ auto CSindarinWiFi::ScanComplete() -> int16_t { return WiFiESP.scanComplete(); }
 */
 //______________________________________________________________________________
 //------------------------------------------------------------------------------
-auto CSindarinWiFi::GetSSID(uint8_t i) -> String { return WiFiESP.SSID(i); }
+auto CSindarinWiFi::getSsid(uint8_t i) -> String { return wiFiEsp.ssid(i); }
 
 //______________________________________________________________________________
 //------------------------------------------------------------------------------
@@ -143,7 +143,7 @@ auto CSindarinWiFi::GetSSID(uint8_t i) -> String { return WiFiESP.SSID(i); }
 */
 //______________________________________________________________________________
 //------------------------------------------------------------------------------
-auto CSindarinWiFi::GetRSSI(uint8_t i) -> int32_t { return WiFiESP.RSSI(i); }
+auto CSindarinWiFi::getRssi(uint8_t i) -> int32_t { return wiFiEsp.rssi(i); }
 
 //______________________________________________________________________________
 //------------------------------------------------------------------------------
@@ -156,8 +156,8 @@ auto CSindarinWiFi::GetRSSI(uint8_t i) -> int32_t { return WiFiESP.RSSI(i); }
 */
 //______________________________________________________________________________
 //------------------------------------------------------------------------------
-auto CSindarinWiFi::GetEncryptionType(uint8_t i) -> wifi_auth_mode_t {
-    return WiFiESP.encryptionType(i);
+auto CSindarinWiFi::getEncryptionType(uint8_t i) -> wifi_auth_mode_t {
+    return wiFiEsp.encryptionType(i);
 }
 
 //______________________________________________________________________________
@@ -172,7 +172,7 @@ auto CSindarinWiFi::GetEncryptionType(uint8_t i) -> wifi_auth_mode_t {
 */
 //______________________________________________________________________________
 //------------------------------------------------------------------------------
-void CSindarinWiFi::ConnectWiFi(const std::string &ssid, const std::string &password) {
+void CSindarinWiFi::connectWiFi(const std::string &ssid, const std::string &password) {
     // We have to have wifi sleep enabled otherwise Bluetooth can't work
     esp_wifi_set_ps(WIFI_PS_MIN_MODEM);
 
@@ -184,18 +184,18 @@ void CSindarinWiFi::ConnectWiFi(const std::string &ssid, const std::string &pass
 
     // If credentials are available, go ahead and attempt WiFi connection
     wifi_config_t conf;
-    GetWiFiCredentials(&conf);
+    getWiFiCredentials(&conf);
     log_i("Found WiFi credentials for %s. Attempting connection", (const char *)conf.sta.ssid);
-    WiFiESP.setHostname(HOSTNAME);
+    wiFiEsp.setHostname(HOSTNAME);
     if (ssid.empty()) {
-        WiFiESP.begin();
+        wiFiEsp.begin();
     } else {
-        WiFiESP.begin(ssid.c_str(), password.c_str());
+        wiFiEsp.begin(ssid.c_str(), password.c_str());
     }
-    log_d("WiFi TX Power was %d", WiFiESP.getTxPower());
-    WiFiESP.setTxPower(_wiFiPower);
-    log_d("WiFi TX Power is now %d", WiFiESP.getTxPower());
-    WiFiESP.setAutoReconnect(true);
+    log_d("WiFi TX Power was %d", wiFiEsp.getTxPower());
+    wiFiEsp.setTxPower(wiFiPower_);
+    log_d("WiFi TX Power is now %d", wiFiEsp.getTxPower());
+    wiFiEsp.setAutoReconnect(true);
 }
 
 //______________________________________________________________________________
@@ -209,12 +209,12 @@ void CSindarinWiFi::ConnectWiFi(const std::string &ssid, const std::string &pass
 */
 //______________________________________________________________________________
 //------------------------------------------------------------------------------
-auto CSindarinWiFi::ConnectWiFiIfCredentialsExist() -> bool {
-    if (!HasWiFiCredentials()) {
+auto CSindarinWiFi::connectWiFiIfCredentialsExist() -> bool {
+    if (!hasWiFiCredentials()) {
         log_d("No WiFi credentials found");
         return false;
     }
-    ConnectWiFi();
+    connectWiFi();
     return true;
 }
 
@@ -229,18 +229,18 @@ auto CSindarinWiFi::ConnectWiFiIfCredentialsExist() -> bool {
 */
 //______________________________________________________________________________
 //------------------------------------------------------------------------------
-auto CSindarinWiFi::ConnectWiFiWithTimeout(int timeoutMs) -> bool {
+auto CSindarinWiFi::connectWiFiWithTimeout(int timeoutMs) -> bool {
     auto startTime = millis();
-    if (!Connected()) {
-        if (ConnectWiFiIfCredentialsExist()) {
+    if (!connected()) {
+        if (connectWiFiIfCredentialsExist()) {
             // Only wait if we had credentials
             // TODO: Would be nice to make this not a polling loop
-            while (!Connected() && (millis() - startTime) < timeoutMs) {
+            while (!connected() && (millis() - startTime) < timeoutMs) {
                 delay(200);
             }
         }
-        if (!Connected()) {
-            DisconnectWiFi();
+        if (!connected()) {
+            disconnectWiFi();
             return false;
         }
     }
@@ -259,11 +259,11 @@ auto CSindarinWiFi::ConnectWiFiWithTimeout(int timeoutMs) -> bool {
 */
 //______________________________________________________________________________
 //------------------------------------------------------------------------------
-void CSindarinWiFi::DisconnectWiFi() {
+void CSindarinWiFi::disconnectWiFi() {
     log_i("Disconnecting WiFi");
-    WiFiESP.setAutoReconnect(false);
-    WiFiESP.disconnect();
-    WiFiESP.mode(WIFI_MODE_NULL);
+    wiFiEsp.setAutoReconnect(false);
+    wiFiEsp.disconnect();
+    wiFiEsp.mode(WIFI_MODE_NULL);
 }
 
 //______________________________________________________________________________
@@ -277,7 +277,7 @@ void CSindarinWiFi::DisconnectWiFi() {
 */
 //______________________________________________________________________________
 //------------------------------------------------------------------------------
-auto CSindarinWiFi::Connected() -> bool { return WiFiESP.isConnected(); }
+auto CSindarinWiFi::connected() -> bool { return wiFiEsp.isConnected(); }
 
 //______________________________________________________________________________
 //------------------------------------------------------------------------------
@@ -290,7 +290,7 @@ auto CSindarinWiFi::Connected() -> bool { return WiFiESP.isConnected(); }
 */
 //______________________________________________________________________________
 //------------------------------------------------------------------------------
-auto CSindarinWiFi::GetLocalIP() -> IPAddress { return WiFiESP.localIP(); }
+auto CSindarinWiFi::getLocalIp() -> IPAddress { return wiFiEsp.localIP(); }
 
 //______________________________________________________________________________
 //------------------------------------------------------------------------------
@@ -303,7 +303,7 @@ auto CSindarinWiFi::GetLocalIP() -> IPAddress { return WiFiESP.localIP(); }
 */
 //______________________________________________________________________________
 //------------------------------------------------------------------------------
-wifiesp_status_t CSindarinWiFi::GetStatus() { return WiFiESP.status(); }
+auto CSindarinWiFi::getStatus() -> wifiesp_status_t { return wiFiEsp.status(); }
 
 //______________________________________________________________________________
 //------------------------------------------------------------------------------
@@ -316,7 +316,7 @@ wifiesp_status_t CSindarinWiFi::GetStatus() { return WiFiESP.status(); }
 */
 //______________________________________________________________________________
 //------------------------------------------------------------------------------
-auto CSindarinWiFi::GetMode() -> wifi_mode_t { return WiFiESP.getMode(); }
+auto CSindarinWiFi::getMode() -> wifi_mode_t { return wiFiEsp.getMode(); }
 
 //______________________________________________________________________________
 //------------------------------------------------------------------------------
@@ -329,4 +329,4 @@ auto CSindarinWiFi::GetMode() -> wifi_mode_t { return WiFiESP.getMode(); }
 */
 //______________________________________________________________________________
 //------------------------------------------------------------------------------
-bool CSindarinWiFi::SetMode(wifi_mode_t mode) { return WiFiESP.mode(mode); }
+auto CSindarinWiFi::setMode(wifi_mode_t mode) -> bool { return wiFiEsp.mode(mode); }
