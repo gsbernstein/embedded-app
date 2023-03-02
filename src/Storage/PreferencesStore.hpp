@@ -98,7 +98,10 @@ public:
                     log_e("nvs_get_str fail: %s %s", this->key_, esp_err_to_name(err));
                     return;
                 }
-
+                // nvs_get_str's len includes the null terminator (it is a buffer length)
+                // We need to strip back off the null terminator since it was copied into the
+                // string.
+                str.resize(len - 1);
                 this->value_ = str;
             } else {
                 log_e("Unhandled prefs type");
