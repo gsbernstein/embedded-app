@@ -1,5 +1,6 @@
 #include "Communications/WiFi.hpp"
 
+#include <cstring>
 #include <string>
 
 #include "config.h"
@@ -364,7 +365,7 @@ void WiFi::wiFiEventHandler(void *arg, esp_event_base_t eventBase, int32_t event
         tthis->connected_ = false;
         break;
     default:
-        log_d("WIFI_EVENT: %d", eventId);
+        log_d("WIFI_EVENT: %" PRIi32, eventId);
     }
 }
 
@@ -378,6 +379,6 @@ void WiFi::ipEventHandler(void *arg, esp_event_base_t eventBase, int32_t eventId
         break;
     }
     default:
-        log_d("IP_EVENT: %d", eventId);
+        log_d("IP_EVENT: %" PRIi32, eventId);
     }
 }

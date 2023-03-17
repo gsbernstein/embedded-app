@@ -1,6 +1,7 @@
 #include "ContentSyncScreen.hpp"
 
 #include "Communications/WiFi.hpp"
+#include "Misc/Platform.hpp"
 #include "Misc/PowerManager.hpp"
 
 void ContentSyncScreen::render(DisplaySystem &display) {
@@ -87,7 +88,7 @@ void ContentSyncScreen::render(DisplaySystem &display) {
         }
 
         if (state_.state == ContentSyncState::AlreadySynced) {
-            drawBulletLine(StringFormat("No new books or articles").c_str(), 100, false);
+            drawBulletLine("No new books or articles", 100, false);
             break;
         }
 
@@ -170,7 +171,7 @@ void ContentSyncScreen::begin() {
             if (state.state == ContentSyncState::Failure ||
                 state.state == ContentSyncState::Synced ||
                 state.state == ContentSyncState::AlreadySynced) {
-                delay(5000);
+                Delay(5000);
                 backCallback();
             }
         });

@@ -90,17 +90,7 @@
 #define DISPLAY_CLK 13
 
 #define CPU_FREQ_MHZ_HIGH 240
-#if !DISABLE_POWER_MANAGEMENT
 #define CPU_FREQ_MHZ_LOW 40
-#else
-#define CPU_FREQ_MHZ_LOW 80
-#endif
-
-// HACK for Adafruit_GFX. Adafruit_GFX needs this value, but if we set it globally, then Arduino
-// complains it's already defined.
-#ifndef ARDUINO
-#define ARDUINO 10185
-#endif
 
 #if (USE_LTR329 || USE_MMC5603)
 #define USE_I2C 1
