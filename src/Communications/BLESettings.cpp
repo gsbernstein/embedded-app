@@ -87,13 +87,12 @@ void BLESettings::writeWifiSSIDtoCharacteristic(BLECharacteristic *characteristi
     queue->dispatch([key, characteristic] {
         // Check if wifi is already connected, and if so, don't disconnect at the end of this
         // function
-        bool wifiConnected = NetworkConnected();
+        bool wifiConnected = WiFi::getInstance().connected();
         wifi_config_t conf;
-
-        if (GetWiFiCredentials(&conf) && strlen((const char *)conf.sta.ssid) > 0) {
+        esp_err_t err = WiFi::getInstance().getWifiConfig(&conf);
+        if (err == ESP_OK && WiFi::getInstance().hasWiFiCredentials(&conf)) {
             std::string value = StringFormat("%s=%s", key.c_str(), (const char *)conf.sta.ssid);
             characteristic->setValue(value);
-
             log_i("GATT client reading wifi ssid, initializing wifi, sharing ssid: %s %zu/%zu",
                   value.c_str(), value.length(), sizeof(value.c_str()));
         } else {
@@ -107,7 +106,7 @@ void BLESettings::writeWifiSSIDtoCharacteristic(BLECharacteristic *characteristi
 
         // Turn wifi back off if we weren't already using it
         if (!wifiConnected) {
-            DisconnectWifi();
+            WiFi::getInstance().disconnectWiFi();
         }
     });
 }
