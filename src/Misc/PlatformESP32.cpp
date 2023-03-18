@@ -1,17 +1,15 @@
 #include <driver/i2c.h>
 #include <driver/ledc.h>
 #include <driver/uart.h>
-#include <nvs_flash.h>
-
-// esp_adc_cal.h deprecated in IDF 5
-// TODO: replace
-#include <driver/adc.h>
-#include <esp_adc_cal.h>
+#include <esp_adc/adc_cali.h>
+#include <esp_adc/adc_cali_scheme.h>
+#include <esp_adc/adc_oneshot.h>
 #include <esp_bt.h>
 #include <esp_err.h>
 #include <esp_sleep.h>
 #include <esp_task_wdt.h>
 #include <esp_timer.h>
+#include <nvs_flash.h>
 #include <optional>
 #include <soc/rtc.h>
 
@@ -24,7 +22,8 @@
 #define BACKLIGHT_PWM_CHANNEL 0
 #define HARDWARE_REVSION_LATEST 2
 
-esp_adc_cal_characteristics_t adcCalCharacteristics;
+adc_cali_handle_t adcCalHandle;
+adc_oneshot_unit_handle_t adcOneshotHandle;
 bool ledcFailed = false;
 uint8_t sysOnPin;
 
@@ -100,22 +99,30 @@ void InitializePlatform() {
 
     // Attenuation of 2.5db gets us up to a max of 1250mV
     // Using our 442k/160k divider, that's 4.7V max
-    auto adcCalValue = esp_adc_cal_characterize(ADC_UNIT_1, ADC_ATTEN_DB_2_5, ADC_WIDTH_BIT_12,
-                                                DEFAULT_VREF, &adcCalCharacteristics);
-    if (adcCalValue != ESP_ADC_CAL_VAL_EFUSE_TP_FIT) {
-        // Generally, we expect the Two Point calibration to be used.
-        // It's unclear if we'll ever hit this warning but putting it in to be safe.
-        log_w("Using ADC calibration type: %d", (int)adcCalValue);
+    adc_cali_curve_fitting_config_t adcConfig;
+    adcConfig.unit_id = ADC_UNIT_1;
+    adcConfig.atten = ADC_ATTEN_DB_2_5;
+    adcConfig.bitwidth = ADC_BITWIDTH_12;
+
+    if (adc_cali_create_scheme_curve_fitting(&adcConfig, &adcCalHandle) != ESP_OK) {
+        log_e("Failed to create adc curve fitting scheme");
     }
-    if (adc1_config_width(adcCalCharacteristics.bit_width) != ESP_OK) {
-        log_e("Failed to configure ADC width");
-    }
-    if (adc1_config_channel_atten(BATT_CHANNEL_LEFT, adcCalCharacteristics.atten) != ESP_OK) {
-        log_e("Failed to configure ADC1 channel %d", BATT_CHANNEL_LEFT);
-    }
-    if (adc1_config_channel_atten(BATT_CHANNEL_RIGHT, adcCalCharacteristics.atten) != ESP_OK) {
-        log_e("Failed to configure ADC1 channel %d", BATT_CHANNEL_RIGHT);
-    }
+
+    adc_oneshot_unit_init_cfg_t adcOneshotCfg;
+    adcOneshotCfg.unit_id = ADC_UNIT_1;
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 1, 0)
+    adcOneshotCfg.clk_src = (adc_oneshot_clk_src_t)0;
+#endif
+    adcOneshotCfg.ulp_mode = ADC_ULP_MODE_DISABLE;
+
+    ESP_ERROR_CHECK(adc_oneshot_new_unit(&adcOneshotCfg, &adcOneshotHandle));
+
+    adc_oneshot_chan_cfg_t adcChanCfg;
+    adcChanCfg.bitwidth = adcConfig.bitwidth;
+    adcChanCfg.atten = adcConfig.atten;
+
+    ESP_ERROR_CHECK(adc_oneshot_config_channel(adcOneshotHandle, BATT_CHANNEL_LEFT, &adcChanCfg));
+    ESP_ERROR_CHECK(adc_oneshot_config_channel(adcOneshotHandle, BATT_CHANNEL_RIGHT, &adcChanCfg));
 
     DigitalWrite(RED_LED, LED_OFF);
     DigitalWrite(GREEN_LED, LED_OFF);
@@ -158,7 +165,12 @@ void InitializePlatform() {
 #endif
 #if LEDC_BACKLIGHT
     // This allows LEDC to work in light sleep on ESP32-S3
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 1, 0)
+    esp_err_t err = esp_sleep_pd_config(ESP_PD_DOMAIN_RC_FAST, ESP_PD_OPTION_ON);
+#else
     esp_err_t err = esp_sleep_pd_config(ESP_PD_DOMAIN_RTC8M, ESP_PD_OPTION_ON);
+#endif
+
     if (err != ESP_OK) {
         log_e("Error configuring esp_sleep_pd_config: %s", esp_err_to_name(err));
     }
@@ -169,7 +181,11 @@ void InitializePlatform() {
         .duty_resolution = LEDC_TIMER_8_BIT,
         .timer_num = LEDC_TIMER_0,
         .freq_hz = 1000,
-        .clk_cfg = LEDC_USE_RTC8M_CLK //
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 1, 0)
+        .clk_cfg = LEDC_USE_RC_FAST_CLK
+#else
+        .clk_cfg = LEDC_USE_RTC8M_CLK
+#endif
     };
     err = ledc_timer_config(&ledcTimer);
     if (err != ESP_OK) {
@@ -226,15 +242,33 @@ void InitializePlatform() {
 // Forked from TinyPico's GetBatteryVoltage() method:
 // https://github.com/tinypico/tinypico-arduino/blob/master/TinyPICO-Helper/src/TinyPICO.cpp#L207
 auto GetBatteryVoltageLeft() -> float {
-    uint32_t raw = adc1_get_raw(BATT_CHANNEL_LEFT);
-    uint32_t millivolts = esp_adc_cal_raw_to_voltage(raw, &adcCalCharacteristics);
+    int raw;
+    if (adc_oneshot_read(adcOneshotHandle, BATT_CHANNEL_LEFT, &raw) != ESP_OK) {
+        log_e("error reading raw adc value for left battery");
+        return 0.0;
+    }
+
+    int millivolts;
+    if (adc_cali_raw_to_voltage(adcCalHandle, raw, &millivolts) != ESP_OK) {
+        log_e("error reading left battery voltage");
+        return 0.0;
+    }
     auto mv = (float)(UPPER_DIVIDER + LOWER_DIVIDER) / LOWER_DIVIDER * millivolts;
     return (float)mv / 1000.0;
 }
 
 auto GetBatteryVoltageRight() -> float {
-    uint32_t raw = adc1_get_raw(BATT_CHANNEL_RIGHT);
-    uint32_t millivolts = esp_adc_cal_raw_to_voltage(raw, &adcCalCharacteristics);
+    int raw;
+    if (adc_oneshot_read(adcOneshotHandle, BATT_CHANNEL_RIGHT, &raw) != ESP_OK) {
+        log_e("error reading raw adc value for right battery");
+        return 0.0;
+    }
+
+    int millivolts;
+    if (adc_cali_raw_to_voltage(adcCalHandle, raw, &millivolts) != ESP_OK) {
+        log_e("error reading left battery voltage");
+        return 0.0;
+    }
     auto mv = (float)(UPPER_DIVIDER + LOWER_DIVIDER) / LOWER_DIVIDER * millivolts;
     return (float)mv / 1000.0;
 }
