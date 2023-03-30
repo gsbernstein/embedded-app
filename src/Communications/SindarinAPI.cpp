@@ -4,8 +4,8 @@
 
 #include "FileDownload.hpp"
 #include "GitVersion.hpp"
+#include "Misc/Battery.hpp"
 #include "Misc/Platform.hpp"
-#include "Misc/Power.hpp"
 #include "Misc/StringUtil.hpp"
 #include "Models/Json.hpp"
 #include "Models/UserReadable.hpp"
@@ -46,11 +46,13 @@ auto SindarinAPI::checkSync(const CheckSyncRequest &req, CheckSyncResponse *resp
                       HTTP_METHOD_POST);
     setAuth(client);
 
+    // Note, sleep_reason is the reason we're running this sync but the server is using the key
+    // `sleep_reason`
     auto body =
         StringFormat("build=%s&git_hash=%s&sn=%"
                      "s&pt_battery=%d&pt_build=%s&skip_content=%s&sleep_reason=%d",
                      kVersionString, kGitHash, GetSerialNumber().c_str(), req.ptBattery,
-                     req.ptBuild.c_str(), req.skipContent ? "true" : "false", req.sleepReason);
+                     req.ptBuild.c_str(), req.skipContent ? "true" : "false", req.syncReason);
     if (req.readablesSince.length() > 0) {
         body += StringFormat("&readables_since=%s", req.readablesSince.c_str());
     }
@@ -226,7 +228,7 @@ auto SindarinAPI::downloadReadable(const Readable &readable, FileSystem &fileSys
 }
 
 auto SindarinAPI::uploadAndResetVoltageLog(FileSystem &fileSystem) -> int {
-    auto localPath = Power::voltageLogPath();
+    auto localPath = Battery::voltageLogPath();
     if (!fileSystem.exists(localPath)) {
         log_w("Voltage log file %s does not exist", localPath);
         return false;
