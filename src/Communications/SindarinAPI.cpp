@@ -61,11 +61,11 @@ auto SindarinAPI::checkSync(const std::string &url, CheckSyncRequest &req, Check
     ConvertToJson(req, body);
 
     size_t serializedMaxSize = (*doc).memoryUsage() * 2;
-    char *reqBody = (char *)heap_caps_malloc(serializedMaxSize, MALLOC_CAP_SPIRAM);
-    size_t bodyLength = serializeJson(*doc, reqBody, serializedMaxSize);
+    auto reqBody = SpiRamArrayPtr<char>(serializedMaxSize);
+    size_t bodyLength = serializeJson(*doc, reqBody.get(), serializedMaxSize);
 
     client.open(bodyLength);
-    int writeLength = client.write(reqBody, bodyLength);
+    int writeLength = client.write(reqBody.get(), bodyLength);
     if (writeLength < bodyLength) {
         log_w("HttpClient failed to write (writeLength=%d, bodyLength=%zu)", writeLength,
               bodyLength);
@@ -75,13 +75,11 @@ auto SindarinAPI::checkSync(const std::string &url, CheckSyncRequest &req, Check
     int contentLength = client.fetchHeaders();
     if (contentLength <= 0) {
         log_e("Failed to fetch headers");
-        heap_caps_free(reqBody);
         return 0;
     }
     int httpCode = client.getStatusCode();
     if (httpCode != 200) {
         log_e("Failed to check sync: %d", httpCode);
-        heap_caps_free(reqBody);
         return httpCode;
     }
     auto stream = client.makeReadStream();
@@ -109,8 +107,6 @@ auto SindarinAPI::checkSync(const std::string &url, CheckSyncRequest &req, Check
 
     log_d("Synced: %d Message: %s", resp->synced, resp->message.c_str());
 
-    SHOW_HEAP();
-    heap_caps_free(reqBody);
     SHOW_HEAP();
 
     return httpCode;
@@ -206,13 +202,13 @@ auto SindarinAPI::uploadAndResetVoltageLog(FileSystem &fileSystem) -> int {
     // serialized data will be until we actually serialize it. We probably only need 20% more or so
     // but we have plenty of SPIRAM so let's just double it.
     size_t serializedMaxSize = (*requestJson).memoryUsage() * 2;
-    char *serialized = (char *)heap_caps_malloc(serializedMaxSize, MALLOC_CAP_SPIRAM);
+    auto serialized = SpiRamArrayPtr<char>(serializedMaxSize);
 
     // Write to SPIRAM
     // TODO: I can't find a good way to verify that the whole thing was written. Maybe would be
     // better for this to be a stream so we could check if we attempted to write but ran out of
     // space.
-    size_t serializedLength = serializeJson(*requestJson, serialized, serializedMaxSize);
+    size_t serializedLength = serializeJson(*requestJson, serialized.get(), serializedMaxSize);
     if (serializedLength == serializedMaxSize) {
         log_e("serializedLength is the same as the max size, probably ran out of space");
     }
@@ -224,17 +220,14 @@ auto SindarinAPI::uploadAndResetVoltageLog(FileSystem &fileSystem) -> int {
     auto err = client.open(serializedLength);
     if (err != ESP_OK) {
         log_e("HttpClient failed to open: %d", err);
-        heap_caps_free(serialized);
         return -1;
     }
 
-    int writeLength = client.write(serialized, serializedLength);
+    int writeLength = client.write(serialized.get(), serializedLength);
     if (writeLength != serializedLength) {
         log_w("HttpClient failed to write fully (writeLength=%d, serializedLength=%zu)",
               writeLength, serializedLength);
     }
-
-    heap_caps_free(serialized);
 
     client.fetchHeaders();
     int httpCode = client.getStatusCode();
@@ -252,16 +245,14 @@ auto SindarinAPI::uploadCrashReport(SFile &crashFile, const std::string &content
     client.open(writeSize);
 
     size_t bufferSize = 4096;
-    char *buffer = (char *)heap_caps_malloc(bufferSize, MALLOC_CAP_SPIRAM);
+    auto buffer = SpiRamArrayPtr<char>(bufferSize);
 
     // NOTE: crashFile.available() never goes down but it seems like it should
     int bytesWritten = 0;
     while (bytesWritten < writeSize) {
-        auto bytesRead = crashFile.readBytes(buffer, bufferSize);
-        bytesWritten += client.write(buffer, bytesRead);
+        auto bytesRead = crashFile.readBytes(buffer.get(), bufferSize);
+        bytesWritten += client.write(buffer.get(), bytesRead);
     }
-
-    heap_caps_free(buffer);
 
     client.fetchHeaders();
     int httpCode = client.getStatusCode();
