@@ -12,6 +12,7 @@
 #include "Misc/GUnzipStream.hpp"
 #include "Misc/Platform.hpp"
 #include "Misc/PowerManager.hpp"
+#include "Misc/SemVer.hpp"
 #include "Misc/StringUtil.hpp"
 #include "Models/Json.hpp"
 #include "Models/ReadableBookmark.hpp"
@@ -909,3 +910,39 @@ void LocalStore::readableFilePurge(const Readable &readable) {
     fileSystem.remove(StringFormat("/articles/%s.txt.gz", uuid.c_str()));
     fileSystem.remove(StringFormat("/articles/%s.txt", uuid.c_str()));
 }
+
+const char *firmwarePath = "/firmware.json";
+
+void LocalStore::saveFirmware(const Firmware &firmware) {
+    auto doc = std::make_unique<SpiRamJsonDocument>(
+        std::min((size_t)firmware.releaseNotes.size() * 2, (size_t)2048));
+    convertToJson(firmware, *doc);
+    // Delete any existing firmware file if it exists
+    fileSystem.remove(firmwarePath);
+    auto firmwareFile = fileSystem.open(firmwarePath, "w");
+    serializeJson(*doc, firmwareFile);
+    firmwareFile.close();
+    prefs_.firmwareLoaded.set(firmware.version);
+}
+
+auto LocalStore::getPendingFirmwareUpdate(Firmware &firmware) -> bool {
+    auto firmwareFile = fileSystem.open(firmwarePath, "r");
+    if (!firmwareFile) {
+        return false;
+    } else {
+        auto doc = std::make_unique<SpiRamJsonDocument>(firmwareFile.size() * 4);
+
+        DeserializationError error = deserializeJson(*doc, firmwareFile);
+        if (error) {
+            log_e("Failed to parse firmware file: %s", error.c_str());
+            return false;
+        }
+        firmware.fromJson(doc->as<JsonObject>());
+        firmwareFile.close();
+
+        return SemVerCompareVersions(kVersionString, firmware.version) ==
+               SemVerComparison::LessThan;
+    }
+}
+
+void LocalStore::resetFirmware() { fileSystem.remove(firmwarePath); }

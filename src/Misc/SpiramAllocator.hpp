@@ -4,6 +4,8 @@
 #include <esp_heap_caps.h>
 #include <functional>
 #include <memory>
+#include <sstream>
+#include <string>
 
 template <typename T>
 struct SpiramAllocator {
@@ -60,3 +62,41 @@ template <typename T>
 auto SpiRamArrayPtr(size_t len) -> std::shared_ptr<T[]> {
     return CustomArrayPtr<T>(len, &SpiRamMalloc, &heap_caps_free);
 }
+
+template <typename T>
+using SpiramVector = std::vector<T, SpiramAllocator<T>>;
+
+class SpiramStringBuf : public std::streambuf {
+public:
+    SpiramStringBuf(const SpiramString &str) {
+        char *begin = const_cast<char *>(str.data());
+        char *end = begin + str.size();
+        setg(begin, begin, end);
+    }
+
+protected:
+    auto seekoff(off_type off, std::ios_base::seekdir dir, std::ios_base::openmode which)
+        -> pos_type override {
+        if (dir == std::ios_base::beg) {
+            setg(eback(), eback() + off, egptr());
+        } else if (dir == std::ios_base::cur) {
+            setg(eback(), gptr() + off, egptr());
+        } else if (dir == std::ios_base::end) {
+            setg(eback(), egptr() + off, egptr());
+        }
+        return gptr() - eback();
+    }
+
+    auto seekpos(pos_type pos, std::ios_base::openmode which) -> pos_type override {
+        return seekoff(pos, std::ios_base::beg, which);
+    }
+};
+
+class SpiramIStream : public std::istream {
+public:
+    SpiramIStream(SpiramString str) : std::istream(&buf_), str_(std::move(str)), buf_(str_) {}
+
+private:
+    SpiramString str_;
+    SpiramStringBuf buf_;
+};

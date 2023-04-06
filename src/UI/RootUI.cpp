@@ -41,6 +41,7 @@
 #include "UI/OffsetAdjustScreen.hpp"
 #include "UI/PowerDepletedScreen.hpp"
 #include "UI/ReadableScreen.hpp"
+#include "UI/ReleaseNotesScreen.hpp"
 #include "UI/ResizeBoxScreen.hpp"
 #include "UI/StatsScreen.hpp"
 #include "UI/VoltageLogUploadScreen.hpp"
@@ -196,6 +197,34 @@ void RootUI::setup(DisplaySystem *display, LocalStore &localStore, FileSystem &f
 
     auto booksMenu = new MenuScreen(mainMenu->getMyStyle(), "Books");
 
+    // If there is firmware available, show the Update Firmware item in the books tab.
+    auto makeReleaseNotesMenuItem = [this, &localStore, display, mainMenu]() {
+        Firmware firmware;
+        localStore.getPendingFirmwareUpdate(firmware);
+        log_i("Found pending firmware update %s", firmware.version.c_str());
+        return MenuItem(
+            "Upgrade Software",
+            StringFormat("From %s to %s", kVersionString, firmware.version.c_str()),
+            [this, display, mainMenu, &localStore, firmware]() {
+                auto releaseNotesScreen =
+                    new ReleaseNotesScreen(*display, this->prefs_, power_, localStore, firmware);
+                display->clearDisplay();
+                this->setCurrentScreen(*releaseNotesScreen);
+                // auto resizeBox = new ResizeBoxScreen(*display, prefs_);
+                // this->setCurrentScreen(*resizeBox);
+                releaseNotesScreen->backCallback = [this, display, releaseNotesScreen, mainMenu]() {
+                    display->clearDisplay();
+                    mainMenu->setFirstLoad();
+                    setCurrentScreen(*mainMenu);
+                    delete releaseNotesScreen;
+                };
+            });
+    };
+
+    if (prefs_.firmwareLoaded.get().has_value()) {
+        booksMenu->addMenuItem(makeReleaseNotesMenuItem());
+    }
+
     // If there are no books, show the Sync Content item in the books tab.
     if (readables.size() == 0) {
         booksMenu->addMenuItem(
@@ -244,6 +273,10 @@ void RootUI::setup(DisplaySystem *display, LocalStore &localStore, FileSystem &f
     log_i("Loading %zu Pocket articles", articles.size());
 
     auto pocketMenu = new MenuScreen(mainMenu->getMyStyle(), "Articles");
+
+    if (prefs_.firmwareLoaded.get().has_value()) {
+        pocketMenu->addMenuItem(makeReleaseNotesMenuItem());
+    }
 
     // If there are no articles, show the Sync Content item in the articles tab.
     if (articles.size() == 0) {
