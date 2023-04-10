@@ -1,2 +1,2 @@
 
-const char *kVersionString = "0.3.999";
+const char *kVersionString = "0.3.9999";
