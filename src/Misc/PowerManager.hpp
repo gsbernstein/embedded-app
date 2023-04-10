@@ -29,6 +29,7 @@ enum class SleepReason {
     Unspecified,
     Inactivity,
     TempleClosed,
+    TempleClosedAtBoot,
     SyncDone,
     UlpCrashed,
     UpdateUSBState,
@@ -97,5 +98,5 @@ protected:
     // red or green depending on the charge of the battery.
     void checkUsb();
 
-    void waitForQueuesThenDeepSleep();
+    void waitForQueuesThenDeepSleep(SleepReason reason);
 };
