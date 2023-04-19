@@ -113,8 +113,8 @@ void PopupMenuScreen::render(DisplaySystem &display) {
     }
     int narrowToCenter = 20;
 
-    std::string bottomStr =
-        std::string("Seek ") + std::string("(") + placeString + std::string(")");
+    std::string bottomStr = std::string(hasToc_ ? "Table of Contents" : "Seek ") +
+                            std::string("(") + placeString + std::string(")");
 
     display.getTextBounds(bottomStr.c_str(), &textWidth, &textHeight);
     display.drawSingleLineOfText(bottomStr, (screenWidth / 2) - (textWidth / 2),
@@ -205,8 +205,7 @@ void PopupMenuScreen::processCommand(RemoteCommand command) {
         back();
         break;
     case RemoteCommand::NEXT:
-        readableSeekScreen_.firstLoad = true;
-        setCurrentScreen(readableSeekScreen_);
+        showTocOrSeekScreen();
         break;
     case RemoteCommand::BACK:
         back();
@@ -218,5 +217,28 @@ void PopupMenuScreen::processCommand(RemoteCommand command) {
         break;
     default:
         break;
+    }
+}
+
+void PopupMenuScreen::showTocOrSeekScreen() {
+    // If readable has a ToC with at least 1 element, show the ToC screen.
+    // Otherwise, show the seek screen.
+    if (hasToc_) {
+        readableTableOfContentsScreen_.resetMenuItems();
+        for (ReadableTableOfContentsChapter &chapter : readable_.toc) {
+            readableTableOfContentsScreen_.addMenuItem(MenuItem(chapter.title, [this]() {
+                readableTableOfContentsScreen_.backCallback();
+
+                setNeedsRerender();
+                this->renderer_.getDisplay()->clearDisplay();
+                this->backCallback();
+            }));
+        }
+        readableTableOfContentsScreen_.setNearestChapterSelection(renderer_.getCurrentPlace());
+        readableTableOfContentsScreen_.setFirstLoad();
+        setCurrentScreen(readableTableOfContentsScreen_);
+    } else {
+        readableSeekScreen_.firstLoad = true;
+        setCurrentScreen(readableSeekScreen_);
     }
 }
