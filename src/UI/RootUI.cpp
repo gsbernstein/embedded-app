@@ -769,7 +769,7 @@ void RootUI::setup(DisplaySystem *display, LocalStore &localStore, FileSystem &f
         auto confirmMessage = [timeZoneMenu, display, &clock](int solTimeZone) {
             clock.setTimezone(solTimeZone);
             timeZoneMenu->showTemporaryMessage(*display, "Setting Clock & Time Zone", 200, false);
-            WiFi::getInstance().connectWiFiWithTimeout();
+            WiFi::getInstance().connectWiFiFromSettings();
             if (!WiFi::getInstance().connected()) {
                 log_e("Couldn't connect to wifi, not setting clock");
             } else {
@@ -882,6 +882,13 @@ void RootUI::setup(DisplaySystem *display, LocalStore &localStore, FileSystem &f
             Delay(1500);
             this->power_.reboot();
         }));
+
+    systemSettingsMenu->addMenuItem(MenuItem("Clear WiFi Settings", [systemSettingsMenu,
+                                                                     display]() {
+        WiFi::getInstance().clearWiFiCredentials();
+        log_w("WiFi settings cleared.");
+        systemSettingsMenu->showTemporaryMessage(*display, "WiFi settings cleared.", 2000, false);
+    }));
 
     systemSettingsMenu->addMenuItem(
         MenuItem("Reset Preferences", [this, systemSettingsMenu, display]() {
