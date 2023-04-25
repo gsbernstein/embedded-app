@@ -308,6 +308,7 @@ public:
           eveningDelivery(*this, "eve-deliver"), darkMode(*this, "dark-mode"),
           autoPilot(*this, "auto-pilot"), fastTransitions(*this, "fast-tran"),
           noUploadCrashes(*this, "no-upload-crash"), showDebugMenu(*this, "show-debug"),
+          fastBookmarkRight(*this, "fst-mark-right"), fastBookmarkCenter(*this, "fst-mark-cent"),
           wifiSettingsJson(*this, "wifi-settings"), localStoreMigrationVersion(*this, "ls-version"),
           preferencesStoreMigrationVersion_(*this, "ps-version"){};
     PreferencesStore(PreferencesStore &) = delete;
@@ -471,6 +472,8 @@ public:
     PrefsItem<bool> fastTransitions;
     PrefsItem<bool> noUploadCrashes;
     PrefsItem<bool> showDebugMenu;
+    PrefsItem<bool> fastBookmarkRight;
+    PrefsItem<bool> fastBookmarkCenter;
     PrefsItem<std::string> wifiSettingsJson;
     PrefsItem<uint32_t> localStoreMigrationVersion;
 
