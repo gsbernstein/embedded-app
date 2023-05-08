@@ -139,6 +139,13 @@ void ReadableScreen::renderIcons(DisplaySystem &display) {
 // we have a helper method to do the work.
 void ReadableScreen::turnPage() {
     if (atEnd_) {
+        if (prefs_.emcMode.get().value_or(false)) {
+            log_d("Looping back to the beginning of Readable for EMC testing mode");
+            // Loop back to the beginning
+            readable_.placePrev = 0;
+            readable_.place = 0;
+            return;
+        }
         showPopupMenu();
         popupMenuScreen_.preselectArchiveMenuItem();
     } else {
@@ -176,9 +183,11 @@ void ReadableScreen::render(DisplaySystem &display) {
 
     display.setFont(display.style.getFontFamily().readableFont);
 
+    bool emcMode = prefs_.emcMode.get().value_or(false);
+
     // If it's the first read of the book, show the help screen.
     // Then ignore the next press of the button
-    if (!prefs_.firstRead.get().value_or(false)) {
+    if (!emcMode && !prefs_.firstRead.get().value_or(false)) {
 
         // We need to make sure this goes onto the second page because of a bug in the renderer.
         std::string message =
@@ -202,7 +211,7 @@ void ReadableScreen::render(DisplaySystem &display) {
         return;
     }
 
-    if (!prefs_.firstAutopilotRead.get().value_or(false) && (pageSpeed_ != 0)) {
+    if (!emcMode && !prefs_.firstAutopilotRead.get().value_or(false) && (pageSpeed_ != 0)) {
         // We need to make sure this goes onto the second page because of a bug in the renderer.
         std::string message =
             "Welcome to the beta of Autopilot mode! Here is what each button does "
@@ -337,7 +346,7 @@ void ReadableScreen::render(DisplaySystem &display) {
         }
     }
 
-    if (prefs_.emcMode.get().value_or(false)) {
+    if (emcMode) {
         // Must stop the timer because ChangePeriod starts it.
         xTimerStop(DisplaySystem::animationTimer, 0);
         // Change page every 30 seconds
