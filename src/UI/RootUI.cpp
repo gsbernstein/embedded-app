@@ -65,7 +65,6 @@
 
 void RootUI::setup(DisplaySystem *display, LocalStore &localStore, FileSystem &fileSystem,
                    LightingController &lightingController) {
-    SHOW_HEAP();
 
     display_ = display;
 
@@ -75,8 +74,8 @@ void RootUI::setup(DisplaySystem *display, LocalStore &localStore, FileSystem &f
 
     SIZE_OF(*mainMenu);
 
-    auto readables = localStore.books();
-    auto articles = localStore.articles();
+    auto &readables = localStore.books();
+    auto &articles = localStore.articles();
 
     // Load the SolSans font only.
     ibmf75.load((ibmf_defs::MemoryPtr)fontsList[0].content, fontsList[0].length);
@@ -237,6 +236,8 @@ void RootUI::setup(DisplaySystem *display, LocalStore &localStore, FileSystem &f
             }));
     }
 
+    SHOW_HEAP();
+
     for (const Readable &r : readables) {
         bool archived = prefs_.readableArchivedChanged.get(r.shortenedUuid.c_str());
         auto title = StringFormat("%s%s", archived ? "Archived: " : "", r.title.c_str());
@@ -245,13 +246,16 @@ void RootUI::setup(DisplaySystem *display, LocalStore &localStore, FileSystem &f
             r.title == "Old Testament") {
             continue;
         }
+
         booksMenu->addMenuItem(MenuItem(StringFormat("%s", title.c_str()),
                                         StringFormat("%s", r.authors[0].name.c_str()),
-                                        [this, r, createReadableScreen]() {
+                                        [this, &r, createReadableScreen]() {
             auto readableScreen = createReadableScreen(r);
             this->setCurrentScreen(*readableScreen);
         }));
     }
+
+    SHOW_HEAP();
 
     if (!(prefs_.tutorialsDeleted.get().value_or(0) & TUTORIAL_SCREEN_BOOKS)) {
         booksMenu->addMenuItem(MenuItem("\ue000 Books Tutorial", "",
@@ -269,8 +273,6 @@ void RootUI::setup(DisplaySystem *display, LocalStore &localStore, FileSystem &f
     if (!prefs_.noBooks.get().value_or(false)) {
         mainMenu->addSubMenu(booksMenu);
     }
-
-    SHOW_HEAP();
 
     log_i("Loading %zu Pocket articles", articles.size());
 
@@ -321,6 +323,8 @@ void RootUI::setup(DisplaySystem *display, LocalStore &localStore, FileSystem &f
             }));
     }
 
+    SHOW_HEAP();
+
     if (!(prefs_.tutorialsDeleted.get().value_or(0) & TUTORIAL_SCREEN_ARTICLES)) {
         pocketMenu->addMenuItem(MenuItem("\ue000 Articles Tutorial",
                                          [this, createTutorialScreen]() {
@@ -347,7 +351,7 @@ void RootUI::setup(DisplaySystem *display, LocalStore &localStore, FileSystem &f
             auto title = StringFormat("%s%s", archived ? "Archived: " : "", r.title.c_str());
             if (r.title == "Psalms and Proverbs" || r.title == "New Testament" ||
                 r.title == "Old Testament") {
-                bibleMenu->addMenuItem(MenuItem(title, [this, r, createReadableScreen, display,
+                bibleMenu->addMenuItem(MenuItem(title, [this, &r, createReadableScreen, display,
                                                         mainMenu]() {
                     auto readableScreen = createReadableScreen(r);
                     this->setCurrentScreen(*readableScreen);
@@ -729,6 +733,8 @@ void RootUI::setup(DisplaySystem *display, LocalStore &localStore, FileSystem &f
         experimentalSettingsMenu->setFirstLoad();
         this->setCurrentScreen(*experimentalSettingsMenu);
     }));
+
+    SHOW_HEAP();
 
     if (prefs_.showDebugMenu.get().value_or(false)) {
         settingsMenu->addMenuItem(MenuItem("Debug", [this, debugSettingsMenu]() {
@@ -1115,6 +1121,8 @@ void RootUI::setup(DisplaySystem *display, LocalStore &localStore, FileSystem &f
             delete opticsTestScreen;
         });
     }));
+
+    SHOW_HEAP();
 
     if (hasLastQuestion) {
         debugSettingsMenu->addMenuItem(MenuItem("Turn on EMC Mode",
