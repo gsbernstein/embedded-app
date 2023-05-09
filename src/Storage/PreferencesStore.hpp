@@ -309,9 +309,9 @@ public:
           autoPilot(*this, "auto-pilot"), fastTransitions(*this, "fast-tran"),
           noUploadCrashes(*this, "no-upload-crash"), showDebugMenu(*this, "show-debug"),
           fastBookmarkRight(*this, "fst-mark-right"), fastBookmarkCenter(*this, "fst-mark-cent"),
-          wifiSettingsJson(*this, "wifi-settings"), localStoreMigrationVersion(*this, "ls-version"),
-          tutorialsDeleted(*this, "tutorials"), bleAdvertisingKey(*this, "ble-adv-key"),
-          bleAuthKey(*this, "ble-aut-key"),
+          noPageTransitionArrows(*this, "no-page-arrows"), wifiSettingsJson(*this, "wifi-settings"),
+          localStoreMigrationVersion(*this, "ls-version"), tutorialsDeleted(*this, "tutorials"),
+          bleAdvertisingKey(*this, "ble-adv-key"), bleAuthKey(*this, "ble-auth-key"),
           preferencesStoreMigrationVersion_(*this, "ps-version"){};
     PreferencesStore(PreferencesStore &) = delete;
 
@@ -476,6 +476,7 @@ public:
     PrefsItem<bool> showDebugMenu;
     PrefsItem<bool> fastBookmarkRight;
     PrefsItem<bool> fastBookmarkCenter;
+    PrefsItem<bool> noPageTransitionArrows;
     PrefsItem<std::string> wifiSettingsJson;
     PrefsItem<uint32_t> localStoreMigrationVersion;
     PrefsItem<uint32_t> tutorialsDeleted;
