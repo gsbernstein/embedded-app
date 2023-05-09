@@ -203,8 +203,12 @@ void ReadableScreen::render(DisplaySystem &display) {
         // We need to make sure this goes onto the second page because of a bug in the renderer.
         std::string message =
             "Welcome to reading with Sol! This is a one page tutorial on what each button does "
-            "while reading.\n\n\nUp or Down: Popup Menu\n\nLeft: Previous "
-            "Page\n\nRight or Center: Next Page\n\n\nThat's it! Press any button... "
+            "while reading.\n\n\n\ue003   Main Menu\n\n\ue004   Reading "
+            "Settings\n\n\ue001   "
+            "Previous "
+            "Page\n\n\uE002   Bookmark Page\n\n\ue000   Next Page\n\n\nThat's "
+            "it! Press "
+            "any button... "
             "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n";
 
         auto streamFirstTime = std::make_shared<StdStringStream>(message);
