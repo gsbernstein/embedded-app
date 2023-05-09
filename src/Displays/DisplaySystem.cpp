@@ -6,6 +6,7 @@
 
 #include "Inputs/RemoteInput.hpp"
 #include "Misc/Dispatch.hpp"
+#include "Misc/PBMImage.hpp"
 #include "Misc/StringUtil.hpp"
 #include "UI/Fonts/Font.hpp"
 #include "UI/Fonts/IBMFDriver/IBMFFont.hpp"
@@ -282,6 +283,51 @@ void DisplaySystem::drawXBitmap(int16_t x, int16_t y, const uint8_t bitmap[], in
         setPartialWindow(x, y, w, h);
     }
     gfxClass_->drawXBitmap(xOffset(x), yOffset(y), bitmap, w, h, color);
+}
+
+void DisplaySystem::drawPBM(int16_t x, int16_t y, const uint8_t *pbmbytes, int size) {
+    BufferStream stream(pbmbytes, size);
+    drawPBM(x, y, stream);
+}
+
+void DisplaySystem::drawPBM(int16_t x, int16_t y, const std::string &fname, FileSystem &fs) {
+    if (!fs.exists(fname)) {
+        log_e("cannot display pbm, file not present: %s", fname.c_str());
+        return;
+    }
+    SFile pbmFile = fs.open(fname);
+    ContainerStream<SFile> stream(pbmFile);
+    drawPBM(x, y, stream);
+}
+
+void DisplaySystem::drawPBM(int16_t x, int16_t y, RendererStream &stream) {
+    int width;
+    int height;
+    if (!ParsePbmHeader(stream, width, height)) {
+        log_e("failed to parse PBM header");
+        return;
+    }
+
+    log_i("parsed PBM header, w %d height %d", width, height);
+    int byteSize = width * height / 8;
+
+    // if this is a full-screen image, load directly into memory
+    // otherwise load separately and draw with drawBitmap
+
+    // check for fullscreen
+    if (x == 0 && y == 0 && width == gfxClass_->width() && height == gfxClass_->height()) {
+        drawFullscreenBitmapFromFile(stream);
+    } else {
+        // not fullscreen
+        // load bitmap into memory
+        auto bitmap = SpiRamArrayPtr<uint8_t>(byteSize);
+        if (stream.readBytes(bitmap.get(), byteSize) != byteSize) {
+            log_e("failed to read bitmap");
+            return;
+        }
+
+        gfxClass_->drawBitmap(x, y, bitmap.get(), width, height, 0, 1);
+    }
 }
 
 void DisplaySystem::clearScreen() {
