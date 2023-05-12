@@ -26,7 +26,6 @@
 #include "UI/AlignmentScreen.hpp"
 #include "UI/BatteryScreen.hpp"
 #include "UI/CalibrationScreen.hpp"
-#include "UI/CesScreen.hpp"
 #include "UI/ContentSyncScreen.hpp"
 #include "UI/CrashReportScreen.hpp"
 #include "UI/DemoScreen.hpp"
@@ -878,7 +877,9 @@ void RootUI::setup(DisplaySystem *display, LocalStore &localStore, FileSystem &f
     }));
 
     systemSettingsMenu->addMenuItem(MenuItem("Legal & Regulatory", [systemSettingsMenu, display]() {
-        systemSettingsMenu->showTemporaryMessage(*display, "FCC Stuff, Legal Stuff, etc.");
+        systemSettingsMenu->showTemporaryMessage(
+            *display, "FBACL: LISTED UL 62368-1, CAN/CSA C22,2 NO., 62368-1, A0049\n FCC IDs: "
+                      "2BAHC-READER1, 2BAHC-PT1\nIC: 30424");
     }));
 
     systemSettingsMenu->addMenuItem(MenuItem("Set Clock", [this, display, systemSettingsMenu]() {
@@ -1021,6 +1022,7 @@ void RootUI::setup(DisplaySystem *display, LocalStore &localStore, FileSystem &f
                 debugSettingsMenu->setFirstLoad();
                 display->clearDisplay();
                 setCurrentScreen(*debugSettingsMenu);
+                debugSettingsMenu->render(*this->display_);
                 delete demoScreen;
             });
         }));
@@ -1325,15 +1327,20 @@ void RootUI::setup(DisplaySystem *display, LocalStore &localStore, FileSystem &f
 
     if (inDemo) {
         auto demoScreen = new DemoScreen(*display, prefs_, lightingController);
-        demoScreen->setBackCallback([this, demoScreen, mainMenu, display]() {
-            display->clearDisplay();
+        demoScreen->setBackCallback([this, demoScreen, mainMenu]() {
+            // We want to go straight from the scroll expanding into the main menu
+            // via partial refresh.
+            // display->clearDisplay();
             mainMenu->setFirstLoad();
             setCurrentScreen(*mainMenu);
+            mainMenu->render(*this->display_);
             delete demoScreen;
         });
         this->setCurrentScreen(*demoScreen);
     } else if (prefs_.cesMode.get().value_or(false)) {
-        auto cesScreen = new CesScreen(*display, prefs_, lightingController);
+        auto cesScreen = new DemoScreen(*display, prefs_, lightingController);
+        cesScreen->bailAfterLensAdjust();
+
         // reset prefs for of The Last Question readable
         log_d("Starting CES mode readable load");
         auto it = std::find_if(readables.begin(), readables.end(), [](const Readable &x) {
@@ -1350,6 +1357,7 @@ void RootUI::setup(DisplaySystem *display, LocalStore &localStore, FileSystem &f
             this->display_->setFont(this->display_->style.getFontFamily().readableFont);
             log_i("Setting Readable Screen after focus in CES mode");
             this->setCurrentScreen(*readableScreen);
+            readableScreen->render(*this->display_);
             delete cesScreen;
         });
         this->setCurrentScreen(*cesScreen);

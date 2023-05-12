@@ -210,7 +210,8 @@ inline void EinkET013TT1::setCS(bool value, ScreenSide screen) {
 }
 
 void EinkET013TT1::updateInternal(const EinkET013TT1Waveform &waveform, const uint8_t *buffer,
-                                  int32_t overrideVcom) {
+                                  int32_t overrideVcom, const EinkET013TT1Waveform &altWaveform,
+                                  EinkBox box) {
     if (overrideVcom != INT32_MAX) {
         uint8_t newVcomRegisterValue = VcomMVToRegisterValue(overrideVcom);
         log_d("Overriding VCOM from %" PRIi32 " (0x%02X) to %" PRIi32 " (0x%02X)", vcomInMV_,
@@ -287,15 +288,22 @@ void EinkET013TT1::updateInternal(const EinkET013TT1Waveform &waveform, const ui
 
     PROFILE_START(sendFrames);
 
+    // Take into account for doing more frames in the altWaveform than the main one.
+    int maxFrames = std::max(waveform.frameCount, altWaveform.frameCount);
+
     // For each frame in the waveform
-    for (int frameIndex = 0; frameIndex < waveform.frameCount; frameIndex++) {
-        auto frame = waveform.frames[frameIndex];
+    for (int frameIndex = 0; frameIndex < maxFrames; frameIndex++) {
+        auto frame = waveform.frameOrDefault(frameIndex);
+        auto altFrame = waveform.frameOrDefault(frameIndex);
 
         // Generate a look up table to quickly look up old bits -> new bits and the resulting
         // transitions
         std::array<uint8_t, 256> lut;
-        // This takes ~210us at 160MHz
+        std::array<uint8_t, 256> altLut;
+
+        // These each take ~210us at 160MHz
         frame.makeLUT(&lut);
+        altFrame.makeLUT(&altLut);
 
         if (border_ != BORDER_SETTING_NONE) {
             auto borderBits = frame.getSetting(previousBorder_ & 0x01, border_);
@@ -313,6 +321,9 @@ void EinkET013TT1::updateInternal(const EinkET013TT1Waveform &waveform, const ui
             // Pick the correct gate based on the index
             uint8_t gs = gate & 0x0F;
             uint8_t gb = gate >> 4;
+            uint8_t x;
+            // 0 on the gates is lower left, but we want to do everything based on upper left
+            uint8_t y = EinkET013TT1_PIXEL_WIDTH - gate % EinkET013TT1_PIXEL_WIDTH;
             *gateBlockLow = GateBlockL(gb);
             *gateSelectLow = GateSelectL(gs);
             *gateSelectHigh = GateSelectH(gs);
@@ -334,6 +345,7 @@ void EinkET013TT1::updateInternal(const EinkET013TT1Waveform &waveform, const ui
 
             // This for loop takes 4-16us at 240MHz
             for (int pixel = 0; pixel < EinkET013TT1_PIXEL_WIDTH / 2; pixel += 4) {
+                x = pixel + (gate / EinkET013TT1_PIXEL_WIDTH) * EinkET013TT1_PIXEL_WIDTH / 2;
                 uint8_t oldPixels;
                 uint8_t newPixels;
                 if (pixel % 8 == 0) {
@@ -343,7 +355,8 @@ void EinkET013TT1::updateInternal(const EinkET013TT1Waveform &waveform, const ui
                     oldPixels = oldBuffer[pixel / 8] & 0xF;
                     newPixels = newBuffer[pixel / 8] & 0xF;
                 }
-                sourceData[pixel / 4] = lut[oldPixels << 4 | newPixels];
+                auto *lutToUse = box.contains(x, y) ? &altLut : &lut;
+                sourceData[pixel / 4] = (*lutToUse)[oldPixels << 4 | newPixels];
             }
 
             // Send the scan line!
@@ -396,18 +409,19 @@ void EinkET013TT1::updateInternal(const EinkET013TT1Waveform &waveform, const ui
 }
 
 void EinkET013TT1::update(const EinkET013TT1Waveform &waveform, const uint8_t *buffer,
-                          int32_t overrideVcom) {
+                          int32_t overrideVcom, const EinkET013TT1Waveform &altWaveform,
+                          EinkBox box) {
     // Create a notification group to wait for the update to finish
     auto group = xEventGroupCreate();
 
-    einkQueue_->dispatch([this, waveform, buffer, overrideVcom, group]() {
+    einkQueue_->dispatch([this, waveform, buffer, overrideVcom, group, altWaveform, box]() {
         if (!poweredOn_) {
             // This shouldn't happen, we should have been powering on the screen early in the render
             // pipeline before update is called
             log_w("Screen not powered on at update time. Powering on.");
             powerOnInternal();
         }
-        updateInternal(waveform, buffer, overrideVcom);
+        updateInternal(waveform, buffer, overrideVcom, altWaveform, box);
 
         // Release the lock
         xEventGroupSetBits(group, 1);

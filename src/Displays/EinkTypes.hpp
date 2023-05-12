@@ -98,6 +98,8 @@ struct Frame {
         string->append(" ww: ");
         string->append(pixelSettingString(ww));
     }
+
+    constexpr static auto nochg() -> Frame { return {NOCHG, NOCHG, NOCHG, NOCHG}; }
 };
 
 struct EinkET013TT1Waveform {
@@ -178,4 +180,33 @@ struct EinkET013TT1Waveform {
 
         return returnVal;
     }
+
+    [[nodiscard]] inline auto frameOrDefault(int index) const -> Frame {
+        return index < frames.size() ? frames[index] : Frame::nochg();
+    }
+};
+
+struct EinkBox {
+    int leftX;
+    int rightX;
+    int topY;
+    int bottomY;
+
+    [[nodiscard]] inline auto contains(int x, int y) const -> bool {
+        return ((x >= leftX) && (x < rightX) && (y >= topY) && (y < bottomY));
+    }
+
+    constexpr static auto zero() -> EinkBox { return {0, 0, 0, 0}; };
+};
+
+enum BorderSetting {
+    BORDER_SETTING_BLACK = 0,
+    BORDER_SETTING_WHITE = 1,
+    BORDER_SETTING_NONE = 2,
+};
+
+enum class ScreenSide {
+    Left = 1 << 0,
+    Right = 1 << 1,
+    Both = Left | Right,
 };

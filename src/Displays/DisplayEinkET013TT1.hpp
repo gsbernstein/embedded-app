@@ -29,12 +29,15 @@ public:
     auto setup() -> bool override;
 
     void updateDisplay(DisplaySystem::UpdateType updateType = UNSPECIFIED,
-                       bool clearFrameBuffer = true) override;
+                       bool clearFrameBuffer = true,
+                       DisplaySystem::UpdateType altUpdateType = UNSPECIFIED,
+                       Rect altRect = {{0, 0}, {0, 0}}) override;
 
     void beginPowerOn() override { driver_.beginPowerOn(); };
 
     void clearDisplay() override { fullRefreshNext_ = true; };
 
+    void clearFrameBuffer() override { fillScreen(bg); };
     void invertDisplay(bool newInvert) override;
 
     // For those moments where you need to expose the driver directly

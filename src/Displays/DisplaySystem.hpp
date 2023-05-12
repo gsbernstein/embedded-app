@@ -20,6 +20,7 @@
 #include "Misc/Style.hpp"
 #include "Storage/FileSystem.hpp"
 #include "UI/Fonts/Font.hpp"
+#include "UI/Layout/Types.hpp"
 
 // This isn't the best -- we may want to make this dynamically
 // allocated instead in the object?
@@ -75,7 +76,9 @@ public:
         ERASE,
     };
     virtual void updateDisplay(DisplaySystem::UpdateType updateType = UNSPECIFIED,
-                               bool clearFrameBuffer = true) = 0;
+                               bool clearFrameBuffer = true,
+                               DisplaySystem::UpdateType altUpdateType = UNSPECIFIED,
+                               Rect altRect = {{0, 0}, {0, 0}}) = 0;
 
     virtual void beginPowerOn() {}
 
@@ -156,6 +159,10 @@ public:
     void setLineSpacing(int newSpacing) { lineSpacing_ = newSpacing; }
 
     virtual void clearDisplay(){};
+    virtual void clearFrameBuffer(){};
+
+    void forceDontChangeRefreshType() { forceRefreshType_ = true; }
+    void clearDontChangeRefreshType() { forceRefreshType_ = false; }
 
     auto setBoundingBox(DisplayRect newBox) -> DisplayRect;
     auto getBoundingBox() -> DisplayRect { return boundingBox_; }
@@ -163,9 +170,8 @@ public:
     void ensureBoundaries();
 
     // MARK: - Text rendering code
-
     auto getFont() -> Font *;
-    void drawSingleLineOfText(const std::string &line, int x, int y);
+    void drawSingleLineOfText(const std::string &line, int x, int y, bool inverted = false);
     void drawSingleLineOfCenteredText(const std::string &line);
     void getTextSize(const char *buffer, uint16_t *w, uint16_t *h);
     auto getTextHeight() -> int;
@@ -226,6 +232,8 @@ protected:
     uint16_t partialX_ = 0, partialY_ = 0, partialW_ = 0, partialH_ = 0;
 
     bool invertedDisplay_ = false;
+
+    bool forceRefreshType_ = false;
 
     // This is the default value from before of 15mmx15mm
     DisplayRect boundingBox_ = defaultBoundingBox;

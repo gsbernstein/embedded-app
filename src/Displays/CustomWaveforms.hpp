@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Displays/EinkWaveform.hpp"
+#include "Displays/EinkTypes.hpp"
 
 // Pushes black a little more at the end to reduce ghosting
 const EinkET013TT1Waveform BC_REGULAR_EINK_10_13C_WAVEFORM_AU4 = {
@@ -12,6 +12,12 @@ const EinkET013TT1Waveform BC_REGULAR_EINK_10_13C_WAVEFORM_AU4 = {
         Frame{.bb = BLACK, .bw = WHITE, .wb = BLACK, .ww = NOCHG},
         Frame{.bb = NOCHG, .bw = NOCHG, .wb = NOCHG, .ww = NOCHG},
     },
+};
+
+const EinkET013TT1Waveform BC_WAVEFORM_NONE = {
+    "BC_WAVEFORM_NONE",
+    0,
+    std::array<Frame, MAX_FRAMES_PER_WAVEFORM>{},
 };
 
 // Pushes white a little more at the end to reduce ghosting
@@ -38,7 +44,7 @@ const EinkET013TT1Waveform BC_REGULAR_EINK_10_13C_WAVEFORM_ERASE = {
         Frame{.bb = NOCHG, .bw = WHITE, .wb = BLACK, .ww = NOCHG},
         Frame{.bb = NOCHG, .bw = WHITE, .wb = BLACK, .ww = NOCHG},
         Frame{.bb = NOCHG, .bw = WHITE, .wb = BLACK, .ww = NOCHG},
-        Frame{.bb = BLACK, .bw = WHITE, .wb = BLACK, .ww = NOCHG},
+        Frame{.bb = NOCHG, .bw = WHITE, .wb = BLACK, .ww = NOCHG},
         Frame{.bb = NOCHG, .bw = NOCHG, .wb = NOCHG, .ww = NOCHG},
     },
 };
@@ -217,6 +223,35 @@ const EinkET013TT1Waveform BC_REGULAR_31_35C_WAVEFORM_FULL = {
         Frame{.bb = BLACK, .bw = WHITE, .wb = BLACK, .ww = NOCHG},
         Frame{.bb = BLACK, .bw = WHITE, .wb = BLACK, .ww = NOCHG},
         Frame{.bb = BLACK, .bw = WHITE, .wb = BLACK, .ww = NOCHG},
+        Frame{.bb = BLACK, .bw = WHITE, .wb = BLACK, .ww = NOCHG},
+        Frame{.bb = BLACK, .bw = WHITE, .wb = BLACK, .ww = NOCHG},
+        Frame{.bb = BLACK, .bw = WHITE, .wb = BLACK, .ww = NOCHG},
+        Frame{.bb = NOCHG, .bw = NOCHG, .wb = NOCHG, .ww = NOCHG},
+    },
+};
+
+// Don't push as hard for darker images since blacks bleed together.
+// Same amount of flash before though.
+const EinkET013TT1Waveform BC_REGULAR_31_35C_WAVEFORM_FULL_DARK_IMAGE = {
+    "BC REGULAR FULL 31-35C",
+    20,
+    std::array<Frame, MAX_FRAMES_PER_WAVEFORM>{
+        Frame{.bb = WHITE, .bw = NOCHG, .wb = NOCHG, .ww = BLACK},
+        Frame{.bb = WHITE, .bw = BLACK, .wb = WHITE, .ww = BLACK},
+        Frame{.bb = WHITE, .bw = BLACK, .wb = WHITE, .ww = BLACK},
+        Frame{.bb = WHITE, .bw = BLACK, .wb = WHITE, .ww = BLACK},
+        Frame{.bb = WHITE, .bw = BLACK, .wb = WHITE, .ww = NOCHG},
+        Frame{.bb = WHITE, .bw = BLACK, .wb = WHITE, .ww = NOCHG},
+        Frame{.bb = WHITE, .bw = BLACK, .wb = WHITE, .ww = NOCHG},
+        Frame{.bb = WHITE, .bw = BLACK, .wb = WHITE, .ww = NOCHG},
+        Frame{.bb = WHITE, .bw = BLACK, .wb = WHITE, .ww = NOCHG},
+        Frame{.bb = WHITE, .bw = BLACK, .wb = WHITE, .ww = NOCHG},
+        Frame{.bb = WHITE, .bw = BLACK, .wb = WHITE, .ww = NOCHG},
+        Frame{.bb = WHITE, .bw = BLACK, .wb = WHITE, .ww = NOCHG},
+        Frame{.bb = WHITE, .bw = WHITE, .wb = BLACK, .ww = WHITE},
+        Frame{.bb = NOCHG, .bw = WHITE, .wb = BLACK, .ww = WHITE},
+        Frame{.bb = BLACK, .bw = WHITE, .wb = BLACK, .ww = WHITE},
+        Frame{.bb = BLACK, .bw = WHITE, .wb = BLACK, .ww = WHITE},
         Frame{.bb = BLACK, .bw = WHITE, .wb = BLACK, .ww = NOCHG},
         Frame{.bb = BLACK, .bw = WHITE, .wb = BLACK, .ww = NOCHG},
         Frame{.bb = BLACK, .bw = WHITE, .wb = BLACK, .ww = NOCHG},

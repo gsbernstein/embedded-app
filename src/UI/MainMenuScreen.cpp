@@ -113,8 +113,8 @@ void MainMenuScreen::drawInRect(Rect rect) {
 void MainMenuScreen::render(DisplaySystem &display) {
     setNeedsLayout();
 
-    // For the main menu, we want to use the entire screen and ignore the user settings for reading
-    // box.
+    // For the main menu, we want to use the entire screen and ignore the user settings for
+    // reading box.
     setFrame(
         {{display.xAbsolute(display.defaultXPadding), display.yAbsolute(display.defaultYPadding)},
          {display.defaultScreenWidth - 2 * display.defaultXPadding,
@@ -177,8 +177,13 @@ void MainMenuScreen::render(DisplaySystem &display) {
 
         draw();
         display.updateDisplay(DisplaySystem::UpdateType::PARTIAL);
+        // display.updateDisplay(DisplaySystem::UpdateType::PARTIAL, true,
+        //                       DisplaySystem::UpdateType::FAST_WITH_VCOM_NUDGE, {24, 50, 32,
+        //                       205});
     }
 
+    // If we want to try using the alt update mechanism here, we should move this code above the
+    // update, and remove the second update
     std::shared_ptr<MenuItemView> selectedMenuItemView =
         menuItemViews_[subMenus_[currentSelection_]->getCurrSelection() %
                        subMenus_[currentSelection_]->getMyStyle().numberOfItemsPerPage];
@@ -193,7 +198,11 @@ void MainMenuScreen::render(DisplaySystem &display) {
     draw();
 
     display.updateDisplay(DisplaySystem::UpdateType::FAST_WITH_VCOM_NUDGE);
+    //}
 
+    // This handles the case where we are in the main menu right after the
+    // onboarding stuff.
+    display.clearDontChangeRefreshType();
     firstLoad_ = false;
 }
 
