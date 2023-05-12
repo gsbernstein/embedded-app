@@ -58,6 +58,7 @@ public:
     std::string articlesSince;
     std::string nextPageUrl;
     int totalCount;
+    std::string timezone;
 
     auto fromJson(const JsonObject &j) -> bool override {
         message = j["message"].as<std::string>();
@@ -69,7 +70,6 @@ public:
         }
         auto results = j["results"].as<JsonObject>();
         synced = results["synced"].as<bool>();
-
         if (results.containsKey("books_since")) {
             booksSince = results["books_since"].as<std::string>();
             for (const auto &userReadable : results["books"].as<JsonArray>()) {
@@ -88,6 +88,10 @@ public:
             }
         } else {
             articlesSince = "";
+        }
+
+        if (results.containsKey("timezone")) {
+            timezone = results["timezone"].as<std::string>();
         }
 
         if (j.containsKey("next")) {

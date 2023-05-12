@@ -9,6 +9,7 @@
 
 #include "../Communications/WiFi.hpp"
 #include "../Misc/StringUtil.hpp"
+#include "../Misc/Timezones.hpp"
 
 extern SolClock solClock;
 
@@ -33,54 +34,52 @@ auto SolClock::getTimeString() -> std::string {
 }
 
 void SolClock::loadTimeZone() {
-    std::string timeZoneString;
-    switch (prefs_.solTimeZone.get().value_or(0)) {
-    case -8:
-        timeZoneString = "PST8PDT";
-        break;
-    case -7:
-        timeZoneString = "MST7MDT";
-        break;
-    case -6:
-        timeZoneString = "CST6CDT";
-        break;
-    case -5:
-        timeZoneString = "EST5EDT";
-        break;
-    case 0:
-    default:
-        timeZoneString = "UTC";
-        break;
-    }
-    log_d("Using timezone %s", timeZoneString.c_str());
-    setenv("TZ", timeZoneString.c_str(), 1);
+    log_d("Loading timezone %s=%s", ianaTimezoneString().c_str(), posixTimezoneString().c_str());
+    setenv("TZ", posixTimezoneString().c_str(), 1);
     tzset();
 }
 
-auto SolClock::timeZoneString(int timeZone) -> std::string {
-    switch (timeZone) {
-    case -8:
-        return "Pacific Time";
-    case -7:
-        return "Mountain Time";
-    case -6:
-        return "Central Time";
-    case -5:
-        return "Eastern Time";
-    case 0:
-        return "UTC - Not Set";
-    default:
-        return "Unknown";
+auto SolClock::ianaTimezoneString() -> std::string {
+    return prefs_.tzIana.get().value_or("Etc/UTC");
+}
+
+auto SolClock::posixTimezoneString() -> std::string {
+    return prefs_.tzPosix.get().value_or("UTC0");
+}
+
+void SolClock::setTimezone(const std::string &ianaTimezone) {
+    if (ianaTimezone == prefs_.tzIana.get().value_or("Etc/UTC") &&
+        prefs_.tzPosix.get().has_value()) {
+        log_d("Timezone already set to %s", ianaTimezone.c_str());
+        return;
     }
-}
 
-auto SolClock::timeZoneString() -> std::string {
-    return timeZoneString(prefs_.solTimeZone.get().value_or(0));
-}
+    prefs_.tzIana.set(ianaTimezone);
+    std::string posixTimezoneString = ianaToPosix(ianaTimezone);
+    prefs_.tzPosix.set(posixTimezoneString);
 
-void SolClock::setTimezone(int timeZone) {
-    prefs_.solTimeZone.set(timeZone);
+    log_d("Switching to timezone %s=%s", ianaTimezone.c_str(), posixTimezoneString.c_str());
     loadTimeZone();
+}
+
+auto SolClock::ianaToPosix(const std::string &ianaTimezone) -> std::string {
+    SHOW_HEAP();
+    std::istringstream ss(IANA_TO_POSIX_TIMEZONES);
+    std::string line;
+    SHOW_HEAP();
+
+    while (std::getline(ss, line)) {
+        std::string::size_type pos = line.find(ianaTimezone);
+        if (pos != std::string::npos) {
+            std::string::size_type commaPos = line.find(',', pos);
+            if (commaPos != std::string::npos) {
+                SHOW_HEAP();
+                return line.substr(commaPos + 2); // skip comma and space
+            }
+        }
+    }
+
+    return "UTC0";
 }
 
 void SolClock::getLocaltime(tm *timeinfo) {
