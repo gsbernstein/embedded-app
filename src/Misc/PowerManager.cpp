@@ -134,12 +134,13 @@ void PowerManager::wakeupCheck(SolClock &clock) {
     if (state_ == PowerState::Booting) {
         // If the temple is closed but we're active booting, probably something wrong happened (like
         // a crash during content sync). Just go back to sleep.
-        templeOpen_ = isTempleOpen();
-        if (!templeOpen_) {
+        esp_err_t err = isTempleOpen(templeOpen_);
+        if (err != ESP_OK) {
+            log_e("Error checking temple state: %d, continuing boot", err);
+        } else if (!templeOpen_) {
             log_w("Temple is closed at boot, going back to sleep");
             ulpDeepSleep(SleepReason::TempleClosedAtBoot);
         }
-
         state_ = PowerState::Active;
         log_i("Beginning active boot");
     } else if (state_ == PowerState::Background) {
@@ -244,8 +245,11 @@ void PowerManager::loop() {
     battery.loop();
     checkUsb();
 #if USE_MMC5603
-    bool templeOpen = isTempleOpen();
-    if (templeOpen_ != templeOpen) {
+    bool templeOpen;
+    auto err = isTempleOpen(templeOpen);
+    if (err != ESP_OK) {
+        log_e("Error checking temple state %d, ignoring.", err);
+    } else if (templeOpen_ != templeOpen) {
         log_i("Temple is %s", templeOpen ? "open" : "closed");
         switch (state_) {
         case PowerState::Active:
@@ -267,8 +271,8 @@ void PowerManager::loop() {
         default:
             break;
         };
+        templeOpen_ = templeOpen;
     }
-    templeOpen_ = templeOpen;
 
     // Check the temperature
     if (state_ != PowerState::ActiveOverTemp &&
@@ -286,19 +290,19 @@ void PowerManager::loop() {
 #endif
 }
 
-auto PowerManager::isTempleOpen() -> bool {
+auto PowerManager::isTempleOpen(bool &open) -> esp_err_t {
     Xyz8bit magReading;
 #if USE_MMC5603
-
-    auto success = magSensor_.readXZ8Bit(magReading);
-    if (!success) {
+    auto err = magSensor_.readXZ8Bit(magReading);
+    if (err != ESP_OK) {
         log_e("Failed to read magnetometer");
-        return false;
+        return err;
     }
-    return IsTempleOpen(magReading.x, magReading.z);
+    open = IsTempleOpen(magReading.x, magReading.z);
 #else
-    return true;
+    open = true;
 #endif
+    return ESP_OK;
 }
 
 void PowerManager::checkUsb() {

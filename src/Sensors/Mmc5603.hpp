@@ -44,9 +44,9 @@ public:
     auto readX20Bit() -> float;
 
     // Only read the most significant byte on each axis
-    auto readXYZ8Bit(Xyz8bit &out) -> bool;
+    auto readXYZ8Bit(Xyz8bit &out) -> esp_err_t;
     // Only read the most significant byte on X and Z axes. Takes ~800us to run.
-    auto readXZ8Bit(Xyz8bit &out) -> bool;
+    auto readXZ8Bit(Xyz8bit &out) -> esp_err_t;
 
     // Read the temperature in degrees Celsius
     auto getTemperature() -> float { return temperature_; }

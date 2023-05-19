@@ -118,7 +118,7 @@ protected:
 #endif
     void updateState();
 
-    auto isTempleOpen() -> bool;
+    auto isTempleOpen(bool &open) -> esp_err_t;
 
     // Check if the USB cable is plugged in and check the battery state. Turn on the LED to either
     // red or green depending on the charge of the battery.
