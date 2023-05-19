@@ -8,6 +8,9 @@
 #include "Sensors/LightingController.hpp"
 #include "Sensors/Mmc5603.hpp"
 #include "Storage/PreferencesStore.hpp"
+#if EINKET013TT1
+#include "Displays/DisplayEinkET013TT1.hpp"
+#endif
 
 #if !DISABLE_POWER_MANAGEMENT
 #include <esp_pm.h>
@@ -28,6 +31,10 @@ enum class PowerState {
     // Deep sleep with ULP magnetometer and periodic wakeups ~100uA
     // Included for completeness not used in main CPU code currently
     Sleeping,
+    // Forced on (screen lighting enabled and MCU still running) while temples closed
+    // Same as Active but no turning off when the temples are closed until
+    // explictly taken out of this state or put to deep sleep.
+    ForcedOn,
     // Fully off (deep sleep) ~22uA
     Off,
 };
@@ -50,15 +57,19 @@ public:
 
     // Power manager initialization need to be as simple as possible
     PowerManager(FileSystem &fileSystem, PreferencesStore &prefs,
-                 LightingController &lightingController)
+                 LightingController &lightingController, DisplaySystem &display)
         : battery(fileSystem, prefs), prefs_(prefs), lightingController_(lightingController),
-          magSensor_(0) {}
+          display_(display), magSensor_(0) {}
+
     PowerManager(const PowerManager &) = delete;
 
     // Runs first thing upon startup to figure out what power mode we're in.
     void wakeupCheck(SolClock &clock);
 
     auto begin() -> esp_err_t;
+
+    auto forceOn() -> void { state_ = PowerState::ForcedOn; }
+    auto disableForceOn() -> void { state_ = PowerState::Active; }
 
     auto state() -> PowerState { return state_; }
 
@@ -106,6 +117,7 @@ protected:
     PowerState state_ = PowerState::Booting;
     std::function<void(PowerState)> stateChangeCallback_;
     LightingController &lightingController_;
+    DisplaySystem &display_;
     InactivityTimer inactivityTimer_;
     Mmc5603 magSensor_;
     bool templeOpen_ = false;

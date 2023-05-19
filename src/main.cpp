@@ -80,7 +80,7 @@ LittleFSFileSystem fileSystem;
 
 LocalStore localStore(fileSystem, prefs);
 
-PowerManager powerManager(fileSystem, prefs, lightingController);
+PowerManager powerManager(fileSystem, prefs, lightingController, myDisplay);
 RootUI rootUi(prefs, powerManager);
 SolClock solClock(prefs);
 

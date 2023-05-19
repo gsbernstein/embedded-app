@@ -258,6 +258,9 @@ void PowerManager::loop() {
                 // Delay to see the fade.
                 // TODO: Use a callback instead
                 Delay(200);
+                display_.clearDisplay();
+                display_.clearFrameBuffer();
+                display_.updateDisplay();
                 ulpDeepSleep(SleepReason::TempleClosed);
             }
             break;
@@ -268,6 +271,8 @@ void PowerManager::loop() {
                 reboot();
             }
             break;
+        // Explicitly don't do anything in the ForcedOn state when temples change.
+        case PowerState::ForcedOn:
         default:
             break;
         };
