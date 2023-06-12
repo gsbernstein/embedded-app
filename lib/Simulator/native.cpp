@@ -87,7 +87,7 @@ void SimDrawScreen() {
     if (movieOn_) {
         totalFrames++;
         char filename[100];
-        sprintf(filename, "frames/frame-%05d.png", totalFrames);
+        snprintf(filename, sizeof(filename), "frames/frame-%05d.png", totalFrames);
         saveScreenshotPng(filename, window, renderer);
     }
 }
