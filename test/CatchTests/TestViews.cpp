@@ -80,6 +80,15 @@ TEST_CASE("First few screens render correctly and handle remote commands") {
         WAIT_FOR_DRAW();
         ASSERT_VIEW_UNCHANGED("LastQuestion1Bookmarked");
 
+        // Render the popup menu to confirm page 1
+        SendRemoteCommand(DOWN);
+        WAIT_FOR_DRAW();
+        WAIT_FOR_DRAW();
+        ASSERT_VIEW_UNCHANGED("PopupMenu1");
+
+        // Return to book on page 1, then start paging through the book
+        SendRemoteCommand(LEFT);
+        WAIT_FOR_DRAW();
         SendRemoteCommand(ENTER);
         WAIT_FOR_DRAW();
         ASSERT_VIEW_UNCHANGED("LastQuestion2");
@@ -105,10 +114,30 @@ TEST_CASE("First few screens render correctly and handle remote commands") {
         ASSERT_VIEW_UNCHANGED("LastQuestion7");
 
         // Render the popup menu
+        SendRemoteCommand(DOWN);
+        WAIT_FOR_DRAW();
+        WAIT_FOR_DRAW();
+        ASSERT_VIEW_UNCHANGED("PopupMenu2");
+
+        // Seek to the end of the book, then confirm page number
+        SendRemoteCommand(ENTER);
+        WAIT_FOR_DRAW();
+        SendRemoteCommand(DOWN); // 1% granularity
+        WAIT_FOR_DRAW();
+        SendRemoteCommand(DOWN); // 0.1% granularity
+        WAIT_FOR_DRAW();
+        SendRemoteCommand(DOWN); // 10% granularity
+        WAIT_FOR_DRAW();
+        for (int i = 0; i < 10; i++) {
+            SendRemoteCommand(RIGHT);
+            WAIT_FOR_DRAW();
+        }
         SendRemoteCommand(UP);
         WAIT_FOR_DRAW();
+        SendRemoteCommand(UP); // Show popup menu
         WAIT_FOR_DRAW();
-        ASSERT_VIEW_UNCHANGED("PopupMenu");
+        WAIT_FOR_DRAW();
+        ASSERT_VIEW_UNCHANGED("PopupMenu3");
 
         // Go back to the main menu
         SendRemoteCommand(ENTER);
@@ -131,7 +160,23 @@ TEST_CASE("First few screens render correctly and handle remote commands") {
         WAIT_FOR_DRAW();
         WAIT_FOR_DRAW();
 
+        for (int i = 0; i < 6; i++) {
+            SendRemoteCommand(DOWN);
+            WAIT_FOR_DRAW();
+        }
+
         ASSERT_VIEW_UNCHANGED("PopupTOC");
+
+        SendRemoteCommand(ENTER);
+        WAIT_FOR_DRAW();
+
+        ASSERT_VIEW_UNCHANGED("Dawn");
+
+        // Render the popup menu
+        SendRemoteCommand(DOWN);
+        WAIT_FOR_DRAW();
+        WAIT_FOR_DRAW();
+        ASSERT_VIEW_UNCHANGED("PopupMenu4"); // Should show the updated seeked spot from the TOC
     }
 
     StopFreeRtos();
@@ -194,10 +239,8 @@ TEST_CASE("Test some views independently") {
             Renderer renderer(*display);
 
             ReadableTableOfContentsScreen screen(prefs, readable, renderer, *display);
-            screen.resetMenuItems();
-            for (const ReadableTableOfContentsChapter &chapter : readable->toc) {
-                screen.addMenuItem(MenuItem(chapter.title, []() {}));
-            }
+            screen.loadMenuItems();
+
             // This view renders twice, once with a full refresh and once with a AU4 so we need to
             // not wait on the signaling otherwise we'll hang here.
             FakeEinkET013TT1SkipSignalling = true;
