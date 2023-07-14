@@ -93,6 +93,43 @@ auto LocalStore::loadReadablesFromFile(ReadablesVector &readables, const std::st
     return true;
 }
 
+auto LocalStore::loadToc(const std::shared_ptr<Readable> &readable) -> bool {
+    std::string tocPath = readable->tocFilePath();
+    SFile tocFile = fileSystem.open(tocPath, FILE_READ, true);
+    if (!tocFile) {
+        log_w("Failed to open TOC file for reading");
+        return false;
+    }
+
+    auto tocDoc = std::make_unique<SpiRamJsonDocument>(
+        std::max(static_cast<size_t>(50000), 2 * tocFile.size()));
+    auto error = deserializeJson(*tocDoc, tocFile);
+    if (error) {
+        log_e("Failed to parse TOC JSON: %s", error.c_str());
+        return false;
+    }
+
+    readable->toc.clear();
+    auto tocJson = (*tocDoc)["toc"].as<JsonArray>();
+    for (const auto &chapter : tocJson) {
+        readable->toc.emplace_back();
+        readable->toc.back().fromJson(chapter);
+
+        // Check if any chapter has a summary, if so, set hasSummary
+        if (chapter["summary"].as<std::string>().size() > 0) {
+            readable->hasSummary = true;
+        }
+    }
+    log_d("Loaded %zu chapters from %s", readable->toc.size(), tocPath.c_str());
+    if (readable->hasSummary) {
+        log_d("Readable has summary");
+    } else {
+        log_d("Readable has no summary");
+    }
+    tocFile.close();
+    return true;
+}
+
 auto LocalStore::readablesModelType(const ReadablesVector &readables) -> ReadablesModelType {
     return &readables == &articles_ ? ReadablesModelType::Article : ReadablesModelType::Book;
 }
@@ -862,7 +899,7 @@ auto LocalStore::saveReadables(ReadablesVector &readables) -> bool {
 
     sortReadables(readables);
 
-    // Readables take up to 20KB of RAM each since the JSON can be large (includes ToC, cover
+    // Readables take up to 20KB of RAM each since the JSON can be large (includes cover
     // images, file metadata, etc.)
     auto doc = std::make_unique<SpiRamJsonDocument>(20000 * std::max(1, (int)readables.size()));
     auto modelType = readablesModelType(const_cast<ReadablesVector &>(readables));
@@ -874,7 +911,16 @@ auto LocalStore::saveReadables(ReadablesVector &readables) -> bool {
     log_d("Saving %zu %ss in %s", readables.size(), ReadableModelTypeToString(modelType).c_str(),
           path.c_str());
     for (const auto &readable : readables) {
-        readablesJson.add(*readable);
+        // Save ToC separately
+        if (!saveTableOfContents(readable)) {
+            log_e("Failed to save ToC of readable %s", readable->uuid.c_str());
+            return false;
+        }
+
+        // Save the readable without the ToC
+        Readable readableCopy = *readable;
+        readableCopy.toc.clear();
+        readablesJson.add(readableCopy);
     }
 
     if (doc->overflowed()) {
@@ -896,6 +942,44 @@ auto LocalStore::saveReadables(ReadablesVector &readables) -> bool {
 
     return true;
 };
+
+auto LocalStore::saveTableOfContents(const std::shared_ptr<Readable> &readable) -> bool {
+    if (!fileSystem.createDir("/toc")) {
+        log_e("could not create /toc directory");
+        return false;
+    }
+    if (fileSystem.exists(readable->tocFilePath())) {
+        log_d("ToC of readable %s already exists", readable->uuid.c_str());
+        return true;
+    }
+
+    auto doc = std::make_unique<SpiRamJsonDocument>(std::max(
+        static_cast<size_t>(50000),
+        5000 * readable->toc.size())); // Assuming that the ToC will not exceed 5KB * # of chapter
+    std::string path = readable->tocFilePath();
+    JsonArray tocJson = doc->createNestedArray("toc");
+
+    log_d("Saving ToC of readable %s in %s", readable->uuid.c_str(), path.c_str());
+    for (const auto &chapter : readable->toc) {
+        tocJson.add(chapter);
+    }
+
+    if (doc->overflowed()) {
+        log_e("Out of space in SpiRamJsonDocument for %s", path.c_str());
+        return false;
+    }
+
+    SFile file = fileSystem.open(path, FILE_WRITE, true);
+    if (!file) {
+        log_e("Failed to open file for writing");
+        return false;
+    }
+
+    serializeJsonPretty(*doc, file);
+    file.close();
+
+    return true;
+}
 
 auto LocalStore::readableFilePathForWriting(const std::shared_ptr<Readable> &readable) const
     -> std::string {

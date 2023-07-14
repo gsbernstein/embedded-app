@@ -82,6 +82,7 @@ public:
 
     auto begin() -> bool;
     auto loadReadablesFromFile(ReadablesVector &readables, const std::string &path) -> bool;
+    auto loadToc(const std::shared_ptr<Readable> &readable) -> bool;
 
     // Convenience methods
     auto books() -> ReadablesVector & { return books_; };
@@ -121,6 +122,7 @@ public:
     void deleteReadables(bool restart = true);
     void deleteArticles(bool restart = true);
     void deleteReadableFiles(const ReadablesVector &readables, bool restart);
+    auto saveTableOfContents(const std::shared_ptr<Readable> &readable) -> bool;
     auto removeStopWords(const SpiramString &title) -> std::string;
     void sortReadables(ReadablesVector &readables);
     auto saveReadables(ReadablesVector &readables) -> bool;
