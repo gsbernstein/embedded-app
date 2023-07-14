@@ -5,6 +5,8 @@ on:
   push:
     branches:
       - main
+    tags:
+      - "release/v*"
 
 jobs:
   build:
@@ -67,3 +69,15 @@ jobs:
           esp_idf_version: ${{ matrix.idf_version }}
           target: esp32s3
           path: .
+
+      - name: Upload binaries
+        uses: actions/upload-artifact@v3
+        if: github.ref == 'refs/heads/main' || contains(github.ref, 'refs/tags/release/v')
+        with:
+          name: embedded-app-{{ github.sha }}-IDF${{ matrix.idf_version }}
+          path: |
+            build/embedded-app.bin
+            build/embedded-app.elf
+            build/bootloader/bootloader.bin
+            build/partition_table/partition-table.bin
+            build/ota_data_initial.bin
