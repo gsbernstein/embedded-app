@@ -82,7 +82,6 @@ public:
     }
 
     // Power lifecycle functions
-    auto beginShutdown() -> bool;
     void reboot();
     void ulpDeepSleep(SleepReason reason = SleepReason::Unspecified);
     // Fully power down the device (assuming USB is disconnected and left temple closed)
@@ -148,5 +147,7 @@ protected:
     // red or green depending on the charge of the battery.
     void checkUsb();
 
-    void waitForQueuesThenDeepSleep(SleepReason reason);
+    void beginShutdown();
+
+    void deepSleepInternal(SleepReason reason);
 };
