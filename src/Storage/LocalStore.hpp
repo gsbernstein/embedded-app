@@ -105,6 +105,7 @@ public:
     void changedReadablesBookmarksJson(ReadableBookmarksVector &bookmarks);
     auto processReadablePlacemarksFromServer(const std::shared_ptr<Readable> &readable,
                                              const uint32_t placemark) -> bool;
+    auto processToCFromServer(const std::shared_ptr<Readable> &readable) -> bool;
     void resetReadablesPlacemarkChanged(const ReadablesVector &readables);
     void resetReadablesArchivedChanged(const ReadablesVector &readables);
     void resetReadablesBookmarksChanged(const ReadablesVector &readables);
