@@ -99,9 +99,23 @@ void RootUI::setup(DisplaySystem *display, LocalStore &localStore, FileSystem &f
     // Load the SolSans font only.
     ibmf75.load((ibmf_defs::MemoryPtr)fontsList[0].content, fontsList[0].length);
 
-    auto createReadableScreen =
-        [this, display, mainMenu, &fileSystem, &lightingController,
-         &localStore](const std::shared_ptr<Readable> &readable) -> ReadableScreen * {
+    auto booksMenu = new Menu(mainMenu->getMyStyle(), "Books");
+    auto articlesMenu = new Menu(mainMenu->getMyStyle(), "Articles");
+
+    // Bible hack (to show off if we wanted to have different "apps" that had different
+    // behavior. For now, it's just the same as a regular book.)
+    auto isBible = [](const std::shared_ptr<Readable> &r) -> bool {
+        return (r->title == "Psalms and Proverbs" || r->title == "New Testament" ||
+                r->title == "Old Testament" || r->title == "Torah");
+    };
+    auto bibleMenu = new Menu(mainMenu->getMyStyle(), "Bible");
+    auto it = std::find_if(readables.begin(), readables.end(),
+                           [isBible](const std::shared_ptr<Readable> &x) { return isBible(x); });
+    auto hasBible = it != readables.end();
+
+    auto createReadableScreen = [this, display, mainMenu, booksMenu, bibleMenu, articlesMenu,
+                                 hasBible, &fileSystem, &lightingController, &localStore](
+                                    const std::shared_ptr<Readable> &readable) -> ReadableScreen * {
         // TODO: Would be better to not allocate / delete these all the time
 
         std::shared_ptr<RendererStream> stream;
@@ -119,6 +133,7 @@ void RootUI::setup(DisplaySystem *display, LocalStore &localStore, FileSystem &f
         } else {
             stream = fileSystem.newRendererStream(path.c_str());
         }
+
         auto *readableScreen =
             new ReadableScreen(stream, *display, readable, this->prefs_, this->telemetry_,
                                localStore, fileSystem, lightingController);
@@ -129,7 +144,31 @@ void RootUI::setup(DisplaySystem *display, LocalStore &localStore, FileSystem &f
         // When switching to a readable from a menu, we should clear the display
         // to make the whites really white and the blacks really black.
         display->clearDisplay();
-        readableScreen->setBackCallback([this, display, stream, readableScreen, mainMenu]() {
+        readableScreen->setBackCallback([this, display, stream, readableScreen, readable, booksMenu,
+                                         bibleMenu, hasBible, articlesMenu, mainMenu]() {
+            bool archived = prefs_.readableArchivedChanged.get(readable->shortenedUuid.c_str());
+            auto title =
+                StringFormat("%s%s", archived ? "Archived: " : "", readable->title.c_str());
+            auto displayedTitle =
+                StringFormat("%s%s", !archived ? "Archived: " : "", readable->title.c_str());
+            log_d("Changing readable title to %s", title.c_str());
+            // Iterate through the menu items and change the title of the item that matches by title
+            auto updateMenuTitle = [displayedTitle, title](auto &menu) {
+                auto readableMenuItem = menu->getMenuItemByTitle(displayedTitle.c_str());
+                if (readableMenuItem != -1) {
+                    menu->changeItemTitleAt(readableMenuItem, title);
+                }
+            };
+
+            if (readable->isArticle()) {
+                updateMenuTitle(articlesMenu);
+            } else {
+                updateMenuTitle(booksMenu);
+            }
+            if (!prefs_.noBible.get().value_or(false) && hasBible) {
+                updateMenuTitle(bibleMenu);
+            }
+
             // When leaving a readable to go back to the main menu, do a full clear
             // of the display.
             prefs_.lastReadableId.remove();
@@ -163,10 +202,9 @@ void RootUI::setup(DisplaySystem *display, LocalStore &localStore, FileSystem &f
     auto currentReadable = prefs_.lastReadableId.get();
 
     bool hasLastQuestion = false;
-    auto it =
-        std::find_if(readables.begin(), readables.end(), [](const std::shared_ptr<Readable> &x) {
-            return (x->title.compare("The Last Question") == 0);
-        });
+    it = std::find_if(readables.begin(), readables.end(), [](const std::shared_ptr<Readable> &x) {
+        return (x->title.compare("The Last Question") == 0);
+    });
     if (it == readables.end()) {
         log_d("Could not find readable: %s, not enabling CES or EMC modes", "The Last Question");
     } else {
@@ -179,8 +217,6 @@ void RootUI::setup(DisplaySystem *display, LocalStore &localStore, FileSystem &f
         prefs_.cesMode.remove();
         prefs_.emcMode.remove();
     }
-
-    auto booksMenu = new Menu(mainMenu->getMyStyle(), "Books");
 
     // If there is firmware available, show the Update Firmware item in the books tab.
     auto makeReleaseNotesMenuItem = [this, &localStore, display, mainMenu]() {
@@ -230,11 +266,6 @@ void RootUI::setup(DisplaySystem *display, LocalStore &localStore, FileSystem &f
 
     SHOW_HEAP();
 
-    auto isBible = [](const std::shared_ptr<Readable> &r) -> bool {
-        return (r->title == "Psalms and Proverbs" || r->title == "New Testament" ||
-                r->title == "Old Testament" || r->title == "Torah");
-    };
-
     for (const auto &r : readables) {
         bool archived = prefs_.readableArchivedChanged.get(r->shortenedUuid.c_str());
         auto title = StringFormat("%s%s", archived ? "Archived: " : "", r->title.c_str());
@@ -272,15 +303,13 @@ void RootUI::setup(DisplaySystem *display, LocalStore &localStore, FileSystem &f
 
     log_i("Loading %zu Pocket articles", articles.size());
 
-    auto pocketMenu = new Menu(mainMenu->getMyStyle(), "Articles");
-
     if (prefs_.firmwareLoaded.get().has_value()) {
-        pocketMenu->addMenuItem(makeReleaseNotesMenuItem());
+        articlesMenu->addMenuItem(makeReleaseNotesMenuItem());
     }
 
     // If there are no articles, show the Sync Content item in the articles tab.
     if (articles.size() == 0) {
-        pocketMenu->addMenuItem(
+        articlesMenu->addMenuItem(
             MenuItem("Sync Content", [this, display, &localStore, mainMenu, &lightingController]() {
                 auto contentSyncScreen = new ContentSyncScreen(*display, localStore, this->prefs_);
                 lightingController.setOverrideValuePercent(lightingController.getCurrentPercent());
@@ -301,16 +330,16 @@ void RootUI::setup(DisplaySystem *display, LocalStore &localStore, FileSystem &f
         bool archived = prefs_.readableArchivedChanged.get(r->shortenedUuid.c_str());
         auto title = StringFormat("%s%s", archived ? "Archived: " : "", r->title.c_str());
 
-        pocketMenu->addMenuItem(
-            MenuItem(title, [this, display, pocketMenu, mainMenu, r, createReadableScreen]() {
+        articlesMenu->addMenuItem(
+            MenuItem(title, [this, display, articlesMenu, mainMenu, r, createReadableScreen]() {
                 display->clearDisplay();
                 auto readableScreen = createReadableScreen(r);
                 setCurrentScreen(*readableScreen);
                 readableScreen->setBackCallback(
-                    [this, r, display, readableScreen, mainMenu, pocketMenu]() {
+                    [this, r, display, readableScreen, mainMenu, articlesMenu]() {
                 bool archived = prefs_.readableArchivedChanged.get(r->shortenedUuid.c_str());
                 auto title = StringFormat("%s%s", archived ? "Archived: " : "", r->title.c_str());
-                pocketMenu->changeItemTitleAt(pocketMenu->getCurrSelection(), title);
+                articlesMenu->changeItemTitleAt(articlesMenu->getCurrSelection(), title);
                 display->clearDisplay();
                 mainMenu->setFirstLoad();
                 setCurrentScreen(*mainMenu);
@@ -322,8 +351,8 @@ void RootUI::setup(DisplaySystem *display, LocalStore &localStore, FileSystem &f
     SHOW_HEAP();
 
     if (!(prefs_.tutorialsDeleted.get().value_or(0) & TUTORIAL_SCREEN_ARTICLES)) {
-        pocketMenu->addMenuItem(MenuItem("\ue000 Articles Tutorial",
-                                         [this, createTutorialScreen]() {
+        articlesMenu->addMenuItem(MenuItem("\ue000 Articles Tutorial",
+                                           [this, createTutorialScreen]() {
             SpiramString message = SpiRamStringFormat(
                 "Welcome to the Articles menu. This tab "
                 "shows you the articles currently synced to your Sol Reader. To add more articles, "
@@ -336,16 +365,10 @@ void RootUI::setup(DisplaySystem *display, LocalStore &localStore, FileSystem &f
     }
 
     if (!prefs_.noArticles.get().value_or(false)) {
-        mainMenu->addSubMenu(pocketMenu);
+        mainMenu->addSubMenu(articlesMenu);
     }
 
-    // Bible hack (to show off if we wanted to have different "apps" that had different
-    // behavior. For now, it's just the same as a regular book.)
-    it = std::find_if(readables.begin(), readables.end(),
-                      [isBible](const std::shared_ptr<Readable> &x) { return isBible(x); });
-    auto hasBible = it != readables.end();
     if (!prefs_.noBible.get().value_or(false) && hasBible) {
-        auto bibleMenu = new Menu(mainMenu->getMyStyle(), "Bible");
         for (const auto &r : readables) {
             if (isBible(r)) {
                 bool archived = prefs_.readableArchivedChanged.get(r->shortenedUuid.c_str());
@@ -1554,7 +1577,7 @@ void RootUI::setup(DisplaySystem *display, LocalStore &localStore, FileSystem &f
     // NOLINTNEXTLINE(clang-analyzer-cplusplus.NewDeleteLeaks) in a way that disabled these warnings
     // for these variables
 #ifdef __clang_analyzer__
-    delete pocketMenu;
+    delete articlesMenu;
     delete booksMenu;
 #endif
 }
