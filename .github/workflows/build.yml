@@ -92,6 +92,7 @@ jobs:
             build/partition_table/partition-table.bin
             build/ota_data_initial.bin
 
-      - name: Release if on a Release tag
-        if: contains(github.ref, 'refs/tags/release/v')
-        uses: ./.github/workflows/release.yml
+  release:
+    if: contains(github.ref, 'refs/tags/release/v')
+    needs: build-idf
+    uses: ./.github/workflows/release.yml
