@@ -33,7 +33,7 @@ jobs:
           -F "release_notes=TODO"
 
       - name: Zip back up the build
-        run: zip -r embedded-app-${{ github.sha }}-IDFv5.1.zip ${{ steps.download.outputs.download-path }}
+        run: zip -r embedded-app-${{ github.sha }}-IDFv5.1.zip embedded-app-${{ github.sha }}-IDFv5.1
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
