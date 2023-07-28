@@ -16,10 +16,6 @@ jobs:
 
       - name: Create release
         run: |
-          ls ${{ github.workspace }}
-          ls ${{ steps.download.outputs.download-path }}
-          pwd ${{ steps.download.outputs.download-path }}
-          ls ${{ steps.download.outputs.download-path }}/..
           TAG_NAME="${{ github.ref }}"
           VERSION=${TAG_NAME#refs/tags/release/v}
           curl -X POST 'https://api.sindarin.com/firmware/' \
@@ -31,27 +27,14 @@ jobs:
           -F "device=GLASSES" \
           -F "release_notes=TODO"
 
-      - name: Create GitHub Release
-        id: create-release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ github.ref }}
-          release_name: Release ${{ github.ref }}
-          draft: false
-          prerelease: false
+      - name: Zip back up the build
+        run: zip -r embedded-app-${{ github.sha }}-IDFv5.1.zip build
 
-      - name: Upload Release Asset
-        id: upload-release-asset
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/')
         with:
-          upload_url: ${{ steps.create-release.outputs.upload_url }}
-          asset_path: ${{ steps.download.outputs.download-path }}
-          asset_name: embedded-app-${{ github.sha }}-${{ github.ref }}-IDF${{ matrix.idf_version }}.zip
-          asset_content_type: application/zip
+          files: embedded-app-${{ github.sha }}-IDFv5.1.zip
 
       - name: Notify Slack
         run: |
