@@ -8,20 +8,22 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Download binaries
-        if: contains(github.ref, 'refs/tags/release/v')
+        id: download
         uses: actions/download-artifact@v3
         with:
           name: embedded-app-${{ github.sha }}-IDFv5.1
+          path: build
 
       - name: Create release
         run: |
+          ls @${{ github.workspace }}
           TAG_NAME="${{ github.ref }}"
           VERSION=${TAG_NAME#refs/tags/release/v}
           curl -X POST 'https://api.sindarin.com/firmware/' \
           -H "Authorization: Tolkien ${{ secrets.SOL_AUTH_TOLKIEN }}" \
           -F "version=$VERSION" \
-          -F "file=@${{ github.workspace }}/embedded-app-${{ github.sha }}-IDFv5.1/embedded-app.bin;type=application/octet-stream" \
-          -F "elf=@${{ github.workspace }}/embedded-app-${{ github.sha }}-IDFv5.1/embedded-app.elf;type=application/octet-stream" \
+          -F "file=@${{ steps.download.outputs.download-path }}/embedded-app.bin;type=application/octet-stream" \
+          -F "elf=@${{ steps.download.outputs.download-path }}/embedded-app.elf;type=application/octet-stream" \
           -F "role=DEBUG" \
           -F "device=GLASSES" \
           -F "release_notes=TODO"
@@ -44,7 +46,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create-release.outputs.upload_url }}
-          asset_path: ./embedded-app-${{ github.sha }}-IDF${{ matrix.idf_version }}.zip
+          asset_path: ${{ steps.download.outputs.download-path }}
           asset_name: embedded-app-${{ github.sha }}-${{ github.ref }}-IDF${{ matrix.idf_version }}.zip
           asset_content_type: application/zip
 
