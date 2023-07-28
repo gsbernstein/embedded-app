@@ -16,7 +16,10 @@ jobs:
 
       - name: Create release
         run: |
-          ls @${{ github.workspace }}
+          ls ${{ github.workspace }}
+          ls ${{ steps.download.outputs.download-path }}
+          pwd ${{ steps.download.outputs.download-path }}
+          ls ${{ steps.download.outputs.download-path }}/..
           TAG_NAME="${{ github.ref }}"
           VERSION=${TAG_NAME#refs/tags/release/v}
           curl -X POST 'https://api.sindarin.com/firmware/' \
