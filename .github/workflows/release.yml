@@ -1,5 +1,10 @@
 on:
   workflow_call:
+    secrets:
+      sol-auth-tolkien:
+        required: true
+      slack-webhook-url:
+        required: true
 
 jobs:
   release:
@@ -12,14 +17,14 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           name: embedded-app-${{ github.sha }}-IDFv5.1
-          path: build
+          path: embedded-app-${{ github.sha }}-IDFv5.1
 
       - name: Create release
         run: |
           TAG_NAME="${{ github.ref }}"
           VERSION=${TAG_NAME#refs/tags/release/v}
           curl -X POST 'https://api.sindarin.com/firmware/' \
-          -H "Authorization: Tolkien ${{ secrets.SOL_AUTH_TOLKIEN }}" \
+          -H "Authorization: Tolkien ${{ secrets.sol-auth-tolkien }}" \
           -F "version=$VERSION" \
           -F "file=@${{ steps.download.outputs.download-path }}/embedded-app.bin;type=application/octet-stream" \
           -F "elf=@${{ steps.download.outputs.download-path }}/embedded-app.elf;type=application/octet-stream" \
@@ -28,7 +33,7 @@ jobs:
           -F "release_notes=TODO"
 
       - name: Zip back up the build
-        run: zip -r embedded-app-${{ github.sha }}-IDFv5.1.zip build
+        run: zip -r embedded-app-${{ github.sha }}-IDFv5.1.zip ${{ steps.download.outputs.download-path }}
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
@@ -42,4 +47,4 @@ jobs:
           VERSION=${TAG_NAME#refs/tags/release/v}
           curl -X POST -H 'Content-type: application/json' \
           --data "{\"text\":\"New release $VERSION has been uploaded. See it at https://api.sindarin.com/admin/devices/firmwaredownload/\"}" \
-          ${{ secrets.SLACK_WEBHOOK_URL }}
+          ${{ secrets.slack-webhook-url }}

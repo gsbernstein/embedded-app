@@ -96,3 +96,6 @@ jobs:
     if: contains(github.ref, 'refs/tags/release/v')
     needs: build-idf
     uses: ./.github/workflows/release.yml
+    secrets:
+      slack-webhook-url: ${{ secrets.SLACK_WEBHOOK_URL }}
+      sol-auth-tolkien: ${{ secrets.SOL_AUTH_TOLKIEN }}
