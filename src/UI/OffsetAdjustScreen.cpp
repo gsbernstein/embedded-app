@@ -27,7 +27,7 @@ OffsetAdjustScreen::OffsetAdjustScreen(DisplaySystem &display, PreferencesStore 
 void OffsetAdjustScreen::render(DisplaySystem &display) {
     DisplayRect currRect = display_.getBoundingBox();
     display.drawDottedBox(-2, -2, currRect.width + 4, currRect.height + 4, 1, 2);
-    this->renderer_.renderPage(0);
+    this->renderer_.renderPage(0, 0, true);
     display.updateDisplay(DisplaySystem::UpdateType::PARTIAL);
 }
 
