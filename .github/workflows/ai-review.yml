@@ -50,6 +50,7 @@ jobs:
               - DO NOT comment on missing comments/documentation.
               - DO NOT speculate about hypothetical failure cases outside of the code hunk (e.g. network failures, external variables initialized incorrectly, etc)
               - DO NOT suggest C++ exceptions for error handling (we don't use them).
+              - DO NOT comment about directly using instance variables of C++ classes. We are fine with that.
               - DO comment if you see a major, specific, and actionable way to significantly improve the code hunk.
               - DO comment if you see a likely unintentional bug/typo in the code hunk.
 
