@@ -33,6 +33,17 @@ enum class SyncReason {
     OnInactivity = 1,
     OnClose = 2,
     Periodic = 3,
+    // iOS = 4,
+    // Android = 5,
+    UsbConnected = 6,
+};
+
+auto ToString(SyncReason reason) -> const char *;
+
+enum class PairedStatus {
+    Unknown = 0,
+    Unpaired = 1,
+    Paired = 2,
 };
 
 template <typename T>
@@ -465,6 +476,8 @@ public:
         return true;
     }
 
+    auto started() -> bool { return started_; }
+
     auto end() -> esp_err_t {
         if (!started_) {
             return ESP_OK;
@@ -513,6 +526,16 @@ public:
               nvsStats.used_entries, nvsStats.free_entries, nvsStats.total_entries,
               sindarinEntries);
 #endif
+    }
+
+    static void resetSlowMem() {
+        syncReason = SyncReason::Manual;
+        nextSyncTime = 0;
+        ledChargeTime = 0;
+        lastBatteryReport = 0;
+        lastPageTurnerBattery = 0;
+        settingsOnRestart = false;
+        paired = PairedStatus::Unknown;
     }
 
 #if USE_TURN_TOUCH_REMOTE
@@ -587,6 +610,8 @@ public:
     static uint8_t lastBatteryReport;
     static uint8_t lastPageTurnerBattery;
     static bool settingsOnRestart;
+    // Indicates whether the glasses have been paired with a user account
+    static PairedStatus paired;
 
 protected:
     const uint32_t latestMigrationVersion_ = 4;

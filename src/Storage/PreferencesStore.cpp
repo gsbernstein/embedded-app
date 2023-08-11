@@ -9,6 +9,25 @@ RTC_SLOW_ATTR uint64_t PreferencesStore::ledChargeTime;
 RTC_SLOW_ATTR uint8_t PreferencesStore::lastBatteryReport;
 RTC_SLOW_ATTR uint8_t PreferencesStore::lastPageTurnerBattery;
 RTC_SLOW_ATTR bool PreferencesStore::settingsOnRestart;
+RTC_SLOW_ATTR PairedStatus PreferencesStore::paired;
+
+auto ToString(SyncReason reason) -> const char * {
+    switch (reason) {
+    case SyncReason::Manual:
+        return "Manual";
+    case SyncReason::OnInactivity:
+        return "OnInactivity";
+    case SyncReason::OnClose:
+        return "OnClose";
+    case SyncReason::Periodic:
+        return "Periodic";
+    case SyncReason::UsbConnected:
+        return "UsbConnected";
+    default:
+        log_e("Unknown SyncReason: %d", static_cast<int>(reason));
+        return "Unknown";
+    }
+}
 
 void DumpNVS() {
 #if !SIMULATOR
