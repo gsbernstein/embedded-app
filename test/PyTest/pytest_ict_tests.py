@@ -346,9 +346,9 @@ class TestPowerConsumption:
         ict_client.set_servo("right", 0)
 
         dut.expect("Sol: Temple is closed", timeout=10)
-        dut.expect("Sol: Entering deep sleep, wake up with magnetometer", timeout=20)
+        dut.expect("Sol: Sleeping for", timeout=20)
 
         time.sleep(5)
 
         logger.info("Measuring deep sleep current")
-        power_client.expect_current((150, 250), 5)
+        power_client.expect_current((50, 100), 5)
