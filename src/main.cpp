@@ -229,27 +229,6 @@ extern "C" void app_main(void) { // NOLINT(readability-identifier-naming)
         bootErrors.push_back({.type = BootError::Type::LocalStore});
     }
 
-    auto showChargingScreen = []() {
-        lightingController.setOverrideValuePercent(100);
-        auto chargingScreen = new ChargingScreen(prefs);
-        rootUi.setCurrentScreen(*chargingScreen);
-        UIInnerLoop(RemoteCommand::NONE);
-    };
-
-    powerManager.setStateChangeCallback([&showChargingScreen](PowerState state) {
-        if (state == PowerState::ActiveUSBCharging) {
-            showChargingScreen();
-        } else if (state == PowerState::ActiveOverTemp) {
-            auto overTempScreen = new OverTempScreen();
-            rootUi.setCurrentScreen(*overTempScreen);
-            UIInnerLoop(RemoteCommand::NONE);
-        } else if (state == PowerState::ActiveBatteryDepleted) {
-            auto powerDepletedScreen = new PowerDepletedScreen();
-            rootUi.setCurrentScreen(*powerDepletedScreen);
-            UIInnerLoop(RemoteCommand::NONE);
-        }
-    });
-
     WiFi::getInstance().setWiFiPower(
         (wifi_power_t)prefs.wifiPower.get().value_or(WIFI_POWER_16dBm));
 
@@ -265,7 +244,9 @@ extern "C" void app_main(void) { // NOLINT(readability-identifier-naming)
             },
             "BackgroundPowerLoop", 4096, nullptr, 1, nullptr, 1);
         BackgroundSyncAndSleep(powerManager, prefs, localStore, telemetry);
+
         // Should never get here, the system should be asleep
+        return;
     }
 
     // Below code should only execute on an Active boot
@@ -434,6 +415,27 @@ extern "C" void app_main(void) { // NOLINT(readability-identifier-naming)
 #if DISABLE_POWER_MANAGEMENT
     log_w("Power Management Disabled");
 #endif
+
+    auto showChargingScreen = []() {
+        lightingController.setOverrideValuePercent(100);
+        auto chargingScreen = new ChargingScreen(prefs);
+        rootUi.setCurrentScreen(*chargingScreen);
+        UIInnerLoop(RemoteCommand::NONE);
+    };
+
+    powerManager.setStateChangeCallback([&showChargingScreen](PowerState state) {
+        if (state == PowerState::ActiveUSBCharging) {
+            showChargingScreen();
+        } else if (state == PowerState::ActiveOverTemp) {
+            auto overTempScreen = new OverTempScreen();
+            rootUi.setCurrentScreen(*overTempScreen);
+            UIInnerLoop(RemoteCommand::NONE);
+        } else if (state == PowerState::ActiveBatteryDepleted) {
+            auto powerDepletedScreen = new PowerDepletedScreen();
+            rootUi.setCurrentScreen(*powerDepletedScreen);
+            UIInnerLoop(RemoteCommand::NONE);
+        }
+    });
 
     BlinkBootErrors(bootErrors);
 
