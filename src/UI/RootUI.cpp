@@ -31,6 +31,7 @@
 #include "UI/CalibrationScreen.hpp"
 #include "UI/ContentSyncScreen.hpp"
 #include "UI/CrashReportScreen.hpp"
+#include "UI/DebugAboutScreen.hpp"
 #include "UI/DemoScreen.hpp"
 #include "UI/FirmwareUpdateScreen.hpp"
 #include "UI/Fonts/Fonts.hpp"
@@ -1023,6 +1024,20 @@ void RootUI::setup(DisplaySystem *display, LocalStore &localStore, FileSystem &f
         });
     }));
 
+    systemSettingsMenu->addMenuItem(MenuItem("Firmware Update",
+                                             [this, systemSettingsMenu, display]() {
+        auto firmwareUpdateScreen = new FirmwareUpdateScreen(*display, this->prefs_);
+        this->setCurrentScreen(*firmwareUpdateScreen);
+        firmwareUpdateScreen->setBackCallback(
+            [this, firmwareUpdateScreen, systemSettingsMenu, display]() {
+            systemSettingsMenu->setFirstLoad();
+            setCurrentScreen(*systemSettingsMenu);
+            systemSettingsMenu->render(*display);
+            delete firmwareUpdateScreen;
+        });
+        firmwareUpdateScreen->begin();
+    }));
+
     systemSettingsMenu->addMenuItem(MenuItem("First Time Setup",
                                              [this, systemSettingsMenu, display]() {
         prefs_.noSetupMode.remove();
@@ -1043,6 +1058,17 @@ void RootUI::setup(DisplaySystem *display, LocalStore &localStore, FileSystem &f
         power_.reboot();
     }));
 #endif
+
+    debugSettingsMenu->addMenuItem(MenuItem("About", [this, debugSettingsMenu, display]() {
+        auto debugAboutScreen = new DebugAboutScreen(*display);
+        this->setCurrentScreen(*debugAboutScreen);
+        debugAboutScreen->setBackCallback([this, debugAboutScreen, debugSettingsMenu]() {
+            debugSettingsMenu->setFirstLoad();
+            display_->clearDisplay();
+            setCurrentScreen(*debugSettingsMenu);
+            delete debugAboutScreen;
+        });
+    }));
 
     debugSettingsMenu->addMenuItem(
         MenuItem("Sync Content", [this, display, &localStore, mainMenu, &lightingController]() {
@@ -1092,12 +1118,12 @@ void RootUI::setup(DisplaySystem *display, LocalStore &localStore, FileSystem &f
         systemSettingsMenu->showTemporaryMessage(*display, "WiFi settings cleared.", 2000, true);
     }));
 
-    systemSettingsMenu->addMenuItem(MenuItem("Reset Preferences",
-                                             [this, systemSettingsMenu, display]() {
+    debugSettingsMenu->addMenuItem(MenuItem("Reset Preferences",
+                                            [this, debugSettingsMenu, display]() {
         prefs_.clear();
         log_w("Preferences cleared. Rebooting...");
-        systemSettingsMenu->showTemporaryMessage(*display, "Preferences cleared. Rebooting...",
-                                                 2000, false);
+        debugSettingsMenu->showTemporaryMessage(*display, "Preferences cleared. Rebooting...", 2000,
+                                                false);
         power_.reboot();
     }));
 
@@ -1118,20 +1144,6 @@ void RootUI::setup(DisplaySystem *display, LocalStore &localStore, FileSystem &f
             power_.reboot();
         }));
     }
-
-    debugSettingsMenu->addMenuItem(MenuItem("Firmware Update",
-                                            [this, debugSettingsMenu, display]() {
-        auto firmwareUpdateScreen = new FirmwareUpdateScreen(*display, this->prefs_);
-        this->setCurrentScreen(*firmwareUpdateScreen);
-        firmwareUpdateScreen->setBackCallback(
-            [this, firmwareUpdateScreen, debugSettingsMenu, display]() {
-            debugSettingsMenu->setFirstLoad();
-            setCurrentScreen(*debugSettingsMenu);
-            debugSettingsMenu->render(*display);
-            delete firmwareUpdateScreen;
-        });
-        firmwareUpdateScreen->begin();
-    }));
 
     debugSettingsMenu->addMenuItem(MenuItem("Clear Books and Restart",
                                             [debugSettingsMenu, display, &localStore]() {
