@@ -263,6 +263,8 @@ auto PowerManager::begin() -> esp_err_t {
 }
 
 void PowerManager::powerOff() {
+    this->telemetry_.logMetric(TelemetryField::METRIC_SHUTDOWN, "PowerOff");
+
     beginShutdown();
     powerOffInternal();
 }
@@ -471,6 +473,8 @@ void PowerManager::scheduleSync(SyncReason reason, int time) {
 }
 
 void PowerManager::deepSleep(SleepReason reason) {
+    this->telemetry_.logMetric(TelemetryField::METRIC_SHUTDOWN, ToString(reason));
+
 #if DISABLE_DEEP_SLEEP
     log_w("Deep sleep disabled. Not sleeping.");
     return;
