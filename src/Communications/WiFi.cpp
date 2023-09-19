@@ -192,13 +192,13 @@ void WiFi::clearWiFiCredentials() {
 auto WiFi::scanNetworks(const std::function<void(std::shared_ptr<wifi_ap_record_t[]> apRecords,
                                                  int recordCount)> &channelScanCompleteCB)
     -> esp_err_t {
-    setState(WiFiState::SCANNING);
-
     esp_err_t err = begin();
     if (err != ESP_OK) {
         log_e("begin failed with error %s", esp_err_to_name(err));
         return err;
     }
+
+    setState(WiFiState::SCANNING);
 
     err = esp_wifi_start();
     if (err != ESP_OK) {
