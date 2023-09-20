@@ -65,6 +65,13 @@ private:
     template <typename T>
     void logMetricImpl(TelemetryField field, T value,
                        std::map<std::string, TelemetryVariant> &data) {
+        static_assert(
+            std::disjunction_v<std::is_same<T, float>, std::is_same<T, uint32_t>,
+                               std::is_same<T, int>, std::is_same<T, char *>,
+                               std::is_same<T, const char *>, std::is_same<T, std::string>,
+                               std::is_same<T, SpiramString>>,
+            "Unsupported type for logMetricImpl");
+
         // create log directory in filesystem if it doesn't exist
         if (!fileSystem_.createDir("/metrics")) {
             log_e("could not create /metrics directory");
@@ -84,7 +91,8 @@ private:
             if (value && strcmp(value, "") != 0) { // Check if the C-style string is not empty
                 valueFormat = StringFormat(R"(,"v":"%s")", value);
             }
-        } else if constexpr (std::is_same<T, std::string>::value) {
+        } else if constexpr (std::is_same<T, std::string>::value ||
+                             std::is_same<T, SpiramString>::value) {
             if (!value.empty()) { // Check if the std::string is not empty
                 valueFormat = StringFormat(R"(,"v":"%s")", value.c_str());
             }
