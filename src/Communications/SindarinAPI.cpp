@@ -75,7 +75,7 @@ auto SindarinAPI::checkSync(const std::string &url, CheckSyncRequest &req, Check
     defer { client.close(); };
 
     int writeLength = client.write(reqBody.get(), bodyLength);
-    if (writeLength < bodyLength) {
+    if (writeLength != bodyLength) {
         auto message = StringFormat("HttpClient failed to write (writeLength=%d, bodyLength=%zu)",
                                     writeLength, bodyLength);
         log_w("%s", message.c_str());
@@ -245,7 +245,7 @@ auto SindarinAPI::uploadTelemetryFile(SFile &telemetryFile, const std::string &l
     defer { client.close(); };
 
     auto bytesWritten = client.write(header.c_str(), header.size());
-    if (bytesWritten < header.size()) {
+    if (bytesWritten != header.size()) {
         log_e("Telemetry multipart write failure (%d < %zu)", bytesWritten, header.size());
         return ERR_CLIENT_WRITE;
     }
@@ -258,7 +258,7 @@ auto SindarinAPI::uploadTelemetryFile(SFile &telemetryFile, const std::string &l
     while (totalBytesWritten < writeSize) {
         auto bytesRead = telemetryFile.readBytes(buffer.get(), bufferSize);
         auto bytesWritten = client.write(buffer.get(), bytesRead);
-        if (bytesWritten <= 0) {
+        if (bytesWritten != bytesRead) {
             log_w("client.write failed (bytesWritten == %d)", bytesWritten);
             if (!client.connected) {
                 log_w("Connection closed, bailing out");
@@ -281,7 +281,8 @@ auto SindarinAPI::uploadTelemetryFile(SFile &telemetryFile, const std::string &l
 }
 
 auto SindarinAPI::uploadCrashReport(SFile &crashFile, const std::string &contentType) -> int {
-    HttpClient client(SINDARIN_SERVER_URL "/coredumps/", contentType.c_str(), HTTP_METHOD_POST);
+    HttpClient client(SINDARIN_SERVER_URL "/coredumps/", contentType.c_str(), HTTP_METHOD_POST,
+                      true);
     auto err = setAuth(client);
     if (err != ESP_OK) {
         return ERR_SET_AUTH;
@@ -301,7 +302,7 @@ auto SindarinAPI::uploadCrashReport(SFile &crashFile, const std::string &content
     while (totalBytesWritten < writeSize) {
         auto bytesRead = crashFile.readBytes(buffer.get(), bufferSize);
         auto bytesWritten = client.write(buffer.get(), bytesRead);
-        if (bytesWritten <= 0) {
+        if (bytesWritten != bytesRead) {
             log_w("client.write failed (bytesWritten == %d)", bytesWritten);
             if (!client.connected) {
                 log_w("Connection closed, bailing out");
