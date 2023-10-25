@@ -15,7 +15,7 @@ public:
     ~ReadableTableOfContentsChapter() override = default;
 
     SpiramString title;
-    SpiramString href;
+    std::string href;
     uint32_t txtOffset;
     uint32_t endTxtOffset;
     SpiramString inSubsectionHref;

@@ -1,5 +1,7 @@
 #include "ReadableSummaryScreen.hpp"
 
+#include <utility>
+
 #include "Misc/SpiramAllocator.hpp"
 
 auto ReadableSummaryScreen::layout(LayoutContext &context, Size size) -> Size {
@@ -21,12 +23,12 @@ void ReadableSummaryScreen::drawInRect(Rect rect) {
     bottomRightTextView_.draw();
 }
 
-void ReadableSummaryScreen::setPlaceInReadable(unsigned long placeInReadable) {
-    placeInReadable_ = placeInReadable;
-    preservePlace_ = 0;
+void ReadableSummaryScreen::setPlaceInReadable(std::shared_ptr<Place> placeInReadable) {
+    placeInReadable_ = std::move(placeInReadable);
+    preservePlace_ = nullptr;
 }
 
-auto ReadableSummaryScreen::checkAtEnd() -> bool { return (newPlace_ == 0); }
+auto ReadableSummaryScreen::checkAtEnd() -> bool { return (newPlace_ == nullptr); }
 
 void ReadableSummaryScreen::render(DisplaySystem &display) {
     setNeedsLayout();
@@ -50,27 +52,30 @@ void ReadableSummaryScreen::render(DisplaySystem &display) {
     // This is a slight hack to get around the fact that the bounding box of the display is not
     // context specific
     auto oldDisplayBoundingBox = insetBoundingBox();
+    uint8_t darkPicturePercent = 0;
 
     if (firstLoad_) {
-        unsigned long placeInSummary = 0;
+        std::shared_ptr<Place> placeInSummary = nullptr;
         SpiramString summaryString =
             readable_->summary(placeInReadable_, placeInSummary, showUnread_);
 
         if (preservePlace_) {
             placeInSummary = preservePlace_;
-            preservePlace_ = 0;
+            preservePlace_ = nullptr;
         }
         auto stream = std::make_shared<StdStringStream>(summaryString);
         renderer_.setStream(stream);
-        newPlace_ = renderer_.renderPage(placeInSummary);
-        log_d("Place in readable: %lu, place in summary: %lu", placeInReadable_, placeInSummary);
+        std::tie(newPlace_, darkPicturePercent) = renderer_.renderPage(placeInSummary);
+        log_d("Place in readable: %s, place in summary: %s", placeInReadable_->str().c_str(),
+              placeInSummary->str().c_str());
     } else {
         prevPlace_ = newPlace_;
-        newPlace_ = renderer_.renderPage(newPlace_);
+        std::tie(newPlace_, darkPicturePercent) = renderer_.renderPage(newPlace_);
     }
 
     atEnd_ = checkAtEnd();
-    display.updateDisplay(DisplaySystem::UpdateType::FULL);
+    display.updateDisplay(DisplaySystem::UpdateType::FULL, true,
+                          display.darkPictureVComAdj(darkPicturePercent));
     firstLoad_ = false;
 
     resetBoundingBox(oldDisplayBoundingBox);

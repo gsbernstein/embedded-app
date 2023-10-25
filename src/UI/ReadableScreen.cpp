@@ -96,9 +96,20 @@ void ReadableScreen::updateBookmarkStatus() {
     while (ReadOneBookmark(bookmarkFile, bookmark)) {
         // A decent heuristic for now. If the midpoint of the bookmark is within
         // the current page range, then turn the bookmark on for this page.
+
+        // Ensure that the current chapter matches the place in the bookmark
+        if (bookmark.firstPlace->isFor(DocType::EPUB)) {
+            if (std::dynamic_pointer_cast<EPubPlace>(bookmark.firstPlace)->getHRef() !=
+                std::dynamic_pointer_cast<EPubPlace>(readable_->place)->getHRef()) {
+                continue;
+            }
+        }
+
         uint32_t averagePlace =
-            (bookmark.lastPlace - bookmark.firstPlace) / 2 + bookmark.firstPlace;
-        if ((averagePlace >= readable_->place) && (averagePlace <= newPlace_)) {
+            (bookmark.lastPlace->getOffset() - bookmark.firstPlace->getOffset()) / 2 +
+            bookmark.firstPlace->getOffset();
+        if ((averagePlace >= readable_->place->getOffset()) &&
+            (averagePlace <= newPlace_->getOffset())) {
             if (bookmark.status == BOOKMARK_ON) {
                 inBookmark_ = true;
             } else {
@@ -107,6 +118,16 @@ void ReadableScreen::updateBookmarkStatus() {
         }
     }
     bookmarkFile.close();
+}
+
+auto ReadableScreen::getScreenCurrentCharOffset() -> uint32_t {
+    auto epubFile = std::dynamic_pointer_cast<EPubFile>(renderer_.getStream());
+    auto epubPlace = std::dynamic_pointer_cast<EPubPlace>(readable_->place);
+    if ((epubFile != nullptr) && (epubPlace != nullptr)) {
+        return epubFile->findCharOffsetAtFileOffset(epubPlace->getHRef(), epubPlace->getOffset());
+    } else {
+        return 0;
+    }
 }
 
 void ReadableScreen::writeOutBookmarkUpdate() {
@@ -124,7 +145,7 @@ void ReadableScreen::writeOutBookmarkUpdate() {
     }
 
     std::string plusOrMinus = inBookmark_ ? "+ " : "- ";
-    plusOrMinus += std::to_string(readable_->place) + " " + std::to_string(newPlace_) + "\n";
+    plusOrMinus += readable_->place->str() + " " + newPlace_->str() + "\n";
     bookmarkFile.write((const uint8_t *)plusOrMinus.c_str(), plusOrMinus.length());
     bookmarkFile.flush();
     bookmarkFile.close();
@@ -139,8 +160,8 @@ void ReadableScreen::turnPage() {
         if (prefs_.emcMode.get().value_or(false)) {
             log_d("Looping back to the beginning of Readable for EMC testing mode");
             // Loop back to the beginning
-            readable_->placePrev = 0;
-            readable_->place = 0;
+            readable_->placePrev->setOffset(0);
+            readable_->place->setOffset(0);
             return;
         }
         showPopupMenu();
@@ -148,7 +169,7 @@ void ReadableScreen::turnPage() {
     } else {
         readable_->placePrev = readable_->place;
         readable_->place = newPlace_;
-        prefs_.readablePlace.set(readable_->shortenedUuid.c_str(), readable_->place);
+        prefs_.readablePlace.set(readable_->shortenedUuid.c_str(), readable_->place->str());
         prefs_.readablePlaceChanged.set(readable_->shortenedUuid.c_str(), true);
         prefs_.lastReadTime.set(readable_->shortenedUuid.c_str(),
                                 SolClock::getInstance().getEpochTime());
@@ -160,9 +181,10 @@ void ReadableScreen::turnPage() {
     prefs_.wordCount.set(wc);
 }
 
-auto ReadableScreen::checkAtEnd() -> bool { return (newPlace_ == 0); }
+auto ReadableScreen::checkAtEnd() -> bool { return renderer_.atEndOfFile(); }
 
 void ReadableScreen::render(DisplaySystem &display) {
+
     // Rendering the popup is a special case. We first re-draw the text onto the background
     // (since it would have been cleared at the end of the last updateDisplay), then we render
     // the popup over it, then we draw that as a partial refresh. Then we only render the popup
@@ -194,7 +216,7 @@ void ReadableScreen::render(DisplaySystem &display) {
 
     prefs_.lastReadableId.set(readable_->uuid.c_str());
     telemetry_.logMetric(TelemetryField::METRIC_READABLE_PLACE, readable_->shortenedUuid.c_str(),
-                         {{"po", readable_->place}});
+                         readable_->telemetryPlacemarkMetrics());
 
     display.setFont(display.style.getFontFamily().readableFont);
 
@@ -219,7 +241,7 @@ void ReadableScreen::render(DisplaySystem &display) {
 
         prefs_.firstRead.set(true);
         ignoreNextPress_ = true;
-        firstTimeRenderer_.renderPage(0);
+        firstTimeRenderer_.renderFirstPage();
 
         if (prefs_.fastTransitions.get().value_or(false)) {
             display.updateDisplay(DisplaySystem::UpdateType::PARTIAL);
@@ -242,7 +264,7 @@ void ReadableScreen::render(DisplaySystem &display) {
 
         prefs_.firstAutopilotRead.set(true);
         ignoreNextPress_ = true;
-        firstTimeRenderer_.renderPage(0);
+        firstTimeRenderer_.renderFirstPage();
         if (prefs_.fastTransitions.get().value_or(false)) {
             display.updateDisplay(DisplaySystem::UpdateType::PARTIAL);
         } else {
@@ -251,9 +273,12 @@ void ReadableScreen::render(DisplaySystem &display) {
         return;
     }
 
+    uint8_t darkPicturePercent = 0;
+
     if (pageSpeed_ == 0) {
         // Regular Reading
-        newPlace_ = renderer_.renderPage(readable_->place);
+        std::tie(newPlace_, darkPicturePercent) = renderer_.renderPage(readable_->place);
+        log_w("Char Offset: %" PRIu32, getScreenCurrentCharOffset());
         atEnd_ = checkAtEnd();
     } else {
         // Autopilot Reading
@@ -263,7 +288,8 @@ void ReadableScreen::render(DisplaySystem &display) {
             speedLinesToSkip_++;
         }
 
-        newPlace_ = renderer_.renderPage(readable_->place, speedLinesToSkip_);
+        std::tie(newPlace_, darkPicturePercent) =
+            renderer_.renderPage(readable_->place, speedLinesToSkip_);
         atEnd_ = checkAtEnd();
 
         // If the line is blank, we want to skip it. Also, skip multiple newlines in a row.
@@ -310,7 +336,7 @@ void ReadableScreen::render(DisplaySystem &display) {
                             display.fg);
     }
 
-    log_d("%lu is the new place in the text %s", newPlace_, atEnd_ ? "(at end)" : "");
+    log_d("%s is the new place in the text %s", newPlace_->str().c_str(), atEnd_ ? "(at end)" : "");
 
     if (renderPopupBackground) {
         // Initial popup render (will use PARTIAL and not clear out the text)
@@ -319,10 +345,12 @@ void ReadableScreen::render(DisplaySystem &display) {
         popupMenuScreen_.render(display);
     } else if ((pageSpeed_ != 0) && (speedLinesToSkip_ > 0)) {
         if (autoPilotForceFull_) {
-            display.updateDisplay(DisplaySystem::UpdateType::FULL);
+            display.updateDisplay(DisplaySystem::UpdateType::FULL, true,
+                                  display.darkPictureVComAdj(darkPicturePercent));
             autoPilotForceFull_ = false;
         } else {
-            display.updateDisplay(DisplaySystem::UpdateType::FAST_ORIGINAL_AU4);
+            display.updateDisplay(DisplaySystem::UpdateType::FAST_ORIGINAL_AU4, true,
+                                  display.darkPictureVComAdj(darkPicturePercent));
         }
     } else {
         if (renderTransitionArrows) {
@@ -330,14 +358,17 @@ void ReadableScreen::render(DisplaySystem &display) {
         }
         if (prefs_.fastTransitions.get().value_or(false)) {
             display.updateDisplay(DisplaySystem::UpdateType::PARTIAL,
-                                  (renderTransitionArrows) ? false : true);
+                                  (renderTransitionArrows) ? false : true,
+                                  display.darkPictureVComAdj(darkPicturePercent));
         } else {
             display.updateDisplay(DisplaySystem::UpdateType::FULL,
-                                  (renderTransitionArrows) ? false : true);
+                                  (renderTransitionArrows) ? false : true,
+                                  display.darkPictureVComAdj(darkPicturePercent));
         }
         if (renderTransitionArrows) {
             drawArrows(true);
-            display.updateDisplay(DisplaySystem::UpdateType::ERASE, false);
+            display.updateDisplay(DisplaySystem::UpdateType::ERASE, false,
+                                  display.darkPictureVComAdj(darkPicturePercent));
         }
     }
 
@@ -473,7 +504,7 @@ void ReadableScreen::processCommandNormal(RemoteCommand command) {
     switch (command) {
     case RemoteCommand::LEFT:
         readable_->place = renderer_.getPreviousPlace();
-        prefs_.readablePlace.set(readable_->shortenedUuid.c_str(), readable_->place);
+        prefs_.readablePlace.set(readable_->shortenedUuid.c_str(), readable_->place->str());
         prefs_.readablePlaceChanged.set(readable_->shortenedUuid.c_str(), true);
         prefs_.lastReadTime.set(readable_->shortenedUuid.c_str(),
                                 SolClock::getInstance().getEpochTime());

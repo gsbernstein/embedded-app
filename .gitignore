@@ -8,6 +8,8 @@ dependencies.lock
 .DS_Store
 # Where to put all your data you want in SPIFFS (i.e. Readables)
 data
+# Where all book page images will be saved using the 'i' command of the simulator
+bookImages
 __pycache__
 .temp
 # Simulator prefs
@@ -21,6 +23,7 @@ next.png
 nextnext.png
 nextprev.png
 test/CatchTests/Images/TestRun
+test/CatchTests/EPubImages/TestRun
 reports
 managed_components
 sol-pytest-*
@@ -29,4 +32,5 @@ test/PyTest/requirements.txt
 current_samples_*
 warnings.txt
 test/CatchTests/TestData/metrics/
+test/CatchTests/EPubTestData/metrics/
 build-log.txt

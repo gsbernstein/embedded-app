@@ -177,6 +177,10 @@ public:
     auto getTextHeight(const std::string &buffer) -> int;
     auto getTextWidth(const std::string &buffer) -> int;
 
+    inline auto getTextWidthQuick(const char *buffer) -> int {
+        return static_cast<IBMFFont *>(font_)->getTextWidthQuick(buffer);
+    }
+
     // MARK: - Graphic drawing code
 
     // Basically Adafruit_GFX::drawRect with the necessary partial refresh stuff
@@ -215,6 +219,10 @@ public:
 
     auto xAbsoluteMax() -> int { return 255; }
     auto yAbsoluteMax() -> int { return 255; }
+
+    [[nodiscard]] virtual auto darkPictureVComAdj(uint8_t darkPixelsPercent) const -> int {
+        return 0;
+    }
 
 protected:
     // Must be set in the constructor of subclasses

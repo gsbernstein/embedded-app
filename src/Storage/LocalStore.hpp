@@ -8,6 +8,7 @@
 #include "Misc/Dispatch.hpp"
 #include "Misc/Telemetry.hpp"
 #include "Models/CheckSync.hpp"
+#include "Models/Place.hpp"
 #include "Models/Readable.hpp"
 #include "Models/UserReadable.hpp"
 #include "Storage/FileSystem.hpp"
@@ -105,7 +106,8 @@ public:
                                       ReadableArchivesVector &archives);
     void changedReadablesBookmarksJson(ReadableBookmarksVector &bookmarks);
     auto processReadablePlacemarksFromServer(const std::shared_ptr<Readable> &readable,
-                                             const uint32_t placemark) -> bool;
+                                             const std::shared_ptr<Place> &txtPlace,
+                                             const std::shared_ptr<Place> &ePubPlace) -> bool;
     auto processToCFromServer(const std::shared_ptr<Readable> &readable) -> bool;
     void resetReadablesPlacemarkChanged(const ReadablesVector &readables);
     void resetReadablesArchivedChanged(const ReadablesVector &readables);
@@ -154,12 +156,13 @@ public:
 
     // Clean up old keys in NVS
     void garbageCollectPreferences();
+    void migrateTxtPlacemarksToEpubPlacemarks();
     void migrateIfNeeded();
 
     FileSystem &fileSystem;
 
 private:
-    const uint32_t latestMigrationVersion_ = 1;
+    const uint32_t latestMigrationVersion_ = 2;
     PreferencesStore &prefs_;
     Battery &battery_;
     Telemetry &telemetry_;

@@ -178,6 +178,10 @@ auto HttpClient::writeAvailableCompressedData() -> bool {
     return true;
 }
 
+auto HttpClient::isChunkedResponse() -> bool {
+    return esp_http_client_is_chunked_response(client_);
+}
+
 auto HttpClient::writeChunkedData(const char *data, int length) -> bool {
     char lstr[32];
     if (!SafeSnprintf(lstr, sizeof(lstr), "%x\r\n", length)) {

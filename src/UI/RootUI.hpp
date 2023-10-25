@@ -26,6 +26,10 @@ public:
     void handleBrowse(FileSystem &fileSystem, MenuScreen *fsMenu, const std::string &path = "/");
 
 protected:
+    std::vector<std::string> itemErrorMsg_ = {"INTERNAL ERROR!", "The item you tried to access",
+                                              "cannot be read or found.",
+                                              "Please contact support."};
+
     PreferencesStore &prefs_;
     PowerManager &power_;
     DisplaySystem *display_ = nullptr;

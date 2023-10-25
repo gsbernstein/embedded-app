@@ -1,16 +1,62 @@
 #include "ReadablePopupMenuScreen.hpp"
 
 void ReadablePopupMenuScreen::setUpPopupMenu() {
-    size_t place = renderer_.getCurrentPlace();
-    size_t lengthOfFile = renderer_.size();
+    std::shared_ptr<Place> place = renderer_.getCurrentPlace();
 
-    float placeInTextPercentage = (float)place / (float)lengthOfFile * 100;
+    std::string placeStringForBottom;
+    std::string chapterPagesRemainingString;
 
-    std::string placeString = StringFormat("%.1f%%", placeInTextPercentage);
-    std::string placeStringForBottom =
-        StringFormat("%d/%d", SOL_PAGE_NUMBER(place), SOL_PAGE_NUMBER(lengthOfFile));
+    if (place->isFor(DocType::EPUB)) {
+        localStore_.loadToc(readable_);
 
-    popupMenuView_.setAuxText(placeStringForBottom);
+        auto &chapterHref = std::dynamic_pointer_cast<EPubPlace>(place)->getHRef();
+        auto chapterIndex = readable_->findEPubHRefChapterIdx(chapterHref);
+
+        // If the chapter isn't found in the ToC, find it in the spine and walk backwards until we
+        // find a chapter that is found in the ToC.
+        if (chapterIndex == -1) {
+            auto stream = std::dynamic_pointer_cast<EPubFile>(renderer_.getStream());
+            auto ePubPlace = std::dynamic_pointer_cast<EPubPlace>(place);
+            chapterIndex = stream->getReadableChapterIndex(ePubPlace);
+        }
+
+        if (chapterIndex >= 0) {
+            auto &chapter = readable_->toc[chapterIndex];
+
+            // TODO(john): This isn't exactly right because `place->getOffset()` is a byte offset,
+            // not a letter offset from the beginning of the chapter. The chapters always start with
+            // extra html-y stuff at the start so this is always inflated by some amount.
+            auto currentOffset = chapter.txtOffset + renderer_.getTxtOffset();
+
+            // Get the end offset of the last chapter (to determine the length of the book)
+            auto &lastChapter = readable_->toc[readable_->toc.size() - 1];
+            auto lastChapterEndOffset = lastChapter.endTxtOffset;
+
+            placeStringForBottom = StringFormat("%d of %d", SOL_PAGE_NUMBER(currentOffset),
+                                                SOL_PAGE_NUMBER(lastChapterEndOffset));
+
+            // Determine how many Sol Pages are left in the chapter
+            auto chapterPagesRemaining = chapter.endTxtOffset - currentOffset;
+            chapterPagesRemainingString =
+                StringFormat("%d page%s left", SOL_PAGE_NUMBER(chapterPagesRemaining),
+                             SOL_PAGE_NUMBER(chapterPagesRemaining) == 1 ? "" : "s");
+        } else {
+            log_w("Couldn't find chapter index (%d) for href %s", chapterIndex,
+                  chapterHref.c_str());
+        }
+    } else {
+        size_t lengthOfFile = renderer_.size();
+        placeStringForBottom = StringFormat("%d of %d", SOL_PAGE_NUMBER(renderer_.getTxtOffset()),
+                                            SOL_PAGE_NUMBER(lengthOfFile));
+    }
+
+    popupMenuView_.setFooter1Text(chapterPagesRemainingString);
+
+    popupMenuView_.setFooter2Text(placeStringForBottom);
+
+    SolClock &theClock = SolClock::getInstance();
+    auto timeString = theClock.getTimeString();
+    popupMenuView_.setFooter3Text(timeString);
 
     if (popupMenuView_.menuItemViews.size() == 0) {
         populatePopupMenu();
@@ -25,7 +71,9 @@ void ReadablePopupMenuScreen::setUpPopupMenu() {
         archiveMenuItemView_->setHidden(false);
         unarchiveMenuItemView_->setHidden(true);
     }
+
     popupMenuView_.setNeedsLayout();
+    setNeedsLayout();
     setFirstLoad();
 }
 
@@ -79,6 +127,11 @@ void ReadablePopupMenuScreen::populatePopupMenu() {
         log_d("Setting current screen to brightness screen");
         lightingAdjustScreen_.setFirstLoad();
         setCurrentScreen(lightingAdjustScreen_);
+    }));
+
+    addMenuItem(MenuItem("Report page", [this]() {
+        log_d("Reporting a problem with the page");
+        onReport();
     }));
 
     auto hasToc = readable_->toc.size() >= 1;
@@ -177,7 +230,6 @@ void ReadablePopupMenuScreen::render(DisplaySystem &display) {
             menuItemView->setSelected(false);
         }
 
-        popupMenuView_.updateTime();
         popupMenuView_.draw();
 
         display.updateDisplay(DisplaySystem::UpdateType::PARTIAL);
@@ -203,3 +255,11 @@ void ReadablePopupMenuScreen::render(DisplaySystem &display) {
         display.updateDisplay(DisplaySystem::UpdateType::FAST_WITH_VCOM_NUDGE);
     }
 };
+
+void ReadablePopupMenuScreen::showTemporaryMessage(DisplaySystem &display,
+                                                   const std::string &message, int duration) {
+    display.setFont(display.style.getFontFamily().settingsFont);
+    display.drawSingleLineOfCenteredText(message);
+    display.updateDisplay(DisplaySystem::UpdateType::PARTIAL);
+    Delay(duration);
+}

@@ -9,8 +9,10 @@
 #include "Storage/PreferencesStore.hpp"
 #include "UI/Components/ArrowView.hpp"
 #include "UI/ContainerScreen.hpp"
+#include "UI/MsgPopup.hpp"
 #include "UI/ReadablePopupMenuScreen.hpp"
 #include "UI/Screen.hpp"
+#include "Version.hpp"
 #include "config.h"
 
 enum LastArrowPress {
@@ -25,7 +27,7 @@ enum LastArrowPress {
 // TODO: make the readable copy here in Spiram
 class ReadableScreen : public ContainerScreen, public EinkView {
 public:
-    ReadableScreen(std::shared_ptr<RendererStream> stream, DisplaySystem &display,
+    ReadableScreen(const std::shared_ptr<RendererStream> &stream, DisplaySystem &display,
                    const std::shared_ptr<Readable> &readable, PreferencesStore &prefs,
                    Telemetry &telemetry, LocalStore &localStore, FileSystem &fileSystem,
                    LightingController &lightingController)
@@ -37,21 +39,24 @@ public:
           upArrowView_(display, ArrowUp), downArrowView_(display, ArrowDown) {
 
         currentScreen_ = this;
-        renderer_.setStream(std::move(stream));
+        renderer_.setStream(stream);
 
-        pageSpeed_ = prefs_.autoPilotSpeed.get().value_or(0);
-        if (!prefs_.cesMode.get().value_or(false)) {
-            readable_->place = prefs_.readablePlace.get(readable_->shortenedUuid.c_str());
+        std::string thePlace = prefs_.readablePlace.get(readable_->shortenedUuid.c_str());
+        log_d("readablePlace: \"%s\"", thePlace.c_str());
+
+        if (!prefs_.cesMode.get().value_or(false) && !thePlace.empty()) {
+            readable_->place = Place::factory(thePlace);
         } else {
-            readable_->place = 0;
+            readable_->place = std::make_shared<TxtPlace>();
         }
         // for the animation bits since we may end up coming back to this constructor after being
         // interrupted.
         newPlace_ = readable_->place;
         atEnd_ = this->checkAtEnd();
+        pageSpeed_ = prefs_.autoPilotSpeed.get().value_or(0);
 
-        log_d("Found place for %s = %" PRIu32 " %s", readable_->shortenedUuid.c_str(),
-              readable_->place, atEnd_ ? "(at end)" : "");
+        log_d("Found place for %s = %s %s", readable_->shortenedUuid.c_str(),
+              readable_->place->str().c_str(), atEnd_ ? "(at end)" : "");
 
         popupMenuScreen_.setBackCallback([this]() {
             autoPilotForceFull_ = true;
@@ -76,6 +81,23 @@ public:
             writeOutBookmarkUpdate();
         };
 
+        popupMenuScreen_.onReport = [this, &display]() {
+            setNeedsRerender();
+            auto metrics = readable_->telemetryPlacemarkMetrics();
+            metrics["fw"] = kVersionString;
+            telemetry_.logMetric(TelemetryField::METRIC_REPORT, readable_->uuid.c_str(), metrics);
+            static std::vector<std::string> reportMsg = {
+                "Thank you, our team will", "review this page for", "formatting issues."};
+            auto *reportPopup = new MsgPopup(display, reportMsg);
+            display.clearDisplay();
+            this->setCurrentScreen(*reportPopup);
+            reportPopup->setBackCallback([this, reportPopup, &display]() {
+                display.clearDisplay();
+                this->setCurrentScreen(*this);
+                delete reportPopup;
+            });
+        };
+
         popupMenuScreen_.onRerender = [this]() { renderPopup_ = true; };
     }
 
@@ -88,6 +110,14 @@ public:
     void processCommand(RemoteCommand command) override;
     void writeOutBookmarkUpdate();
     void updateBookmarkStatus();
+    auto checkAtEnd() -> bool;
+    auto getScreenCurrentCharOffset() -> uint32_t;
+
+    // Used to retrieve the current spine idx and offset in the corresponding file.
+    // See test/CatchTests/TestEPub.cpp
+    auto getStreamPlace() -> renderer_defs::StreamPlace {
+        return renderer_.getStreamPlace(readable_->place);
+    }
 
 protected:
     void processCommandDemoMode(RemoteCommand command);
@@ -109,7 +139,7 @@ protected:
     bool inBookmark_ = false;
     bool ignoreNextPress_ = false;
 
-    unsigned long newPlace_ = 0;
+    std::shared_ptr<Place> newPlace_ = nullptr;
     bool atEnd_ = false;
     bool shownIcons_ = false;
     bool renderPopup_ = false;
@@ -134,7 +164,6 @@ protected:
 private:
     void incrementReadingTime();
     void turnPage();
-    auto checkAtEnd() -> bool;
     uint32_t readingStartTime_;
     LastArrowPress lastArrowPress_ = REMOTE_NONE;
 

@@ -52,7 +52,10 @@ public:
 
     auto makeReadStream() -> std::shared_ptr<HttpIstream<4096>>;
 
+    auto isChunkedResponse() -> bool;
+
     auto writeChunkedData(const char *data, int length) -> bool;
+
     auto endChunkedData() -> bool;
 
     bool connected;

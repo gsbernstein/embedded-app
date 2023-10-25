@@ -5,12 +5,13 @@
 
 #include "Misc/SpiramAllocator.hpp"
 #include "Models/JsonSerializable.hpp"
+#include "Models/Place.hpp"
 
 enum BookmarkStatus { BOOKMARK_OFF = 0, BOOKMARK_ON = 1 };
 
 struct LocalBookmark {
-    uint32_t firstPlace;
-    uint32_t lastPlace;
+    std::shared_ptr<Place> firstPlace;
+    std::shared_ptr<Place> lastPlace;
     BookmarkStatus status;
 };
 
@@ -21,6 +22,8 @@ public:
 
     SpiramString uuid;
     uint32_t startingPosition;
+    std::string chapter;
+    uint32_t chapterOffset;
     uint32_t endingPosition;
     SpiramString readable;
     bool willDelete;
@@ -31,8 +34,10 @@ public:
         }
 
         uuid = j["uuid"].as<std::string>();
-        startingPosition = j["starting_position"].as<int>();
-        endingPosition = j["ending_position"].as<int>();
+        startingPosition = j["starting_position"].as<uint32_t>();
+        endingPosition = j["ending_position"].as<uint32_t>();
+        chapter = j["chapter"].as<std::string>();
+        chapterOffset = j["chapter_offset"].as<uint32_t>();
         readable = j["readable"].as<std::string>();
 
         return true;

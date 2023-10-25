@@ -7,6 +7,7 @@
 #include <freertos/task.h>
 #include <iostream>
 #include <signal.h>
+#include <sstream>
 #include <thread>
 #include <unistd.h>
 #pragma clang diagnostic push
@@ -22,6 +23,8 @@
 #include "Misc/Math.hpp"
 #include "Misc/Platform.hpp"
 #include "Sensors/LightingController.hpp"
+#include "UI/ReadableScreen.hpp"
+#include "UI/Screen.hpp"
 #include "sindarin-debug.h"
 
 #if SIMULATOR_BLE
@@ -38,6 +41,8 @@
 #endif
 
 extern void UIInnerLoop(RemoteCommand command);
+extern Screen *UIGetCurrentScreen();
+
 extern "C" void app_main(void); // NOLINT(readability-identifier-naming)
 
 const char *kGitHash = "SIMULATOR";
@@ -230,26 +235,83 @@ void sendCodeAndRender(RemoteCommand command, SDL_Renderer *renderer) {
 void runBackwardsUnitTest(SDL_Window *window, SDL_Renderer *renderer) {
     auto skipWaveform = FakeEinkET013TT1SkipWaveform;
     FakeEinkET013TT1SkipWaveform = true;
-    bool first = true;
-    for (int i = 0; i < 10000; i++) {
-        if (!first) {
-            saveScreenshotPng("current.png", window, renderer);
+
+    auto screen = UIGetCurrentScreen();
+    auto readableScreen = dynamic_cast<ReadableScreen *>(screen);
+
+    if (readableScreen != nullptr) {
+        bool first = true;
+        for (int i = 0;; i++) {
+            if (!first) {
+                saveScreenshotPng("current.png", window, renderer);
+                if (readableScreen->checkAtEnd()) break;
+                sendCodeAndRender(RemoteCommand::ENTER, renderer);
+            }
+            first = false;
+            saveScreenshotPng("next.png", window, renderer);
+            if (readableScreen->checkAtEnd()) break;
+            sendCodeAndRender(RemoteCommand::ENTER, renderer);
+            saveScreenshotPng("nextnext.png", window, renderer);
+            sendCodeAndRender(RemoteCommand::LEFT, renderer);
+            saveScreenshotPng("nextprev.png", window, renderer);
+            // compare the most two recent pngs -- they should be the same.
+            // if not, error out.
+            if (!isPngEqual("./next.png", "./nextprev.png")) {
+                std::cerr << "images don't match, sad face\n";
+                std::cerr << "check out next.png and nextprev.png for the diffs\n";
+                exit(1);
+            }
+        }
+        std::cerr << "Unit test passed\n";
+    } else {
+        std::cerr << "Not in a readableScreen!!\n";
+    }
+    FakeEinkET013TT1SkipWaveform = skipWaveform;
+}
+
+// This is used to save all png images of a book in support of the
+// automated testing capability
+void saveBookImages(SDL_Window *window, SDL_Renderer *renderer) {
+    auto skipWaveform = FakeEinkET013TT1SkipWaveform;
+    FakeEinkET013TT1SkipWaveform = true;
+
+    auto screen = UIGetCurrentScreen();
+    auto readableScreen = dynamic_cast<ReadableScreen *>(screen);
+
+    if (readableScreen != nullptr) {
+        for (int i = 0;; i++) {
+            std::ostringstream fname;
+            fname << "bookImages/" << i << ".png";
+            saveScreenshotPng(fname.str(), window, renderer);
+            if (readableScreen->checkAtEnd()) break;
             sendCodeAndRender(RemoteCommand::ENTER, renderer);
         }
-        first = false;
-        saveScreenshotPng("next.png", window, renderer);
-        sendCodeAndRender(RemoteCommand::ENTER, renderer);
-        saveScreenshotPng("nextnext.png", window, renderer);
-        sendCodeAndRender(RemoteCommand::LEFT, renderer);
-        saveScreenshotPng("nextprev.png", window, renderer);
-        // compare the most two recent pngs -- they should be the same.
-        // if not, error out.
-        if (!isPngEqual("./next.png", "./nextprev.png")) {
-            std::cerr << "images don't match, sad face\n";
-            std::cerr << "check out next.png and nextprev.png for the diffs\n";
-            exit(1);
-        }
+        std::cerr << "Save Book Image Completed!" << std::endl;
+    } else {
+        std::cerr << "Not in a ReadableScreen!" << std::endl;
     }
+
+    FakeEinkET013TT1SkipWaveform = skipWaveform;
+}
+
+// Only press 'a' when you are on a page in a readable.
+void previousPageFast(SDL_Window *window, SDL_Renderer *renderer) {
+    auto skipWaveform = FakeEinkET013TT1SkipWaveform;
+    FakeEinkET013TT1SkipWaveform = true;
+
+    sendCodeAndRender(RemoteCommand::LEFT, renderer);
+
+    FakeEinkET013TT1SkipWaveform = skipWaveform;
+    std::cerr << "unit test passed\n";
+}
+
+// Only press 's' when you are on a page in a readable.
+void nextPageFast(SDL_Window *window, SDL_Renderer *renderer) {
+    auto skipWaveform = FakeEinkET013TT1SkipWaveform;
+    FakeEinkET013TT1SkipWaveform = true;
+
+    sendCodeAndRender(RemoteCommand::ENTER, renderer);
+
     FakeEinkET013TT1SkipWaveform = skipWaveform;
     std::cerr << "unit test passed\n";
 }
@@ -263,11 +325,34 @@ void goBackNumPages(SDL_Window *window, SDL_Renderer *renderer, int numPages) {
     }
 }
 
+void goBackwardNumPages(SDL_Window *window, SDL_Renderer *renderer, int numPages) {
+    auto skipWaveform = FakeEinkET013TT1SkipWaveform;
+    FakeEinkET013TT1SkipWaveform = true;
+
+    while (numPages--) {
+        sendCodeAndRender(RemoteCommand::LEFT, renderer);
+        usleep(1000000.0 / 1.5);
+    }
+    FakeEinkET013TT1SkipWaveform = false;
+}
+
+void goForwardNumPages(SDL_Window *window, SDL_Renderer *renderer, int numPages) {
+    auto skipWaveform = FakeEinkET013TT1SkipWaveform;
+    FakeEinkET013TT1SkipWaveform = true;
+
+    while (numPages--) {
+        sendCodeAndRender(RemoteCommand::RIGHT, renderer);
+        usleep(1000000.0 / 1.5);
+    }
+    FakeEinkET013TT1SkipWaveform = false;
+}
+
 // Returns false if the program should quit
 auto mainLoop() -> bool {
     SDL_Event e;
     RemoteCommand remoteCode = RemoteCommand::NONE;
     while (SDL_PollEvent(&e)) {
+        SDL_Keymod modState = SDL_GetModState();
         if (e.type == SDL_QUIT) {
             return false;
         } else if (e.type == SDL_KEYDOWN) {
@@ -301,6 +386,27 @@ auto mainLoop() -> bool {
                 break;
             case 'b':
                 goBackNumPages(window, renderer, 50);
+                break;
+            case 'a':
+                previousPageFast(window, renderer);
+                break;
+            case 's':
+                nextPageFast(window, renderer);
+                break;
+            case 'q':
+                // Ignore cmd-q (quit on macOS)
+                if (!(modState & KMOD_GUI)) {
+                    goBackwardNumPages(window, renderer, 200);
+                }
+                break;
+            case 'w':
+                // Ignore cmd-w (close on macOS)
+                if (!(modState & KMOD_GUI)) {
+                    goForwardNumPages(window, renderer, 200);
+                }
+                break;
+            case 'i':
+                saveBookImages(window, renderer);
                 break;
             }
 

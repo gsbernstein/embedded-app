@@ -196,7 +196,9 @@ int esp_http_client_fetch_headers(esp_http_client_handle_t client) {
     return client->contentLength;
 }
 
-// bool esp_http_client_is_chunked_response(esp_http_client_handle_t client) {}
+bool esp_http_client_is_chunked_response(esp_http_client_handle_t client) {
+    return is_chunked_transfer_encoding(client->responseHeaders);
+}
 
 int esp_http_client_read(esp_http_client_handle_t client, char *buffer, int len) {
     client->makeRequestIfNecessary();
@@ -229,7 +231,17 @@ esp_err_t esp_http_client_cleanup(esp_http_client_handle_t client) {
 
 // bool esp_http_client_is_complete_data_received(esp_http_client_handle_t client) {}
 
-// int esp_http_client_read_response(esp_http_client_handle_t client, char *buffer, int len) {}
+int esp_http_client_read_response(esp_http_client_handle_t client, char *buffer, int len) {
+    int read_len = 0;
+    while (read_len < len) {
+        int data_read = esp_http_client_read(client, buffer + read_len, len - read_len);
+        if (data_read <= 0) {
+            return read_len;
+        }
+        read_len += data_read;
+    }
+    return read_len;
+}
 
 // esp_err_t esp_http_client_flush_response(esp_http_client_handle_t client, int *len) {}
 

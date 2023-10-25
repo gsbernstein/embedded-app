@@ -32,6 +32,8 @@ auto TelemetryFieldToString(TelemetryField field) -> const char * {
         return "wf";
     case METRIC_LIGHTING:
         return "li";
+    case METRIC_REPORT:
+        return "rt";
     case METRIC_STYLE:
         return "st";
     }

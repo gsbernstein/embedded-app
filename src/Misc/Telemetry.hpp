@@ -1,14 +1,12 @@
 #pragma once
 
 #include <map>
-#include <string>
-#include <variant>
 
 #include "Misc/Dispatch.hpp"
 #include "Misc/Platform.hpp"
 #include "Misc/SolClock.hpp"
-#include "Misc/SpiramAllocator.hpp"
 #include "Misc/StringUtil.hpp"
+#include "Misc/TelemetryVariant.hpp"
 #include "Storage/FileSystem.hpp"
 #include "Storage/PreferencesStore.hpp"
 
@@ -27,12 +25,10 @@ enum TelemetryField {
     METRIC_SHUTDOWN,
     METRIC_WIFI,
     METRIC_LIGHTING,
+    METRIC_REPORT,
     METRIC_STYLE,
 };
 auto TelemetryFieldToString(TelemetryField field) -> const char *;
-
-typedef std::variant<int, uint32_t, uint16_t, float, const char *, std::string, SpiramString>
-    TelemetryVariant;
 
 class Telemetry {
 public:

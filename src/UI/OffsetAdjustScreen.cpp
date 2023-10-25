@@ -35,7 +35,7 @@ void OffsetAdjustScreen::render(DisplaySystem &display) {
     // The natural line spacing handles the vertical padding
     // The horizontal padding adds one blank pixel column on either side of the rect
     display.drawDottedBox(-2, 0, currRect.width + 1, currRect.height - 1, 1, 2);
-    this->renderer_.renderPage(0, 0, true);
+    this->renderer_.renderFirstPage(0, true);
     display.updateDisplay(DisplaySystem::UpdateType::PARTIAL);
 }
 

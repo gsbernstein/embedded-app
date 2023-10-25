@@ -4,13 +4,16 @@
 #include <deque>
 #include <map>
 #include <string>
+#include <variant>
 #include <vector>
 
 #include "Misc/SpiramAllocator.hpp"
 #include "Misc/StringUtil.hpp"
+#include "Misc/TelemetryVariant.hpp"
 #include "Models/Author.hpp"
 #include "Models/Json.hpp"
 #include "Models/JsonSerializable.hpp"
+#include "Models/Place.hpp"
 #include "Models/ReadableArchive.hpp"
 #include "Models/ReadableBookmark.hpp"
 #include "Models/ReadableDictionary.hpp"
@@ -53,6 +56,9 @@ public:
     bool hasSummary = false;
     bool hasDictionary = false;
 
+    // Local state
+    std::shared_ptr<Place> place, placePrev;
+
     SpiramString readableType;
     // TODO: source
     // TODO: categories
@@ -60,18 +66,24 @@ public:
     //! Set to true if this is a readable side-loaded onto the device (that doesn't come from the
     //! server)
     bool localOnly = false;
-    // Local state
-    uint32_t place{0}, placePrev{0};
 
-    [[nodiscard]] auto file() const -> const ReadableFile & {
+    [[nodiscard]] auto file(const std::string &path = "") const -> const ReadableFile & {
         for (const auto &file : files) {
-            if (file.filetype == "utf8_txt") {
+            if (file.filetype == "epub" && (path.empty() || HasSuffix(path, ".epub"))) {
                 return file;
             }
         }
 
         for (const auto &file : files) {
-            if (file.filetype == "txt") {
+            if (file.filetype == "utf8_txt" &&
+                (path.empty() || HasSuffix(path, ".txt") || HasSuffix(path, ".txt.gz"))) {
+                return file;
+            }
+        }
+
+        for (const auto &file : files) {
+            if (file.filetype == "txt" &&
+                (path.empty() || HasSuffix(path, ".txt") || HasSuffix(path, ".txt.gz"))) {
                 return file;
             }
         }
@@ -99,19 +111,34 @@ public:
         return nullptr;
     }
 
-    auto summary(unsigned long placeInReadable, unsigned long &placeInSummary, bool includeUnread)
-        -> SpiramString {
+    auto findEPubHRefChapterIdx(const std::string &href) -> int16_t {
+        int16_t idx = 0;
+        for (auto &chapter : toc) {
+            if (chapter.href == href) {
+                return idx;
+            }
+            idx++;
+        }
+        return -1;
+    }
+
+    [[nodiscard]] auto telemetryPlacemarkMetrics() const -> std::map<std::string, TelemetryVariant>;
+
+    auto summary(const std::shared_ptr<Place> &placeInReadable,
+                 const std::shared_ptr<Place> &placeInSummary, bool includeUnread) -> SpiramString {
         SpiramString summary;
 
+        // ToDo: Adjust with Place classes (GT)
         for (const auto &chapter : toc) {
-            if (placeInReadable >= chapter.txtOffset) {
-                placeInSummary = summary.length();
+            if (placeInReadable->getOffset() >= chapter.txtOffset) {
+                placeInSummary->setOffset(summary.length());
             }
-            if (placeInReadable < chapter.txtOffset && !includeUnread) {
+            if ((placeInReadable->getOffset() < chapter.txtOffset) && !includeUnread) {
                 break;
             }
-            if (chapter.txtOffset < placeInReadable && placeInReadable < chapter.endTxtOffset &&
-                !includeUnread && chapter.partialChapterSummary != nullptr &&
+            if (chapter.txtOffset < placeInReadable->getOffset() &&
+                placeInReadable->getOffset() < chapter.endTxtOffset && !includeUnread &&
+                chapter.partialChapterSummary != nullptr &&
                 !chapter.partialChapterSummary->text.empty()) {
                 summary += chapter.title;
                 summary += StringFormat(" (%d%% read)\n\n", chapter.partialChapterSummary->readPct);
@@ -130,18 +157,22 @@ public:
         return summary;
     }
 
-    auto definitions(unsigned long placeInReadable, unsigned long *placeInDictionary)
-        -> SpiramString {
-        // This code generates the dictionaryString for an entire chapter, making sure to not add
-        // duplicate words within the last 5 words (but duplicates are allowed assuming they are > 5
-        // words ago). It returns the dictionaryString as well as the position of the word closest
-        // to the current page using the placeInDictionary out-value.
+    auto definitions(const std::shared_ptr<Place> &placeInReadable,
+                     const std::shared_ptr<Place> &placeInDictionaryOut) -> SpiramString {
+        // This code generates the dictionaryString for an entire chapter, making sure to not
+        // add duplicate words within the last 5 words (but duplicates are allowed assuming they
+        // are > 5 words ago). It returns the dictionaryString as well as the position of the
+        // word closest to the current page using the placeInDictionaryOut out-value.
 
+        // NOTE(john): Punting for now since this is going to get included in the epub file
+        return "";
+        /*
         SpiramString dictionaryString;
 
         std::deque<SpiramString> lastFiveWords;
 
-        log_d("Looking for definitions for place %lu in %zu chapters", placeInReadable, toc.size());
+        log_d("Looking for definitions for place %s in %zu chapters",
+        placeInReadable.str().c_str(), toc.size());
 
         auto chapter = findChapter(placeInReadable);
         if (chapter == nullptr) {
@@ -185,6 +216,7 @@ public:
         }
 
         return dictionaryString;
+        */
     }
 
     [[nodiscard]] auto authorString() const -> SpiramString {

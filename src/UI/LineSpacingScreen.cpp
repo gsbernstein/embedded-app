@@ -20,7 +20,7 @@ LineSpacingScreen::LineSpacingScreen(DisplaySystem &display, PreferencesStore &p
 }
 
 void LineSpacingScreen::render(DisplaySystem &display) {
-    this->renderer_.renderPage(0, 0, true);
+    this->renderer_.renderFirstPage(0, true);
     display.updateDisplay(DisplaySystem::UpdateType::PARTIAL);
 }
 
