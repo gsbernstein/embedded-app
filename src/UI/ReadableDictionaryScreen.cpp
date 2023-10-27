@@ -1,5 +1,7 @@
 #include "ReadableDictionaryScreen.hpp"
 
+#include <pugixml.hpp>
+
 #include "Misc/SpiramAllocator.hpp"
 
 auto ReadableDictionaryScreen::layout(LayoutContext &context, Size size) -> Size {
@@ -14,12 +16,14 @@ void ReadableDictionaryScreen::drawInRect(Rect rect) {
     upperLeftTextView_.draw();
 }
 
-void ReadableDictionaryScreen::setPlaceInReadable(std::shared_ptr<Place> placeInReadable) {
+void ReadableDictionaryScreen::setPlaceInReadable(std::shared_ptr<EPubPlace> placeInReadable) {
     placeInReadable_ = std::move(placeInReadable);
     preservePlace_ = nullptr;
 }
 
-auto ReadableDictionaryScreen::checkAtEnd() -> bool { return (newPlace_ == nullptr); }
+auto ReadableDictionaryScreen::checkAtEnd() -> bool {
+    return (newPlace_ == nullptr) || newPlace_->getOffset() == 0;
+}
 
 void ReadableDictionaryScreen::render(DisplaySystem &display) {
     setNeedsLayout();
@@ -36,28 +40,43 @@ void ReadableDictionaryScreen::render(DisplaySystem &display) {
     auto oldDisplayBoundingBox = insetBoundingBox();
     uint8_t darkPicturePercent = 0;
 
-    if (firstLoad_) {
+    if (loadedChapterId_ != placeInReadable_->getHRef()) {
         std::shared_ptr<Place> placeInDictionary = nullptr;
-        SpiramString dictionaryString = readable_->definitions(placeInReadable_, placeInDictionary);
+        auto rendererStream = epubRenderer_.getStream();
+        auto epubStream = std::dynamic_pointer_cast<EPubFile>(rendererStream);
+        auto chapterId = epubStream->getIdByHref(placeInReadable_->getHRef());
+        int currentOffset = placeInReadable_->getOffset();
+        log_d("Loading dictionary for chapter: %s : %d", chapterId.c_str(), currentOffset);
+        auto dictionaryString =
+            epubStream->getDictionaryContent(chapterId, placeInReadable_, placeInDictionary);
 
         if (preservePlace_) {
             placeInDictionary = preservePlace_;
             preservePlace_ = nullptr;
         }
+
         auto stream = std::make_shared<StdStringStream>(dictionaryString);
         renderer_.setStream(stream);
-        std::tie(newPlace_, darkPicturePercent) = renderer_.renderPage(placeInDictionary);
-        log_d("Place in readable: %s, place in dictionary: %s", placeInReadable_->str().c_str(),
-              placeInDictionary->str().c_str());
+        if (placeInDictionary == nullptr) {
+            placeInDictionary = Place::factory(0);
+        }
+        std::shared_ptr<Place> newPlace;
+        std::tie(newPlace, darkPicturePercent) = renderer_.renderPage(placeInDictionary);
+        newPlace_ = std::dynamic_pointer_cast<TxtPlace>(newPlace);
+        log_d("Place in readable: %s, place in dictionary: %s. Next place: %" PRIu32,
+              placeInReadable_->str().c_str(), placeInDictionary->str().c_str(),
+              newPlace_ != nullptr ? newPlace_->getOffset() : -1);
     } else {
         prevPlace_ = newPlace_;
-        std::tie(newPlace_, darkPicturePercent) = renderer_.renderPage(newPlace_);
+        std::shared_ptr<Place> newPlace;
+        std::tie(newPlace, darkPicturePercent) = renderer_.renderPage(newPlace_);
+        newPlace_ = std::dynamic_pointer_cast<TxtPlace>(newPlace);
     }
 
     atEnd_ = checkAtEnd();
     display.updateDisplay(DisplaySystem::UpdateType::FULL, true,
                           display.darkPictureVComAdj(darkPicturePercent));
-    firstLoad_ = false;
+    loadedChapterId_ = placeInReadable_->getHRef();
 
     resetBoundingBox(oldDisplayBoundingBox);
 }
@@ -98,7 +117,7 @@ void ReadableDictionaryScreen::processCommand(RemoteCommand command) {
     case RemoteCommand::BACK:
     case RemoteCommand::LEFT: {
         auto oldDisplayBoundingBox = insetBoundingBox();
-        newPlace_ = renderer_.getPreviousPlace();
+        newPlace_ = std::dynamic_pointer_cast<TxtPlace>(renderer_.getPreviousPlace());
         setNeedsRerender();
         resetBoundingBox(oldDisplayBoundingBox);
         break;

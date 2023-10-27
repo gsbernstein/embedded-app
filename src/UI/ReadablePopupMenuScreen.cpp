@@ -58,9 +58,9 @@ void ReadablePopupMenuScreen::setUpPopupMenu() {
     auto timeString = theClock.getTimeString();
     popupMenuView_.setFooter3Text(timeString);
 
-    if (popupMenuView_.menuItemViews.size() == 0) {
-        populatePopupMenu();
-    }
+    // Always populate the popup menu because each chapter may have different entries (dictionary,
+    // summary)
+    populatePopupMenu();
 
     // Figure out if you should show the Archive menu item or the Unarchive menu item.
     bool archived = prefs_.readableArchivedChanged.get(readable_->shortenedUuid.c_str());
@@ -116,12 +116,22 @@ void ReadablePopupMenuScreen::populatePopupMenu() {
         }));
     }
 
-    if (readable_->hasDictionary) {
-        addMenuItem(MenuItem("Dictionary", [this]() {
-            readableDictionaryScreen_.setPlaceInReadable(renderer_.getCurrentPlace());
-            readableDictionaryScreen_.setFirstLoad();
-            setCurrentScreen(readableDictionaryScreen_);
-        }));
+    if (renderer_.getCurrentPlace()->isFor(DocType::EPUB)) {
+        auto stream = std::dynamic_pointer_cast<EPubFile>(renderer_.getStream());
+        auto chapterId = stream->getIdByHref(
+            std::dynamic_pointer_cast<EPubPlace>(renderer_.getCurrentPlace())->getHRef());
+        if (stream->hasDictionary(chapterId)) {
+            addMenuItem(MenuItem("Dictionary", [this]() {
+                auto epubPlace = std::dynamic_pointer_cast<EPubPlace>(renderer_.getCurrentPlace());
+                readableDictionaryScreen_.setPlaceInReadable(epubPlace);
+                readableDictionaryScreen_.setFirstLoad();
+                setCurrentScreen(readableDictionaryScreen_);
+            }));
+        } else {
+            log_d("No dictionary for chapter %s", chapterId.c_str());
+        }
+    } else {
+        log_d("Not an EPub, so no dictionary");
     }
 
     addMenuItem(MenuItem("Brightness", [this]() {
