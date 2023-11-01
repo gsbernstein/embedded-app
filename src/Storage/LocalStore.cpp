@@ -124,27 +124,8 @@ auto LocalStore::loadToc(const std::shared_ptr<Readable> &readable) -> bool {
     for (const auto &chapter : tocJson) {
         readable->toc.emplace_back();
         readable->toc.back().fromJson(chapter);
-
-        // Check if any chapter has a summary, if so, set hasSummary
-        if (!readable->hasSummary && chapter["summary"].as<std::string>().size() > 0) {
-            readable->hasSummary = true;
-        }
-        // Check if any chapter has a summary, if so, set hasSummary
-        if (!readable->hasDictionary && chapter["dictionary"].as<JsonArray>().size() > 0) {
-            readable->hasDictionary = true;
-        }
     }
     log_d("Loaded %zu chapters from %s", readable->toc.size(), tocPath.c_str());
-    if (readable->hasSummary) {
-        log_d("Readable %s has summary", readable->uuid.c_str());
-    } else {
-        log_d("Readable %s has no summary", readable->uuid.c_str());
-    }
-    if (readable->hasDictionary) {
-        log_d("Readable %s has dictionary", readable->uuid.c_str());
-    } else {
-        log_d("Readable %s has no dictionary", readable->uuid.c_str());
-    }
     tocFile.close();
     return true;
 }
@@ -491,16 +472,6 @@ auto LocalStore::processToCFromServer(const std::shared_ptr<Readable> &readable)
             return true;
         }
 
-        // Check if summary exists and is different
-        if (remoteJson.summary.size()) {
-            if (!localJson.containsKey("summary") || localJson["summary"] == nullptr ||
-                localJson["summary"].as<std::string>() != remoteJson.summary) {
-                log_d("ToC chapter summary (%s) mismatch for %s, updating",
-                      remoteJson.title.c_str(), tocPath.c_str());
-                return true;
-            }
-        }
-
         // Check if partial_chapter_summary exists in remote json and if
         // partial_chapter_summary.placemark is different
         if (remoteJson.partialChapterSummary != nullptr) {
@@ -688,6 +659,7 @@ void LocalStore::syncFromRemote(
             checkSyncRequest.bookmarks = bookmarks;
             checkSyncRequest.storedUuids = storedUuids;
             checkSyncRequest.skipContent = true;
+            checkSyncRequest.skipSummary = true;
             checkSyncRequest.ptBattery = PreferencesStore::lastPageTurnerBattery;
             checkSyncRequest.battery = (uint8_t)battery_.getBatteryPercentage();
             checkSyncRequest.ptBuild = this->prefs_.lastPageTurnerBuild.get().value_or("");
