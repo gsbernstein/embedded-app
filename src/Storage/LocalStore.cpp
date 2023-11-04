@@ -13,7 +13,6 @@
 
 #include "Communications/HtmlCleaner.hpp"
 #include "Communications/WiFi.hpp"
-#include "EPub/EPubFile.hpp"
 #include "GitVersion.hpp"
 #include "Misc/Crypto.hpp"
 #include "Misc/Defer.hpp"
