@@ -15,31 +15,49 @@ void ReadablePopupMenuScreen::setUpPopupMenu() {
         if (currentChapterIdx_ >= 0) {
             const auto &toc = stream->getToc();
             auto &chapter = toc[currentChapterIdx_];
-
+            auto spineIdx = renderer_.getStreamPlace(renderer_.getCurrentPlace()).getSpineIdx();
             // TODO(john): This isn't exactly right because `place->getOffset()` is a byte offset,
             // not a letter offset from the beginning of the chapter. The chapters always start with
             // extra html-y stuff at the start so this is always inflated by some amount.
-            auto currentOffset = chapter.epubOffset + renderer_.getTxtOffset();
+
+            // If current spine item is not the first in the chapter, add offsets of previous spine
+            // items in chapter to get the correct offset
+            auto previousSpineOffset = 0;
+            auto chapterStartSpineIdx = stream->getChapterFirstSpineIdx(spineIdx);
+            for (auto i = chapterStartSpineIdx; i < spineIdx; i++) {
+                previousSpineOffset += stream->getUncompressedSize(i);
+            }
+            auto currentOffset =
+                chapter.epubOffset + previousSpineOffset + renderer_.getCurrentPlace()->getOffset();
 
             // Get the end offset of the last chapter (to determine the length of the book)
             auto &lastChapter = toc[stream->getToc().size() - 1];
             auto lastChapterEndOffset = lastChapter.endEpubOffset;
 
             if (currentOffset < lastChapterEndOffset) {
-                placeStringForBottom = StringFormat("%d of %d", SOL_PAGE_NUMBER(currentOffset),
-                                                    SOL_PAGE_NUMBER(lastChapterEndOffset));
+                if (stream->isAnArticle()) {
+                    placeStringForBottom =
+                        StringFormat("%d of %d page%s", SOL_PAGE_NUMBER(currentOffset),
+                                     SOL_PAGE_NUMBER(lastChapterEndOffset),
+                                     SOL_PAGE_NUMBER(lastChapterEndOffset) == 1 ? "" : "s");
+                } else {
+                    placeStringForBottom = StringFormat("%d of %d", SOL_PAGE_NUMBER(currentOffset),
+                                                        SOL_PAGE_NUMBER(lastChapterEndOffset));
+                }
             }
 
             // Determine how many Sol Pages are left in the chapter
-            if (chapter.endEpubOffset > currentOffset) {
+            if (chapter.endEpubOffset > currentOffset && !stream->isAnArticle()) {
                 auto chapterPagesRemaining = chapter.endEpubOffset - currentOffset;
                 chapterPagesRemainingString =
                     StringFormat("%d page%s left", SOL_PAGE_NUMBER(chapterPagesRemaining),
                                  SOL_PAGE_NUMBER(chapterPagesRemaining) == 1 ? "" : "s");
             }
-            // log_w("Chapter %d, %s, current:%" PRIu32 "=%" PRIu32 "+%" PRIu32 " end:%" PRIu32,
+            // log_w("Chapter %d, %s, current:%d=%" PRIu32 "+%" PRIu32 "(%" PRIu32 ") end: %"
+            // PRIu32,
             //       currentChapterIdx_, chapter.title.c_str(), currentOffset, chapter.epubOffset,
-            //       renderer_.getTxtOffset(), lastChapterEndOffset);
+            //       renderer_.getTxtOffset(), renderer_.getCurrentPlace()->getOffset(),
+            //       lastChapterEndOffset);
         } else {
             log_w("Couldn't find chapter index (%d) for href %s", currentChapterIdx_,
                   chapterHref.c_str());
