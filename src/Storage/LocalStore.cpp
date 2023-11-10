@@ -391,6 +391,66 @@ auto LocalStore::processReadablePlacemarksFromServer(const std::shared_ptr<Reada
     return false;
 }
 
+auto LocalStore::processReadablePartialChapterSummary(
+    const std::shared_ptr<Readable> &readable,
+    const std::shared_ptr<UserReadablePartialChapterSummary> &partialChapterSummary) -> bool {
+
+    // TODO: Delete any existing partial summary?
+    if (partialChapterSummary == nullptr) {
+        log_e("Partial summary is null");
+        return false;
+    }
+
+    auto path = readableFilePathForWriting(readable);
+    auto docType = RendererStream::parseDocType(path.c_str());
+    // Only supported for epub
+    if (docType != DocType::EPUB) {
+        return false;
+    }
+
+    auto existingPartialSummary =
+        UserReadablePartialChapterSummary::loadForReadable(fileSystem, readable);
+    // Check if the existing summary is for the same place. If so, don't overwrite it if we dont
+    // need to.
+    if (existingPartialSummary != nullptr &&
+        existingPartialSummary->ePubPlace == partialChapterSummary->ePubPlace) {
+        log_e("Existing summary is the same");
+        return false;
+    }
+
+    // Otherwise write the updated partial summary to the json file
+    auto doc = std::make_unique<SpiRamJsonDocument>(
+        std::min(2048, (int)partialChapterSummary->text.length() * 2));
+    bool serialized = convertToJson(*partialChapterSummary, *doc);
+    if (!serialized) {
+        log_e("Failed to serialize partial summary");
+        return false;
+    }
+
+    if (!fileSystem.createDir("/summary")) {
+        log_e("could not create /summary directory");
+        return false;
+    }
+
+    auto partialSummaryPath = readable->partialSummaryFilePath();
+    fileSystem.remove(partialSummaryPath.c_str());
+    auto file = fileSystem.open(partialSummaryPath.c_str(), FILE_WRITE, false);
+    if (!file) {
+        log_e("Failed to open partial summary file for writing");
+        return false;
+    }
+    defer { file.close(); };
+
+    // Write the partial summary to the json file
+    auto len = serializeJson(*doc, file);
+    if (len == 0) {
+        log_e("Failed to write partial summary to json file");
+        return false;
+    }
+
+    return true;
+}
+
 void LocalStore::resetReadablesPlacemarkChanged(const ReadablesVector &readables) {
     auto modelType = this->readablesModelType(const_cast<ReadablesVector &>(readables));
 
@@ -500,7 +560,7 @@ void LocalStore::syncFromRemote(
 
     progressCallback(ContentSyncState{.state = ContentSyncState::State::UploadTelemetry});
 
-    // TODO: Thinking more about this, we should probably trust the caller of `syncFromRempte` to
+    // TODO: Thinking more about this, we should probably trust the caller of `syncFromRemote` to
     // call from whatever queue is most fitting based on the context. In tests, this might not be in
     // a queue.
     auto queue = DispatchGetCore0BackgroundQueue();
@@ -852,6 +912,13 @@ auto LocalStore::processReadables(const ReadablesVector &readables,
                                                 userReadable.ePubPlace)) {
             log_i("Placemark for %s updated to %s", userReadable.readable->title.c_str(),
                   prefs_.readablePlace.get(userReadable.readable->shortenedUuid.c_str()).c_str());
+        }
+
+        if (processReadablePartialChapterSummary(userReadable.readable,
+                                                 userReadable.partialChapterSummary)) {
+            log_i("Partial chapter summary for %s updated to %s",
+                  userReadable.readable->title.c_str(),
+                  userReadable.partialChapterSummary->ePubPlace->str().c_str());
         }
 
         auto unchanged = isReadableUnchanged(readables, userReadable.readable, true);
@@ -1293,6 +1360,7 @@ void LocalStore::readableFilePurge(const std::shared_ptr<Readable> &readable) {
     fileSystem.remove(StringFormat("/%s/%s.txt", type.c_str(), uuid.c_str()));
     fileSystem.remove(StringFormat("/%s/%s.epub", type.c_str(), uuid.c_str()));
     fileSystem.remove(StringFormat("/toc/%s-toc.json", uuid.c_str()));
+    fileSystem.remove(StringFormat("/summary/%s-summary.json", uuid.c_str()));
 
     if (readable->files.size() > 0) {
         fileSystem.remove(StringFormat("/%s.epub", readable->file().name.c_str()));
