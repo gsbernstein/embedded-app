@@ -2,6 +2,8 @@ import csv
 import logging
 import os
 import platform
+import subprocess
+import sys
 import termios
 import time
 import typing as t
@@ -12,12 +14,11 @@ import serial
 from _pytest.fixtures import FixtureRequest
 from power import PowerTester
 from pytest import MonkeyPatch
-from pytest_embedded.log import live_print_call
 from pytest_embedded_idf.dut import IdfDut
 from pytest_embedded_idf.serial import IdfSerial
 from util import maybe_format, wait_for_port_by_device_name
 
-from ict import MFICTClient
+from ict import MODE_FINAL_TESTER, MODE_MAINFRAME_TESTER, MFICTClient
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -28,132 +29,232 @@ dut_port_index = 0
 dut_log_port_name = "SOL Mainframe ICT"
 dut_log_port_index = 1
 
+test_user_cloud_token = "c7092bfc68fac544fbe46e75ef06948b867a4854ce4271c2f9fea16abfd20125"
+
+
+def get_nvs_partition_size():
+    file_path = "esp32s3-64MB.csv"
+    nvs_size = ""
+    # Correct code to extract size of 'nvs' partition
+    with open(file_path, "r") as file:
+        csv_reader = csv.reader(file, delimiter=",")
+        for row in csv_reader:
+            if row[0] == "nvs":
+                nvs_size = row[4]
+
+    # Convert hexadecimal to decimal
+    nvs_size_decimal = int(nvs_size, 16)
+    return nvs_size_decimal
+
+
+def clear_nvs(port):
+    logger.info("Clearing NVS")
+    # write nvs partition to dut
+    subprocess.run(
+        [
+            os.environ["IDF_PATH"] + "/components/partition_table/parttool.py",
+            "--port",
+            port,
+            "erase_partition",
+            "--partition-name=nvs",
+        ]
+    )
+
+
+def write_nvs(ict_client, port, btmac, ict_ssid, ict_pw, cloudtoken):
+    parts = btmac.split(":")
+    hexstr = "".join(parts)
+    logger.info("hex string: " + hexstr)
+    btmac_int = int(hexstr, 16)
+    logger.info(str(btmac_int))
+
+    # create partition csv file
+    csvfname = "dutnvs.csv"
+    fp = open(csvfname, "w")
+    fp.write("key,type,encoding,value\n")
+    fp.write("boot-info,namespace,,\n")
+    fp.write("sindarin-app,namespace,,\n")
+    # write paired tt address
+    fp.write("paired-tt,data,u64," + str(btmac_int) + "\n")
+    fp.write("no-setup,data,u8,1\n")
+    # Write a cloud-token so the glasses don't try to go back into ship mode upon sleep
+    fp.write("cloud-token,data,string," + cloudtoken + "\n")
+
+    wifi_settings_json = '"{""settings"":[{""ssid"":""' + ict_ssid + '"",""password"":""' + ict_pw + '""}]}"'
+
+    fp.write("wifi-settings,data,string," + wifi_settings_json + "\n")
+    # Skip the onboarding thing since it has a bunch of animations
+    fp.write("no-setup,data,u8,1\n")
+    fp.close()
+
+    # check for $IDF_PATH variable
+    if "IDF_PATH" not in os.environ:
+        # no idf path set, must be running from an exported test package
+        # set the variable so tools can be found
+        os.environ["IDF_PATH"] = "test/PyTest/vendor"
+
+    # create partition bin file
+    binfname = "dutnvs.bin"
+    nvssize = get_nvs_partition_size()
+    logger.info("nvs partition size: " + str(nvssize))
+
+    ret = subprocess.run(
+        [
+            os.environ["IDF_PATH"] + "/components/nvs_flash/nvs_partition_generator/nvs_partition_gen.py",
+            "generate",
+            csvfname,
+            binfname,
+            str(nvssize),
+        ]
+    )
+
+    logger.info("generate partition return value " + str(ret.returncode))
+    ret.check_returncode()
+
+    parts = [
+        os.environ["IDF_PATH"] + "/components/partition_table/parttool.py",
+        "--port",
+        port,
+        "write_partition",
+        "--partition-name=nvs",
+        "--input",
+        binfname,
+    ]
+
+    print("command:")
+    print(" ".join(parts))
+
+    # write nvs partition to dut
+    ret = subprocess.run(parts)
+
+    max_retries = 5
+    retry = 0
+    while ret.returncode != 0 and retry < max_retries:
+        logger.info("retry")
+        retry += 1
+        ict_client.dut_programming_mode()
+        # look for jtag port
+        time.sleep(2)
+        port = wait_for_port_by_device_name(dut_port_name, dut_port_index)
+        logger.info("nvs retry dut port: " + port)
+        parts = [
+            os.environ["IDF_PATH"] + "/components/partition_table/parttool.py",
+            "--port",
+            port,
+            "write_partition",
+            "--partition-name=nvs",
+            "--input",
+            binfname,
+        ]
+        print("command:")
+        print(" ".join(parts))
+        # write nvs partition to dut
+        ret = subprocess.run(parts)
+
+    os.remove(csvfname)
+    os.remove(binfname)
+
+    ret.check_returncode()
+
+
+def clear_content_and_restart(ict_client):
+    # go to system menu, clear all content and restart
+    # ensure that actual downloads happen during the content sync
+    ict_client.tt_left()
+    time.sleep(1.0)
+    ict_client.tt_down()
+    time.sleep(1.0)
+    ict_client.tt_down()
+    time.sleep(1.0)
+    ict_client.tt_enter()
+    time.sleep(1.0)
+    ict_client.tt_up()
+    time.sleep(1.0)
+    ict_client.tt_up()
+    time.sleep(1.0)
+    ict_client.tt_up()
+    time.sleep(1.0)
+    ict_client.tt_enter()
+
+
+def generate_and_write_nvs(ict_client, dut, ssid, password):
+    # write nvs
+    # read ict's bluetooth mac
+    btmac = ict_client.get_bt_mac()
+    logger.info("ICT bluetooth MAC: " + btmac)
+
+    wifi_ssid = ict_client.get_wifi_ssid()
+    wifi_password = ict_client.get_wifi_password()
+
+    if ssid != "" and password != "":
+        wifi_ssid = ssid
+        wifi_password = password
+
+    logger.info("params user " + wifi_ssid + " password " + wifi_password)
+
+    # look for jtag port
+    time.sleep(2)
+    port = wait_for_port_by_device_name(dut_port_name, dut_port_index)
+    logger.info("nvs dut port: " + port)
+
+    logger.info("write nvs")
+    write_nvs(ict_client, port, btmac, wifi_ssid, wifi_password, test_user_cloud_token)
+
+    logger.info("reset")
+    logger.info("exiting programming mode")
+    ict_client.reset_dut()
+
+    time.sleep(2)
+    port = wait_for_port_by_device_name(dut_port_name, dut_port_index)
+    logger.info("post program nvs dut port: " + port)
+
 
 @pytest.fixture
 def port(request: FixtureRequest) -> t.Optional[str]:
     """Overridden to make sure we pick the right USB port for the DUT"""
     custom_port = wait_for_port_by_device_name(dut_port_name, dut_port_index)
+    logger.info("custom port: " + custom_port)
     return custom_port
 
 
 class OverrideIdfSerial(IdfSerial):
     def __init__(self, ict_client: MFICTClient, *args: Any, **kwargs: Any) -> None:
         self.ict_client = ict_client
-        super().__init__(*args, **kwargs)
+        ict_mode = self.ict_client.get_ict_mode()
+
+        if ict_mode == MODE_FINAL_TESTER:
+            logger.info("opening temple")
+            self.ict_client.open_right_temple()
+            self.ict_client.dut_programming_mode()
+
+        s = False
+        while s == False:
+            try:
+                s = True
+                super().__init__(*args, **kwargs)
+            except Exception as e:
+                logger.info("failed to open dut port, retrying")
+                s = False
+
+                logger.info("dut going into programming mode")
+                self.ict_client.dut_programming_mode()
+                port = wait_for_port_by_device_name(dut_port_name, dut_port_index)
+                logger.info("found dut port: " + port)
+                kwargs["port"] = port
+                logger.info("retrying connect to " + port)
 
     def _start(self):
+        ict_mode = self.ict_client.get_ict_mode()
+        logger.info("start ict mode " + str(ict_mode))
+
         # Wake up from sleep if necessary
-        self.ict_client.set_servo("right", -70)
+        self.ict_client.open_right_temple()
 
         # The DUT is flashed here unless using --skip-autoflash=True
         super()._start()
 
-        # read ict's bluetooth mac
-        btmac = self.ict_client.get_bt_mac()
-        logger.info("ICT bluetooth MAC: " + btmac)
-
-        wifi_ssid = self.ict_client.get_wifi_ssid()
-        logger.info("ICT ssid: " + wifi_ssid)
-
-        wifi_password = self.ict_client.get_wifi_password()
-        logger.info("ICT password: " + wifi_password)
-
-        # prepare nvs partition image and write to dut
-        self.write_nvs(btmac, wifi_ssid, wifi_password)
-
         # Close the serial port
         self.close()
-
-        # Reset the DUT (to exit programming mode)
-        self.ict_client.reset_dut()
-
-        # Wait for device to go away and come back again
-        # If we don't do this, we may discover and attempt to connect to the port too quickly, then it will de-enumerate.
-        time.sleep(2)
-        port = wait_for_port_by_device_name(dut_port_name, dut_port_index)
-
-        self.connect_dut_log_port()
-
-    def get_nvs_partition_size(self):
-        file_path = "esp32s3-64MB.csv"
-        nvs_size = ""
-        # Correct code to extract size of 'nvs' partition
-        with open(file_path, "r") as file:
-            csv_reader = csv.reader(file, delimiter=",")
-            for row in csv_reader:
-                if row[0] == "nvs":
-                    nvs_size = row[4]
-
-        # Convert hexadecimal to decimal
-        nvs_size_decimal = int(nvs_size, 16)
-        return nvs_size_decimal
-
-    def write_nvs(self, btmac, ict_ssid, ict_pw):
-        parts = btmac.split(":")
-        hexstr = "".join(parts)
-        logger.info("hex string: " + hexstr)
-        btmac_int = int(hexstr, 16)
-        logger.info(str(btmac_int))
-
-        # create partition csv file
-        csvfname = "dutnvs.csv"
-        fp = open(csvfname, "w")
-        fp.write("key,type,encoding,value\n")
-        fp.write("boot-info,namespace,,\n")
-        fp.write("sindarin-app,namespace,,\n")
-        # write paired tt address
-        fp.write("paired-tt,data,u64," + str(btmac_int) + "\n")
-        fp.write("no-setup,data,u8,1\n")
-        # Write a cloud-token so the glasses don't try to go back into ship mode upon sleep
-        fp.write("cloud-token,data,string,FAKECLOUDTOKEN\n")
-
-        wifi_settings_json = (
-            '"{""settings"":[{""ssid"":""' + ict_ssid + '"",""password"":""' + ict_pw + '""}]}"'
-        )
-
-        fp.write("wifi-settings,data,string," + wifi_settings_json + "\n")
-        # Skip the onboarding thing since it has a bunch of animations
-        fp.write("no-setup,data,u8,1\n")
-        fp.close()
-
-        # check for $IDF_PATH variable
-        if "IDF_PATH" not in os.environ:
-            # no idf path set, must be running from an exported test package
-            # set the variable so tools can be found
-            os.environ["IDF_PATH"] = "test/PyTest/vendor"
-
-        # create partition bin file
-        binfname = "dutnvs.bin"
-        nvssize = self.get_nvs_partition_size()
-        logger.info("nvs partition size: " + str(nvssize))
-
-        live_print_call(
-            [
-                os.environ["IDF_PATH"] + "/components/nvs_flash/nvs_partition_generator/nvs_partition_gen.py",
-                "generate",
-                csvfname,
-                binfname,
-                str(nvssize),
-            ],
-            msg_queue=self._q,
-        )
-
-        # write nvs partition to dut
-        live_print_call(
-            [
-                os.environ["IDF_PATH"] + "/components/partition_table/parttool.py",
-                "--port",
-                self.port,
-                "write_partition",
-                "--partition-name=nvs",
-                "--input",
-                binfname,
-            ],
-            msg_queue=self._q,
-        )
-
-        os.remove(csvfname)
-        os.remove(binfname)
 
     def connect_dut_log_port(self):
         max_attempts = 3
@@ -200,6 +301,7 @@ class OverrideDut(IdfDut):
         port = wait_for_port_by_device_name(dut_port_name, dut_port_index)
         kwargs["port"] = port
         super().__init__(*args, **kwargs)
+        logger.info("done init idfdut")
 
 
 @pytest.fixture(scope="module")
@@ -233,6 +335,10 @@ def ict_client():
     # Set everything up to be discoverable over USB
     client = MFICTClient()
     client.clear_input()
+    if client.get_ict_mode() == MODE_FINAL_TESTER:
+        logger.info("ict client opening dut temple")
+        client.open_right_temple()
+
     client.set_gpio0(0)
     client.set_power(True)
     client.reset_dut()
@@ -244,9 +350,11 @@ def ict_client():
 
     logger.debug("Tearing down MFICTClient")
 
+    ict_mode = client.get_ict_mode()
+
     # Reset everything back to a default state
-    client.set_servo("right", 0)
-    client.set_servo("left", 0)
+    client.open_right_temple()
+    client.open_left_temple()
     client.set_power(False)
 
 
@@ -263,7 +371,9 @@ def power_client():
 class TestWithIctOnly:
     """Tests that only require the ICT to be connected (and not the power profiler)"""
 
-    def test_power_on(self, dut: IdfDut, ict_client: MFICTClient) -> None:
+    def test_power_on(self, dut: IdfDut, ict_client: MFICTClient, ssid) -> None:
+        logger.info("power on ssid " + ssid)
+
         # Note: If the IdfDut tries to connect to the ICT serial port to flash it, it dumps a bunch of serial
         # garbage to the ICT that will cause it to fail the next command. This clears the input buffer by sending a newline.
         ict_client.clear_input()
@@ -289,14 +399,16 @@ class TestWithIctOnly:
         # dut.expect("Sol: Entering deep sleep, wake up with magnetometer", timeout=10)
 
 
+# Power Consumption test
+# only supported on mainframe tester
 @pytest.mark.usefixtures("ict_client")
 @pytest.mark.usefixtures("power_client")
 @pytest.mark.ict
 @pytest.mark.power
+@pytest.mark.skipif(MFICTClient().get_ict_mode() != MODE_MAINFRAME_TESTER, reason="not mainframe tester")
 class TestPowerConsumption:
     def test_power(self, dut: OverrideDut, ict_client: MFICTClient, power_client: PowerTester) -> None:
-        # Serial comms go down here when we're toggling power. Go ahead and close out the connection.
-        dut.serial.close()
+        generate_and_write_nvs(ict_client, dut, "", "")
 
         logger.info("Testing voltage rails")
 
@@ -313,7 +425,7 @@ class TestPowerConsumption:
         ict_client.clear_input()
 
         ict_client.set_power(False)
-        ict_client.set_servo("left", 0)
+        ict_client.close_left_temple()
 
         power_client.turn_on()
 
@@ -324,9 +436,9 @@ class TestPowerConsumption:
         power_client.expect_current((10, 30), 3)
 
         logger.info("Powering on DUT")
-        ict_client.set_servo("right", -70)
+        ict_client.open_right_temple()
         time.sleep(0.5)
-        ict_client.set_servo("left", 75)
+        ict_client.open_left_temple()
 
         # Wait for serial port to come back
         # first wait for DUT device to show up
@@ -359,6 +471,19 @@ class TestPowerConsumption:
         # wait 5 seconds
         time.sleep(5)
 
+        # clear content, ensure next button press triggers content sync
+        # this will reset the dut
+        clear_content_and_restart(ict_client)
+
+        # wait for boot again
+        dut.expect("Sol: Error-free boot!", timeout=30)
+
+        # wait for ICT pageturner connect
+        dut.expect("Connected to PageTurner", timeout=20)
+        logger.info("got pageturner message")
+
+        time.sleep(5.0)
+
         # turntouch button
         ict_client.tt_enter()
 
@@ -379,3 +504,103 @@ class TestPowerConsumption:
 
         logger.info("Measuring deep sleep current")
         power_client.expect_current((50, 100), 5)
+
+
+def perform_sync(dut, ict_client, ssid, password):
+    full = True
+    if ssid == "" and password == "":
+        full = False
+
+    ict_client.open_right_temple()
+    ict_client.open_left_temple()
+
+    # Wait for serial port to come back
+    # first wait for DUT device to show up
+    port = wait_for_port_by_device_name(dut_port_name, dut_port_index)
+    logger.info("found port again " + port)
+    # then connect to serial relay for log parsing
+    dut.serial.connect_dut_log_port()
+
+    logger.info("reset dut")
+    ict_client.reset_dut()
+
+    maybe_format(dut)
+    dut.expect("Sol: Error-free boot!", timeout=30)
+    logger.info("got boot message")
+
+    # wait for ICT pageturner connect
+    dut.expect("Connected to PageTurner", timeout=20)
+    logger.info("got pageturner message")
+
+    # wait 5 seconds
+    time.sleep(5)
+
+    clear_content_and_restart(ict_client)
+
+    # at this point the dut will restart
+    # wait again for startup messages
+
+    dut.expect("Sol: Error-free boot!", timeout=30)
+    logger.info("got boot message")
+
+    # wait for ICT pageturner connect
+    dut.expect("Connected to PageTurner", timeout=20)
+    logger.info("got pageturner message")
+
+    time.sleep(5.0)
+
+    # content has been cleared and we have restarted,
+    # so we should be on the content sync option now
+    ict_client.tt_enter()
+
+    # wait for wifi connection
+    dut.expect("Connected, IP address", timeout=30)
+
+    if full == True:
+        dut.expect("books are in sync", timeout=180)
+        dut.expect("articles are in sync", timeout=180)
+
+
+@pytest.mark.usefixtures("ict_client")
+@pytest.mark.usefixtures("power_client")
+@pytest.mark.ict
+@pytest.mark.power
+@pytest.mark.fullsync
+@pytest.mark.skipif(MFICTClient().get_ict_mode() != MODE_MAINFRAME_TESTER, reason="not mainframe tester")
+class TestMainframeFullContentSync:
+    def test_mainframe_full_content_sync(
+        self, dut: OverrideDut, ict_client: MFICTClient, power_client: PowerTester, ssid, password
+    ) -> None:
+        logger.info("TestMainframeFullContentSync")
+        generate_and_write_nvs(ict_client, dut, ssid, password)
+
+        # Note: If the IdfDut tries to connect to the ICT serial port to flash it, it dumps a bunch of serial
+        # garbage to the ICT that will cause it to fail the next command. This clears the input buffer by sending a newline.
+        ict_client.clear_input()
+        ict_client.set_power(False)
+        time.sleep(0.5)
+
+        # turn on battery power from PPK
+        power_client.turn_on()
+
+        # dut is in battery power mode, ready to perform full content sync
+        perform_sync(dut, ict_client, ssid, password)
+
+
+@pytest.mark.usefixtures("ict_client")
+@pytest.mark.ict
+@pytest.mark.fullsync
+@pytest.mark.skipif(MFICTClient().get_ict_mode() != MODE_FINAL_TESTER, reason="not final tester")
+class TestFinalFullContentSync:
+    def test_final_full_content_sync(self, dut: OverrideDut, ict_client: MFICTClient, ssid, password) -> None:
+        logger.info("TestFullContentSync")
+        generate_and_write_nvs(ict_client, dut, ssid, password)
+
+        # Note: If the IdfDut tries to connect to the ICT serial port to flash it, it dumps a bunch of serial
+        # garbage to the ICT that will cause it to fail the next command. This clears the input buffer by sending a newline.
+        ict_client.clear_input()
+        logger.info("turn off usb power to dut")
+        ict_client.set_power(False)
+
+        # final tester now running on batteries, ready to perform full content sync
+        perform_sync(dut, ict_client, ssid, password)
