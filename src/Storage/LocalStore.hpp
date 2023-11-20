@@ -142,10 +142,11 @@ public:
     // When reading, we will take whatever readable file type that's available
     [[nodiscard]] static auto readableFilePathForReading(FileSystem &fileSystem,
                                                          const std::shared_ptr<Readable> &readable)
-        -> std::string;
+        -> std::pair<std::string, size_t>;
     [[nodiscard]] auto readableFilePathForReading(const std::shared_ptr<Readable> &readable) const
-        -> std::string;
-    [[nodiscard]] auto readableGetUncompressedSize(const std::shared_ptr<Readable> &readable) const
+        -> std::pair<std::string, size_t>;
+    [[nodiscard]] auto readableGetUncompressedSize(const std::shared_ptr<Readable> &readable,
+                                                   const std::string &path, size_t size) const
         -> int;
     void readableFilePurge(const std::shared_ptr<Readable> &readable);
 
