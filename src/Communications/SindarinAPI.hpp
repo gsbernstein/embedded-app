@@ -5,6 +5,7 @@
 #include <utility>
 
 #include "Communications/HttpClient.hpp"
+#include "Misc/CancelFlag.hpp"
 #include "Misc/Telemetry.hpp"
 #include "Models/CheckSync.hpp"
 #include "Models/Firmware.hpp"
@@ -33,6 +34,7 @@ enum SindarinError {
     ERR_SIZE_MISMATCH = -10,
     ERR_FILE_OPEN = -11,
     ERR_ALLOCATION = -12,
+    ERR_CANCELLED = -13,
 };
 
 class SindarinAPI {
@@ -53,6 +55,7 @@ public:
 
     auto downloadReadable(const std::shared_ptr<Readable> &readable, FileSystem &fileSystem,
                           Telemetry &telemetry, const std::string &path,
+                          const std::shared_ptr<CancelFlag> &cancel,
                           const std::function<void(int percentage)> &progressCallback) -> int;
 
     auto uploadTelemetryFile(SFile &telemetryFile, const std::string &localPath,
