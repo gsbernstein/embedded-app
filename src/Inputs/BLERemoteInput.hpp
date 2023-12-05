@@ -13,9 +13,18 @@ class BLERemoteInput : public RemoteInput, public BLECharacteristicProvider {
 public:
     BLERemoteInput() = default;
     BLERemoteInput(BLERemoteInput const &) = delete;
+    virtual ~BLERemoteInput() = default;
+
     void configureCharacteristics(BLEService *service) override;
 
+    static auto getInstance() -> std::shared_ptr<BLERemoteInput>;
+    auto getService() -> BLEService * { return service_; };
+
 protected:
+    BLECharacteristic *characteristic_;
+    BLEService *service_;
+    static std::shared_ptr<BLERemoteInput> instance;
+
     class CharacteristicCallbacks : public BLECharacteristicCallbacks {
     public:
         BLERemoteInput *enclosed;

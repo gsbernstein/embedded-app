@@ -1,5 +1,4 @@
-#ifndef BLEImprov_H
-#define BLEImprov_H
+#pragma once
 
 #include <NimBLEDevice.h>
 #include <esp_event_base.h>
@@ -28,10 +27,13 @@ enum BLEImprovState : uint8_t {
 
 class BLEImprov : public BLECharacteristicProvider, public BLEServiceProvider {
 public:
-    BLEImprov()
-        : BLECharacteristicProvider(), BLEServiceProvider(), characteristicCallbacks_(this){};
+    BLEImprov() : BLECharacteristicProvider(), BLEServiceProvider(), characteristicCallbacks_(){};
     BLEImprov(BLEImprov const &) = delete;
+    virtual ~BLEImprov() = default;
+
+    static auto getInstance() -> std::shared_ptr<BLEImprov>;
     void loop();
+    auto getService() -> BLEService * { return service_; };
 
     void configureCharacteristics(BLEService *service) override;
     auto configureService(BLEServer *server) -> BLEService * override;
@@ -40,11 +42,12 @@ public:
     void setState(BLEImprovState state);
 
 protected:
-    uint32_t lastStateChangeMillis_;
-    BLECharacteristic *currentStateCharacteristic_;
-    BLECharacteristic *errorStateCharacteristic_;
-    BLECharacteristic *rpcResultCharacteristic_;
-    BLEImprovState state_;
+    static std::shared_ptr<BLEImprov> instance;
+    uint32_t lastStateChangeMillis_ = 0;
+    BLECharacteristic *currentStateCharacteristic_ = nullptr;
+    BLECharacteristic *errorStateCharacteristic_ = nullptr;
+    BLECharacteristic *rpcResultCharacteristic_ = nullptr;
+    BLEImprovState state_ = STATE_WAITING;
     improv::ImprovCommand lastCommand_;
 
     void setError(improv::Error error, bool notify = true);
@@ -52,9 +55,7 @@ protected:
 
     class CharacteristicCallbacks : public BLECharacteristicCallbacks {
     public:
-        BLEImprov *enclosed;
-
-        CharacteristicCallbacks(BLEImprov *enclosure) { enclosed = enclosure; }
+        CharacteristicCallbacks() = default;
 
         void onWrite(BLECharacteristic *characteristic, ble_gap_conn_desc *desc) override {
             if (!BLEManager::getInstance()->checkAuthed(desc)) {
@@ -81,13 +82,13 @@ protected:
                     break;
                 }
                 case improv::WIFI_SETTINGS: {
-                    this->enclosed->lastCommand_ = command;
-                    this->enclosed->setState(STATE_READY_TO_CONNECT);
+                    BLEImprov::getInstance()->lastCommand_ = command;
+                    BLEImprov::getInstance()->setState(STATE_READY_TO_CONNECT);
                     break;
                 }
                 case improv::GET_WIFI_NETWORKS: {
-                    this->enclosed->lastCommand_ = command;
-                    this->enclosed->setState(STATE_READY_TO_SCAN);
+                    BLEImprov::getInstance()->lastCommand_ = command;
+                    BLEImprov::getInstance()->setState(STATE_READY_TO_SCAN);
                     break;
                 }
                 default: {
@@ -102,5 +103,3 @@ protected:
 
     CharacteristicCallbacks characteristicCallbacks_;
 };
-
-#endif
