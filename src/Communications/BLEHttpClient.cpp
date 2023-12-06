@@ -7,17 +7,19 @@
 #include <esp_timer.h>
 #include <utility>
 
+#include "Misc/CancelFlag.hpp"
 #include "Misc/Defer.hpp"
 
 BLEHttpClient::BLEHttpClient(std::shared_ptr<BLEManager> bleManager,
                              std::shared_ptr<BLEProxy> bleProxy,
                              std::shared_ptr<BLEImprov> bleImprov,
                              std::shared_ptr<BLERemoteInput> remoteInput, const char *url,
-                             const char *contentType, esp_http_client_method_t method)
+                             const char *contentType, esp_http_client_method_t method,
+                             const std::shared_ptr<CancelFlag> &cancel)
     : HttpClient(url, contentType, method), bleManager_(std::move(bleManager)),
       bleProxy_(std::move(bleProxy)), bleImprov_(std::move(bleImprov)),
-      remoteInput_(std::move(remoteInput)), url_(strdup(url)), requestMethod_(method),
-      requestBody_("") {
+      remoteInput_(std::move(remoteInput)), cancel_(cancel), url_(strdup(url)),
+      requestMethod_(method), requestBody_("") {
 
     requestHeaders_.clear();
 
@@ -43,6 +45,7 @@ auto BLEHttpClient::write(const char *body, int length) -> int {
 }
 
 auto BLEHttpClient::fetchHeaders() -> int {
+    auto timeoutMs = 30000;
     statusCode_ = 0;
     responseFetched_ = false;
     responseBody_ = "";
@@ -62,37 +65,24 @@ auto BLEHttpClient::fetchHeaders() -> int {
         bleManager_->startAdvertisingIfNecessary();
     };
 
-    // Create semaphore to wait for BLE to connect
-    SemaphoreHandle_t requestCompleteSemaphore = xSemaphoreCreateBinary();
-    if (requestCompleteSemaphore == nullptr) {
-        log_e("Failed to create semaphore");
-        return -1;
-    }
-
     // If not connected, wait up to 30s to ensure BLE is connected. If not, bail.
     if (!connected) {
-        // Wait for BLE to connect
-        auto waitForBLEConnect = [this, requestCompleteSemaphore]() {
-            while (!connected) {
-                log_d("Waiting for BLE to connect...");
-                vTaskDelay(1000 / portTICK_PERIOD_MS);
+        auto start = esp_timer_get_time();
+        while (!connected) {
+            if (esp_timer_get_time() - start > static_cast<long long>(timeoutMs) * 1000) {
+                log_e("Timed out waiting for BLE proxy to connect");
+                return -1;
             }
-            xSemaphoreGive(requestCompleteSemaphore);
-            vTaskDelete(nullptr);
-        };
-        DispatchQueue::dispatchOneOff(waitForBLEConnect, 4000, 2, 1);
-
-        // Wait for disk write to complete
-        auto timeoutMs = 30000;
-        if (xSemaphoreTake(requestCompleteSemaphore, pdMS_TO_TICKS(timeoutMs)) != pdTRUE) {
-            log_e("Timed out waiting for BLE to connect");
-            vSemaphoreDelete(requestCompleteSemaphore);
-            return -1;
+            log_d("Waiting for BLE to connect...");
+            vTaskDelay(1000 / portTICK_PERIOD_MS);
+            if (CancelFlag::isCancelled(cancel_)) {
+                log_d("Cancelled BLE connection");
+                return -1;
+            }
         }
     }
 
     // Now that we're connected to a mobile app, we can send the request
-    vSemaphoreDelete(requestCompleteSemaphore);
     // Register web request handler which receives the response from the mobile app
     bleProxy_->registerWebRequestHandler([this](const SpiramString &key, const SpiramString &body) {
         return this->handleWebRequest(key, body);
@@ -111,15 +101,15 @@ auto BLEHttpClient::fetchHeaders() -> int {
     bleProxy_->writeBody(requestBody_);
 
     // Wait for response up to 30s
-    auto timeout = 30000;
     auto startTime = esp_timer_get_time();
     while (!responseFetched_) {
-        vTaskDelay(100 / portTICK_PERIOD_MS);
         auto currentTime = esp_timer_get_time();
-        if (currentTime - startTime > static_cast<long long>(timeout) * 1000) {
+        if (currentTime - startTime > static_cast<long long>(timeoutMs) * 1000) {
             log_e("Timed out waiting for response");
             return -1;
         }
+        log_d("Waiting for BLE to respond...");
+        vTaskDelay(1000 / portTICK_PERIOD_MS);
     }
 
     return statusCode_;
