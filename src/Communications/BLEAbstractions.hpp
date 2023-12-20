@@ -3,6 +3,8 @@
 #include <NimBLEDevice.h>
 
 #define MTU_CHUNK_SIZE 512
+// There are at least a few bytes of overhead per chunk, so we need to reduce the chunk size
+#define MTU_REDUCED_CHUNK_SIZE 496
 
 //! Abstract class that can add one or more BLECharacteristics to a BLEService
 class BLECharacteristicProvider {

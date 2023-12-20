@@ -5,7 +5,9 @@
 #include <esp_wifi.h>
 
 #include "Communications/BLEAbstractions.hpp"
+#include "Communications/BLEManager.hpp"
 #include "Misc/StringUtil.hpp"
+#include "Storage/PreferencesStore.hpp"
 #include "sindarin-debug.h"
 
 using WebRequestHandler = std::function<void(const SpiramString &, const SpiramString &)>;
@@ -19,15 +21,21 @@ public:
 
     static auto getInstance() -> std::shared_ptr<BLEProxy>;
 
+    void setPrefs(PreferencesStore *prefs) { prefs_ = prefs; };
     void configureCharacteristics(BLEService *service) override;
     auto getService() -> BLEService * { return proxyService_; };
+    void disconnect(uint16_t connId);
 
     auto countChunks(const SpiramString &body) -> int;
 
     void writeUrl(const SpiramString &url, const SpiramString &method);
-    void writeHeader(const SpiramString &header, const SpiramString &value);
-    void writeBody(const SpiramString &body);
-    void writeBody(const SpiramString &body, int chunkNumber);
+    void writeHeaders(std::vector<std::pair<SpiramString, SpiramString>> &headers,
+                      int specificChunkNumber = -1);
+    void sendHeaderChunk(const std::pair<SpiramString, SpiramString> &headerPair, int chunkNumber,
+                         int numChunks);
+    void writeBody(const SpiramString &body, int specificChunkNumber = -1);
+    void sendChunk(const SpiramString &body, int chunkNumber, int numChunks);
+    auto calculateChecksum(const SpiramString &body) -> SpiramString;
 
     void writeResponseBody(const SpiramString &key, const SpiramString &body);
 
@@ -40,6 +48,7 @@ protected:
     BLEService *proxyService_{nullptr};
     WebRequestHandler webRequestHandler_{nullptr};
     SubscriptionStatusCallback subscriptionStatusCallback_{nullptr};
+    PreferencesStore *prefs_{nullptr};
 
     class CharacteristicCallbacks : public BLECharacteristicCallbacks {
     public:
@@ -67,7 +76,18 @@ protected:
             if (equalsIndex != std::string::npos) {
                 SpiramString key = SpiramString(value.substr(0, equalsIndex));
                 SpiramString body = SpiramString(value.substr(equalsIndex + 1));
-                if (BLEProxy::getInstance()->webRequestHandler_) {
+                if (key == "auth") {
+                    if (body == BLEProxy::getInstance()->prefs_->bleAuthKey.get()) {
+                        log_i("BLEProxy::CharacteristicCallbacks::onWrite: Authed");
+                        BLEManager::getInstance()->markAsAuthed();
+                    } else {
+                        log_w(
+                            "BLEProxy::CharacteristicCallbacks::onWrite: Auth failed (%s, "
+                            "expected %s)",
+                            body.c_str(),
+                            BLEProxy::getInstance()->prefs_->bleAuthKey.get().value_or("").c_str());
+                    }
+                } else if (BLEProxy::getInstance()->webRequestHandler_) {
                     BLEProxy::getInstance()->webRequestHandler_(key, body);
                 }
             }
