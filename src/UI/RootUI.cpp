@@ -1078,7 +1078,21 @@ void RootUI::setup(DisplaySystem *display, LocalStore &localStore, FileSystem &f
 
     systemSettingsMenu->addMenuItem(MenuItem("Firmware Update",
                                              [this, systemSettingsMenu, display]() {
-        auto firmwareUpdateScreen = new FirmwareUpdateScreen(*display, this->prefs_);
+        // If we don't have WiFi configured, show the QR code instead
+        if (!WiFi::getInstance().hasWiFiCredentials()) {
+            auto appDownloadScreen = new AppDownloadScreen(*display);
+            this->setCurrentScreen(*appDownloadScreen);
+            appDownloadScreen->setBackCallback(
+                [this, appDownloadScreen, systemSettingsMenu, display]() {
+                display->clearDisplay();
+                systemSettingsMenu->setFirstLoad();
+                setCurrentScreen(*systemSettingsMenu);
+                delete appDownloadScreen;
+            });
+            return;
+        }
+
+        auto firmwareUpdateScreen = new FirmwareUpdateScreen(*display, telemetry_, prefs_);
         this->setCurrentScreen(*firmwareUpdateScreen);
         firmwareUpdateScreen->setBackCallback(
             [this, firmwareUpdateScreen, systemSettingsMenu, display]() {
