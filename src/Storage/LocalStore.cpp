@@ -573,7 +573,7 @@ void LocalStore::syncFromRemote(
     // call from whatever queue is most fitting based on the context. In tests, this might not be in
     // a queue.
     auto queue = DispatchGetCore0BackgroundQueue();
-    queue->dispatch([this, cancel, wifiConnected] {
+    queue->dispatch([this, cancel] {
         // auto useBle = !wifiConnected;
         auto useBle = false;
         auto retries = 2;
