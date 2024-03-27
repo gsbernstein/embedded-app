@@ -318,3 +318,13 @@ done
 ```sh
 for f in src/Storage/EPubs/*.epub; do echo "Converting $f"; venv/bin/python scripts/file_to_header.py "$f" -o "${f}.hpp"; done
 ```
+
+## Creating a Release
+
+Simply tag the current commit with a version number like `release/v1.2.3` and push tags. Github Actions will build the firmware and create a release with the firmware binaries attached.
+
+Note: Don't use multiple tags on the same commit or git describe will get confused. Use this command to preview what IDF will use to generate the version string:
+
+```sh
+git describe --always --tags --dirty | cut -c 1-31
+```
