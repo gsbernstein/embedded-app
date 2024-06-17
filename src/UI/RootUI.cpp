@@ -16,6 +16,7 @@
 #include "Misc/LookBackStream.hpp"
 #include "Misc/MenuStyle.hpp"
 #include "Misc/Platform.hpp"
+#include "Misc/PowerManager.hpp"
 #include "Misc/SolClock.hpp"
 #include "Misc/StringUtil.hpp"
 #include "Misc/Style.hpp"
@@ -528,8 +529,7 @@ void RootUI::setup(DisplaySystem *display, LocalStore &localStore, FileSystem &f
             // Start on the settings menu when we boot so it feels like we just
             // went back to it!
             PreferencesStore::settingsOnRestart = true;
-            contentSettingsMenu->showTemporaryMessage(
-                *display, "Settings change required restart! Restarting...", 1500, false);
+            contentSettingsMenu->showTemporaryMessage(*display, settingsRestartMsg_, 1500, false);
             this->power_.reboot();
         } else {
             this->display_->clearDisplay();
@@ -623,8 +623,7 @@ void RootUI::setup(DisplaySystem *display, LocalStore &localStore, FileSystem &f
                                        [this, &localStore, display, contentSettingsMenu]() {
             this->prefs_.sortCriteria.set(static_cast<int>(SortCriteria::Alphabetical));
             this->prefs_.sortDirection.set(static_cast<int>(SortDirection::Ascending));
-            contentSettingsMenu->showTemporaryMessage(
-                *display, "Settings change required restart! Restarting...", 500, false);
+            contentSettingsMenu->showTemporaryMessage(*display, settingsRestartMsg_, 500, false);
             localStore.saveReadables(localStore.books());
             localStore.saveReadables(localStore.articles());
             this->power_.reboot();
@@ -633,8 +632,7 @@ void RootUI::setup(DisplaySystem *display, LocalStore &localStore, FileSystem &f
                                        [this, &localStore, display, contentSettingsMenu]() {
             this->prefs_.sortCriteria.set(static_cast<int>(SortCriteria::DateModified));
             this->prefs_.sortDirection.set(static_cast<int>(SortDirection::Descending));
-            contentSettingsMenu->showTemporaryMessage(
-                *display, "Settings change required restart! Restarting...", 500, false);
+            contentSettingsMenu->showTemporaryMessage(*display, settingsRestartMsg_, 500, false);
             localStore.saveReadables(localStore.books());
             localStore.saveReadables(localStore.articles());
             this->power_.reboot();
@@ -643,8 +641,7 @@ void RootUI::setup(DisplaySystem *display, LocalStore &localStore, FileSystem &f
                                        [this, &localStore, display, contentSettingsMenu]() {
             this->prefs_.sortCriteria.set(static_cast<int>(SortCriteria::DateModified));
             this->prefs_.sortDirection.set(static_cast<int>(SortDirection::Ascending));
-            contentSettingsMenu->showTemporaryMessage(
-                *display, "Settings change required restart! Restarting...", 500, false);
+            contentSettingsMenu->showTemporaryMessage(*display, settingsRestartMsg_, 500, false);
             localStore.saveReadables(localStore.books());
             localStore.saveReadables(localStore.articles());
             this->power_.reboot();
@@ -653,8 +650,7 @@ void RootUI::setup(DisplaySystem *display, LocalStore &localStore, FileSystem &f
                                        [this, &localStore, display, contentSettingsMenu]() {
             this->prefs_.sortCriteria.set(static_cast<int>(SortCriteria::LastRead));
             this->prefs_.sortDirection.set(static_cast<int>(SortDirection::Descending));
-            contentSettingsMenu->showTemporaryMessage(
-                *display, "Settings change required restart! Restarting...", 500, false);
+            contentSettingsMenu->showTemporaryMessage(*display, settingsRestartMsg_, 500, false);
             localStore.saveReadables(localStore.books());
             localStore.saveReadables(localStore.articles());
             this->power_.reboot();
@@ -663,8 +659,7 @@ void RootUI::setup(DisplaySystem *display, LocalStore &localStore, FileSystem &f
                                        [this, &localStore, display, contentSettingsMenu]() {
             this->prefs_.sortCriteria.set(static_cast<int>(SortCriteria::LastRead));
             this->prefs_.sortDirection.set(static_cast<int>(SortDirection::Ascending));
-            contentSettingsMenu->showTemporaryMessage(
-                *display, "Settings change required restart! Restarting...", 500, false);
+            contentSettingsMenu->showTemporaryMessage(*display, settingsRestartMsg_, 500, false);
             localStore.saveReadables(localStore.books());
             localStore.saveReadables(localStore.articles());
             this->power_.reboot();
@@ -673,8 +668,7 @@ void RootUI::setup(DisplaySystem *display, LocalStore &localStore, FileSystem &f
                                        [this, &localStore, display, contentSettingsMenu]() {
             this->prefs_.sortCriteria.set(static_cast<int>(SortCriteria::Random));
             this->prefs_.sortDirection.set(static_cast<int>(SortDirection::Ascending));
-            contentSettingsMenu->showTemporaryMessage(
-                *display, "Settings change required restart! Restarting...", 500, false);
+            contentSettingsMenu->showTemporaryMessage(*display, settingsRestartMsg_, 500, false);
             localStore.saveReadables(localStore.books());
             localStore.saveReadables(localStore.articles());
             this->power_.reboot();
@@ -739,8 +733,8 @@ void RootUI::setup(DisplaySystem *display, LocalStore &localStore, FileSystem &f
             // Start on the settings menu when we boot so it feels like we just
             // went back to it!
             PreferencesStore::settingsOnRestart = true;
-            experimentalSettingsMenu->showTemporaryMessage(
-                *display, "Settings change required restart! Restarting...", 1500, false);
+            experimentalSettingsMenu->showTemporaryMessage(*display, settingsRestartMsg_, 1500,
+                                                           false);
             this->power_.reboot();
         } else {
             this->display_->clearDisplay();
@@ -1071,6 +1065,67 @@ void RootUI::setup(DisplaySystem *display, LocalStore &localStore, FileSystem &f
             readingSettingsMenu->setFirstLoad();
             setCurrentScreen(*readingSettingsMenu);
             delete lineSpacingScreen;
+        });
+    }));
+
+    readingSettingsMenu->addMenuItem(MenuItem("Inactivity Timer",
+                                              [this, readingSettingsMenu, display]() {
+        auto inactivityMenu =
+            new MenuScreen(power_.battery, *display, readingSettingsMenu->getMyStyle(),
+                           "Inactivity Timer", "Reading Settings");
+        auto updateExtraText = [this, inactivityMenu]() {
+            this->display_->style.setFontFamily(this->display_->style.solSansSmall);
+            std::string message = std::string(SpiRamStringFormat(
+                "Screen will sleep after %d minutes of inactivity.",
+                prefs_.inactivityMinutes.get().value_or(DEFAULT_INACTIVITY_MINUTES)));
+            inactivityMenu->setExtraText(message);
+        };
+        auto addInactivityMenuItem =
+            [this, inactivityMenu, updateExtraText](const std::string &label, int minutes,
+                                                    const FontFamily fontFamily) {
+            inactivityMenu->addMenuItem(
+                MenuItem(label, [this, inactivityMenu, updateExtraText, minutes, fontFamily]() {
+                    this->display_->style.setFontFamily(fontFamily);
+                    this->display_->clearDisplay();
+                    prefs_.inactivityMinutes.set(minutes);
+                    updateExtraText();
+                    inactivityMenu->requireRestart();
+                    this->telemetry_.logMetricData(TelemetryField::METRIC_STYLE,
+                                                   {{"inactivity_minutes", minutes}});
+                    inactivityMenu->setNeedsRerender();
+                }));
+        };
+
+        addInactivityMenuItem("5 minutes", 5, this->display_->style.solSansSmall);
+        addInactivityMenuItem("10 minutes", 10, this->display_->style.solSansMedium);
+        addInactivityMenuItem("15 minutes", 15, this->display_->style.solSansLarge);
+        addInactivityMenuItem("20 minutes", 20, this->display_->style.solSansLarge);
+        addInactivityMenuItem("30 minutes", 30, this->display_->style.solSansLarge);
+        int menuIndex = 0;
+        if (prefs_.inactivityMinutes.get().value_or(DEFAULT_INACTIVITY_MINUTES) == 5) {
+            menuIndex = 0;
+        } else if (prefs_.inactivityMinutes.get().value_or(DEFAULT_INACTIVITY_MINUTES) == 10) {
+            menuIndex = 1;
+        } else if (prefs_.inactivityMinutes.get().value_or(DEFAULT_INACTIVITY_MINUTES) == 15) {
+            menuIndex = 2;
+        } else if (prefs_.inactivityMinutes.get().value_or(DEFAULT_INACTIVITY_MINUTES) == 20) {
+            menuIndex = 3;
+        } else if (prefs_.inactivityMinutes.get().value_or(DEFAULT_INACTIVITY_MINUTES) == 30) {
+            menuIndex = 4;
+        }
+        updateExtraText();
+        inactivityMenu->setCurrSelection(menuIndex);
+        setCurrentScreen(*inactivityMenu);
+        inactivityMenu->setBackCallback([this, inactivityMenu, readingSettingsMenu, display]() {
+            if (inactivityMenu->getRequireRestart()) {
+                PreferencesStore::settingsOnRestart = true;
+                showTemporaryMessage(*display, settingsRestartMsg_, 1500, false);
+                this->power_.reboot();
+            } else {
+                readingSettingsMenu->setFirstLoad();
+                setCurrentScreen(*readingSettingsMenu);
+                delete inactivityMenu;
+            }
         });
     }));
 
