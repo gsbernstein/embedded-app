@@ -115,34 +115,6 @@ void DisplaySystem::setFullWindow() {
     partialH_ = gfxClass_->height();
 }
 
-void DisplaySystem::ensureBoundaries() {
-    // log_d("Bounding Box before is %s", boundingBox_.toString().c_str());
-
-    // First constrain position
-    boundingBox_.x =
-        std::clamp(boundingBox_.x, maxBoundingBox.x,
-                   static_cast<int32_t>(maxBoundingBox.x + maxBoundingBox.width -
-                                        std::max(minBoundingBox.width, boundingBox_.width)));
-    boundingBox_.y =
-        std::clamp(boundingBox_.y, maxBoundingBox.y,
-                   static_cast<int32_t>(maxBoundingBox.y + maxBoundingBox.height -
-                                        std::max(minBoundingBox.height, boundingBox_.height)));
-
-    // Then constrain dimensions
-    boundingBox_.width = std::clamp(boundingBox_.width, minBoundingBox.width, maxBoundingBox.width);
-    boundingBox_.height =
-        std::clamp(boundingBox_.height, minBoundingBox.height, maxBoundingBox.height);
-
-    // log_d("Bounding Box after is %s", boundingBox_.toString().c_str());
-}
-
-auto DisplaySystem::setBoundingBox(DisplayRect newBox) -> DisplayRect {
-    // Do the bounds checking
-    boundingBox_ = newBox;
-    ensureBoundaries();
-    return boundingBox_;
-}
-
 auto DisplaySystem::getFont() -> Font * { return font_; }
 
 // Eventually, we could add an optional argument at the end to wrap the text
@@ -169,8 +141,8 @@ void DisplaySystem::drawSingleLineOfText(const std::string &line, int x, int y, 
         } else {
             gfxClass_->startWrite();
             ibmf_defs::Bitmap canvas{};
-            canvas.pixels = canvasBuffer_;
-            canvas.dim = ibmf_defs::Dim(canvasWidth_, canvasHeight_);
+            canvas.pixels = getBuffer();
+            canvas.dim = ibmf_defs::Dim(gfxClass()->width(), gfxClass()->height());
             dynamic_cast<IBMFFont *>(font_)->drawSingleLineOfText(
                 canvas, Pos(xOffset(x), yOffset(y + getTextHeight() - lineSpacing_ - 3)), line,
                 inverted ? !invertedDisplay_ : invertedDisplay_);
@@ -180,9 +152,8 @@ void DisplaySystem::drawSingleLineOfText(const std::string &line, int x, int y, 
 }
 
 void DisplaySystem::drawSingleLineOfCenteredText(const std::string &line) {
-    this->drawSingleLineOfText(
-        line, this->xAbsolute(this->xAbsoluteCenter() - this->getTextWidth(line) / 2),
-        this->yAbsolute(this->yAbsoluteCenter() - this->getTextHeight() / 2));
+    this->drawSingleLineOfText(line, (width() - getTextWidth(line)) / 2,
+                               (height() - this->getTextHeight()) / 2);
 }
 
 void DisplaySystem::getTextSize(const std::string &buffer, uint16_t *w, uint16_t *h) {
