@@ -155,9 +155,6 @@ void RootUI::setup(DisplaySystem *display, LocalStore &localStore, FileSystem &f
         }
     }
 
-    // Load the SolSans font only.
-    ibmf75.load(const_cast<ibmf_defs::MemoryPtr>(fontsList[0].content), fontsList[0].length);
-
     auto booksMenu = new Menu(mainMenu->getMyStyle(), "Books");
     auto articlesMenu = new Menu(mainMenu->getMyStyle(), "Articles");
 
@@ -1070,7 +1067,7 @@ void RootUI::setup(DisplaySystem *display, LocalStore &localStore, FileSystem &f
                                "Font Type Settings", "Reading Settings");
             for (int i = 0; i < fontsList.size(); i++) {
                 fontTypeMenu->addMenuItem(MenuItem(fontsList[i].caption, [this, fontTypeMenu, i]() {
-                    ibmf75.load((ibmf_defs::MemoryPtr)fontsList[i].content, fontsList[i].length);
+                    mainFont.load((MemoryPtr)fontsList[i].content, fontsList[i].length);
                     prefs_.fontType.set(i);
                     this->display_->clearDisplay();
                     fontTypeMenu->setNeedsRerender();
