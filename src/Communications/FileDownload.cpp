@@ -1,9 +1,13 @@
 #include "FileDownload.hpp"
 
+#include <esp_heap_caps.h>
 #include <esp_timer.h>
 #include <freertos/ringbuf.h>
 #include <utility>
 
+#if CONFIG_USE_BLE_SERVER_PROXY
+#include "Communications/BLEHttpClient.hpp"
+#endif
 #include "Communications/SindarinAPI.hpp"
 #include "Communications/WiFiHttpClient.hpp"
 #include "Misc/Defer.hpp"
@@ -13,19 +17,30 @@
 #include "sindarin-debug.h"
 
 // Saves us a little RAM at the expense of some download performance
-#define CONFIG_FILEDOWNLOAD_DISK_WRITE_NO_TASK 1
+// NOTE: Running the disk write on a separate core from BLE seems to potentially trigger the
+// btdm_controller_task WDT issues. Test this thoroughly with BLE sync if enabling.
+#define CONFIG_FILEDOWNLOAD_DISK_WRITE_NO_TASK 0
 
-auto DownloadFile(
+auto CreateClient(const std::string &url, bool useBle, const std::shared_ptr<CancelFlag> &cancel)
+    -> std::shared_ptr<HttpClient> {
+    return SindarinAPI::createClient(url, "", HTTP_METHOD_GET, useBle, cancel);
+}
+
+auto DownloadFileCommon(
     const char *url, const std::function<bool(int httpCode, int contentLength)> &openedConnection,
-    const std::function<size_t(WiFiHttpClient &client, int index, int contentLength)> &readWrite,
-    const std::shared_ptr<CancelFlag> &cancel,
+    const std::function<size_t(std::shared_ptr<HttpClient> client, int index, int contentLength)>
+        &readWrite,
+    const std::shared_ptr<CancelFlag> &cancel, bool useBle, int expectedSize,
     const std::function<void(int bytesWritten, float percentage)> &progressCallback, bool gzip)
     -> int {
     if (CancelFlag::isCancelled(cancel)) {
         return ERR_CANCELLED;
     }
-
-    WiFiHttpClient client(url);
+    if (useBle) {
+        // TODO: Support gzip over BLE
+        gzip = false;
+    }
+    auto client = CreateClient(url, useBle, cancel);
 
     auto sindarinApi = SindarinAPI::getInstance();
     if (sindarinApi->isSindarinUrl(url)) {
@@ -36,29 +51,34 @@ auto DownloadFile(
     auto downloadStart = time;
 
     if (gzip) {
-        auto err = client.setHeader("Accept-Encoding", "gzip");
+        auto err = client->setHeader("Accept-Encoding", "gzip");
         if (err != ESP_OK) {
             return ERR_SET_HEADER;
         }
     }
 
-    esp_err_t err = client.open();
+    esp_err_t err = client->open();
     if (err != ESP_OK) {
         return ERR_CLIENT_OPEN;
     }
-    defer { client.close(); };
+    defer { client->close(); };
 
-    auto contentLength = client.fetchHeaders();
+    auto contentLength = client->fetchHeaders(expectedSize, cancel);
 
-    auto httpCode = client.getStatusCode();
+    auto httpCode = client->getStatusCode();
     if (httpCode != 200) {
-        log_w("Status code was %d", httpCode);
-        return httpCode;
+        if (httpCode != 0) {
+            log_w("Status code was %d", httpCode);
+            return httpCode;
+        } else {
+            log_w("Status code was 0, assuming connection error");
+            return ERR_CLIENT_DISCONNECTED;
+        }
     }
 
     if (gzip) {
         char *contentEncoding = nullptr;
-        err = client.getResponseHeader("Content-Encoding", &contentEncoding);
+        err = client->getResponseHeader("Content-Encoding", &contentEncoding);
         if (err == ESP_ERR_NOT_FOUND) {
             log_e("Requested GZIP but did not get any Content-Encoding header!");
         } else if (err != ESP_OK) {
@@ -77,7 +97,8 @@ auto DownloadFile(
     // File-Size header
     if (contentLength <= 0) {
         char *value;
-        if (client.isChunkedResponse() && client.getResponseHeader("File-Size", &value) == ESP_OK) {
+        if (client->isChunkedResponse() &&
+            client->getResponseHeader("File-Size", &value) == ESP_OK) {
             contentLength = strtol(value, nullptr, 10);
             log_d("Chunked transmission of File-Size %d", contentLength);
         }
@@ -92,9 +113,11 @@ auto DownloadFile(
     if (!openedConnection(httpCode, contentLength)) {
         // Get the body anyways, for debugging, since it might contain an error message
         char buffer[256];
-        auto read = client.read(buffer, sizeof(buffer));
+        auto read = client->read(buffer, sizeof(buffer));
         if (read > 0) {
             log_w("Error body: %s", buffer);
+        } else {
+            log_d("No error body: %s", buffer);
         }
         return ERR_OPEN_BLOCK;
     }
@@ -109,10 +132,15 @@ auto DownloadFile(
 
         int readLen = readWrite(client, totalReadLen, contentLength);
         if (readLen <= 0) {
-            log_w("readWrite failed (readLen == %d)", readLen);
-            if (!client.connected) {
+            log_w("readWrite failed (readLen == %d, totalReadLen: %d, contentLength: %d, connected "
+                  "%d)",
+                  readLen, totalReadLen, contentLength, client->connected);
+            if (!client->connected) {
                 log_w("Connection closed, bailing out");
                 return ERR_CLIENT_DISCONNECTED;
+            } else {
+                log_w("readWrite failed, bailing out");
+                return ERR_READ_EMPTY;
             }
         }
 
@@ -121,8 +149,8 @@ auto DownloadFile(
         float percentage = static_cast<float>(totalReadLen) / contentLength * 100.0f;
         rl.checkAndExecute(percentage, [totalReadLen, downloadStart,
                                         progressCallback](int64_t time, float percentage) {
-            log_d("Downloaded %.1f%% (%.1f KB/s)", percentage,
-                  totalReadLen / 1024.0f / ((time - downloadStart) / 1000000.0f));
+            log_d("Downloaded %.1f%% (%.1f KB/s, %d bytes)", percentage,
+                  totalReadLen / 1024.0f / ((time - downloadStart) / 1000000.0f), totalReadLen);
             if (progressCallback != nullptr) {
                 progressCallback(totalReadLen, percentage);
             }
@@ -152,21 +180,22 @@ auto DownloadFile(
     return httpCode;
 }
 
-auto DownloadFile(const char *url,
-                  const std::function<bool(int httpCode, int contentLength)> &openedConnection,
-                  const std::function<size_t(const uint8_t *buf, size_t size)> &writeBytes,
-                  const std::shared_ptr<CancelFlag> &cancel,
-                  const std::function<void(int bytesWritten, float percentage)> &progressCallback,
-                  bool gzip) -> int {
+auto DownloadFileWithWriteBytes(
+    const char *url, const std::function<bool(int httpCode, int contentLength)> &openedConnection,
+    const std::function<size_t(const uint8_t *buf, size_t size)> &writeBytes,
+    const std::shared_ptr<CancelFlag> &cancel, bool useBle, int expectedSize,
+    const std::function<void(int bytesWritten, float percentage)> &progressCallback, bool gzip)
+    -> int {
 
     constexpr int bufferSize = 4096;
     auto buffer = SpiRamArrayPtr<uint8_t>(bufferSize);
 
-    return DownloadFile(
+    return DownloadFileCommon(
         url, openedConnection,
-        [buffer, bufferSize, writeBytes](WiFiHttpClient &client, int index, int contentLength) {
-        int readLen = client.read(reinterpret_cast<char *>(buffer.get()),
-                                  std::min(bufferSize, contentLength - index));
+        [buffer, bufferSize, writeBytes](const std::shared_ptr<HttpClient> &client, int index,
+                                         int contentLength) {
+        int readLen = client->read(reinterpret_cast<char *>(buffer.get()),
+                                   std::min(bufferSize, contentLength - index));
 
         auto written = writeBytes(buffer.get(), static_cast<size_t>(readLen));
         if (written != readLen) {
@@ -175,14 +204,20 @@ auto DownloadFile(const char *url,
 
         return readLen;
         },
-        cancel, progressCallback, gzip);
+        cancel, useBle, expectedSize, progressCallback, gzip);
 }
 
-auto DownloadFile(const char *url, FileSystem &fileSystem, Telemetry &telemetry, const char *path,
-                  int length, const std::shared_ptr<CancelFlag> &cancel,
-                  const std::function<void(float percentage)> &progressCallback, bool gzip) -> int {
+auto DownloadFileToPath(const char *url, FileSystem &fileSystem, Telemetry &telemetry,
+                        const char *path, int length, const std::shared_ptr<CancelFlag> &cancel,
+                        bool useBle, const std::function<void(float percentage)> &progressCallback,
+                        bool gzip) -> int {
 
     std::string fullPath(path);
+
+    if (useBle) {
+        // TODO: Support gzip over BLE
+        gzip = false;
+    }
 
     SHOW_HEAP();
     // TODO: Support resuming?
@@ -233,7 +268,8 @@ auto DownloadFile(const char *url, FileSystem &fileSystem, Telemetry &telemetry,
         return true;
     };
 
-    auto reader = [ringbuf](WiFiHttpClient &client, int index, int contentLength) -> size_t {
+    auto reader = [ringbuf](const std::shared_ptr<HttpClient> &client, int index,
+                            int contentLength) -> size_t {
         DataBlock *block = nullptr;
         auto err = xRingbufferSendAcquire(ringbuf, reinterpret_cast<void **>(&block),
                                           sizeof(DataBlock), portMAX_DELAY);
@@ -242,7 +278,7 @@ auto DownloadFile(const char *url, FileSystem &fileSystem, Telemetry &telemetry,
             return 0;
         }
 
-        int bytesRead = client.read(reinterpret_cast<char *>(block->data), sizeof(block->data));
+        int bytesRead = client->read(reinterpret_cast<char *>(block->data), sizeof(block->data));
         if (bytesRead <= 0) {
             log_w("client.read returned %d bytes", bytesRead);
             return 0;
@@ -306,8 +342,9 @@ auto DownloadFile(const char *url, FileSystem &fileSystem, Telemetry &telemetry,
     // Spin up the downloader task
     int httpCode;
     auto dispatched = DispatchQueue::dispatchOneOff(
-        [url, openedConnection, reader, gzip, &httpCode, ringbuf, cancel]() {
-        httpCode = DownloadFile(url, openedConnection, reader, cancel, nullptr, gzip);
+        [url, openedConnection, reader, gzip, &httpCode, ringbuf, cancel, useBle, length]() {
+        httpCode = DownloadFileCommon(url, openedConnection, reader, cancel, useBle, length,
+                                      nullptr, gzip);
         DataBlock *block;
         auto err = xRingbufferSendAcquire(ringbuf, reinterpret_cast<void **>(&block),
                                           sizeof(DataBlock), portMAX_DELAY);
@@ -373,8 +410,8 @@ auto DownloadFile(const char *url, FileSystem &fileSystem, Telemetry &telemetry,
 
     if (length != fileSize) {
         // TODO: What's the best API to get errors from the stream?
-        log_e("Downloaded file is shorter than expected, expected %d bytes but got %zu bytes",
-              length, fileSize);
+        log_e("Downloaded file is shorter than expected, expected %d bytes but got %zu bytes (%s)",
+              length, fileSize, gzip ? "uncompressed" : "compressed");
         telemetry.logMetric(TelemetryField::METRIC_SYNC_STATUS, "wrong-size",
                             {{"expected", length}, {"actual", static_cast<int>(fileSize)}});
         return ERR_SIZE_MISMATCH;
