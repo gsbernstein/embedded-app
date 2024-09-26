@@ -73,6 +73,10 @@ test: test-build
 	./test/CatchTests/build/tests '[epub]'
 	./test/CatchTests/build/tests '[content-sync]'
 
+.PHONY: lldb-test-epub
+lldb-test-epub: test-build
+	lldb ./test/CatchTests/build/tests '[epub]'
+
 .PHONY: epub-render-build
 epub-render-build:
 	mkdir -p scripts/epub-render/build
