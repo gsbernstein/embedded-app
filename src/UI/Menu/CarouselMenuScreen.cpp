@@ -8,7 +8,7 @@ CarouselMenuScreen::CarouselMenuScreen(DisplaySystem &display)
 
 void CarouselMenuScreen::addTab(const std::string &tabName,
                                 const MenuItemFactory &menuItemFactory) {
-    menuTabs_.emplace_back(tabName, menuItemFactory, 0);
+    menuTabs_.emplace_back(tabName, menuItemFactory);
 }
 
 void CarouselMenuScreen::setTabToTitle(const std::string &tabTitle) {
@@ -40,8 +40,6 @@ void CarouselMenuScreen::populateMenuView() {
     for (auto &i : *menuItems) {
         menuView_.addMenuItem(i);
     }
-
-    menuView_.setSelectedIndex(std::get<2>(menuTabs_[currentTabIndex_]));
 
     titleView_.setText(getCurrentTabTitle());
     firstLoad_ = true;
@@ -76,7 +74,6 @@ void CarouselMenuScreen::processCommand(RemoteCommand command) {
 
 void CarouselMenuScreen::moveSelection(int delta) {
     auto newPage = menuView_.moveSelection(delta);
-    std::get<2>(menuTabs_[currentTabIndex_]) = menuView_.getSelectedIndex();
     if (newPage) {
         firstLoad_ = true;
     }
