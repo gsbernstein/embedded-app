@@ -456,8 +456,8 @@ TEST_CASE("Test some views independently") {
             offsetScreen->processCommand(ENTER);
             auto resizeScreen = std::make_shared<ResizeBoxScreen>(*display, prefs, telemetry);
             resizeScreen->render(*display);
-            resizeScreen->processCommand(LEFT);
-            resizeScreen->processCommand(LEFT);
+            resizeScreen->processCommand(RIGHT);
+            resizeScreen->processCommand(RIGHT);
             resizeScreen->render(*display);
             ASSERT_VIEW_UNCHANGED(display, "ResizeBoxScreenLeftPinned");
         }
