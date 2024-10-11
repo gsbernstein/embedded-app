@@ -1,5 +1,7 @@
 #pragma once
 
+#include <utility>
+
 #include "Misc/SpiramAllocator.hpp"
 #include "Models/Json.hpp"
 #include "Models/JsonSerializable.hpp"
@@ -11,6 +13,8 @@
 class WiFiSetting : public JsonSerializable {
 public:
     WiFiSetting() = default;
+    WiFiSetting(std::string ssid, std::string password)
+        : ssid(std::move(ssid)), password(std::move(password)){};
     ~WiFiSetting() override = default;
 
     std::string ssid;

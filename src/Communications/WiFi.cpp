@@ -144,43 +144,7 @@ auto WiFi::getWifiConfig(wifi_config_t *conf) -> esp_err_t {
     return ESP_OK;
 }
 
-auto WiFi::hasWiFiCredentials(wifi_config_t *conf) -> bool {
-    if (strlen(reinterpret_cast<const char *>(conf->sta.ssid)) == 0) {
-        return false;
-    }
-    if (strlen(reinterpret_cast<const char *>(conf->sta.password)) == 0) {
-        log_w("Zero length WiFi password (possibly ok for open networks)");
-    }
-    return true;
-}
-
-void WiFi::migrateWiFiCredentials() {
-    wifi_config_t conf;
-    esp_err_t err = getWifiConfig(&conf);
-    if (err != ESP_OK) {
-        log_w("error getting Wifi Config in migrateWiFiCredentials: %d", err);
-        return;
-    }
-
-    if (hasWiFiCredentials(&conf)) {
-        std::string ssid = reinterpret_cast<char *>(conf.sta.ssid);
-        std::string password = reinterpret_cast<char *>(conf.sta.password);
-        settings_.setActiveSetting(ssid, password);
-    }
-    settings_.save();
-}
-
-auto WiFi::hasWiFiCredentials() -> bool {
-    if (settings_.needsMigration()) {
-        migrateWiFiCredentials();
-    }
-
-    if (settings_.count() == 0) {
-        return false;
-    }
-
-    return true;
-}
+auto WiFi::hasWiFiCredentials() -> bool { return settings_.count() > 0; }
 
 void WiFi::clearWiFiCredentials() {
     log_i("clearing wifi credentials.");
@@ -356,10 +320,6 @@ auto WiFi::connectWiFiFromSettings() -> bool {
         return err;
     }
 
-    if (settings_.needsMigration()) {
-        migrateWiFiCredentials();
-    }
-
     if (settings_.count() == 0) {
         log_w("no wifi credentials found");
         return false;
@@ -400,6 +360,11 @@ auto WiFi::connectWiFiSettingWithTimeout(int timeoutMs, const std::string &ssid,
         setState(WiFiState::IDLE);
         return false;
     }
+
+    // Successful connection, save WiFi settings
+    log_i("Successful connection, saving WiFi settings for %s.", ssid.c_str());
+    settings_.setActiveSetting(ssid, password);
+    settings_.save();
 
     return true;
 }
@@ -520,24 +485,6 @@ void WiFi::ipEventHandler(void *arg, esp_event_base_t eventBase, int32_t eventId
         auto *event = static_cast<ip_event_got_ip_t *>(eventData);
         // NOLINTNEXTLINE(cppcoreguidelines-pro-type-cstyle-cast): There's a cast in IP2STR
         log_i("IP_EVENT_STA_GOT_IP: " IPSTR, IP2STR(&event->ip_info.ip));
-
-        // successful connection
-        // save current wifi settings
-        log_i("successful connection, saving settings.");
-        wifi_config_t conf;
-        esp_err_t err = esp_wifi_get_config(WIFI_IF_STA, &conf);
-        if (err != ESP_OK) {
-            log_e("got ip: esp_wifi_get_config failed with error %s", esp_err_to_name(err));
-            break;
-        }
-
-        std::string ssid = reinterpret_cast<char *>(conf.sta.ssid);
-        std::string password = reinterpret_cast<char *>(conf.sta.password);
-
-        log_d("Saving most-recent WiFi: %s", ssid.c_str());
-
-        tthis->settings_.setActiveSetting(ssid, password);
-        tthis->settings_.save();
         tthis->setState(WiFiState::CONNECTED);
         xEventGroupSetBits(tthis->wifiEventGroup_, CONNECTED);
         break;

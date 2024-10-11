@@ -59,7 +59,6 @@ public:
 
     // Credentials
     auto getWifiConfig(wifi_config_t *conf) -> esp_err_t;
-    auto hasWiFiCredentials(wifi_config_t *conf) -> bool;
     auto hasWiFiCredentials() -> bool;
 
     void clearWiFiCredentials();
@@ -124,5 +123,4 @@ protected:
 
     auto connectWiFiSettingWithTimeout(int timeoutMs, const std::string &ssid,
                                        const std::string &password) -> bool;
-    void migrateWiFiCredentials();
 };

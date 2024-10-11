@@ -79,11 +79,7 @@ void WiFiSettings::addSetting(const std::string &ssid, const std::string &passwo
         return;
     }
 
-    WiFiSetting s;
-    s.ssid = ssid;
-    s.password = password;
-
-    settings.insert(settings.begin(), s);
+    settings.emplace(settings.begin(), ssid, password);
     if (settings.size() > MAX_WIFI_SETTINGS) {
         settings.erase(settings.end() - 1);
     }
@@ -91,5 +87,3 @@ void WiFiSettings::addSetting(const std::string &ssid, const std::string &passwo
 }
 
 void WiFiSettings::clear() { settings.clear(); }
-
-auto WiFiSettings::needsMigration() -> bool { return !prefs.wifiSettingsJson.get().has_value(); }
