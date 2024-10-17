@@ -17,7 +17,6 @@
 #include "UI/Menu/NewMenuItemCheckable.hpp"
 #include "UI/Menu/NewMenuItemSingleLine.hpp"
 #include "UI/Menu/ReadingSettingsMenuScreen.hpp"
-#include "UI/MsgPopup.hpp"
 #include "UI/NewReadablePopupMenuScreen.hpp"
 #include "UI/OffsetAdjustScreen.hpp"
 #include "UI/ReadableDictionaryScreen.hpp"
@@ -90,7 +89,6 @@ protected:
 
     bool firstLoad_ = true;
     bool inBookmark_ = false;
-    bool showingFirstTimeView_ = false;
 
     std::shared_ptr<Place> newPlace_ = nullptr;
     bool atEnd_ = false;
@@ -119,12 +117,13 @@ protected:
 
     std::shared_ptr<Screen> currentScreen_{nullptr};
 
-    std::shared_ptr<MsgPopup> notExist_{nullptr};
-
 private:
     void turnPage();
     uint32_t readingStartTime_{};
     LastArrowPress lastArrowPress_ = REMOTE_NONE;
+
+    const char *notExistMessage_ =
+        "This content doesn't have that feature.\nPress any button to continue.";
 
     int numUps_ = 0;
 };

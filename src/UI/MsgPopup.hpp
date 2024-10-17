@@ -15,24 +15,6 @@ private:
     MultiLineTextView textView_;
 
 public:
-    static void showTemporaryMessage(DisplaySystem &display, const std::string &message,
-                                     int duration = 2000, bool rerenderAfter = false,
-                                     const std::shared_ptr<Screen> &screen = nullptr) {
-        auto popup = std::make_shared<MsgPopup>(display, message);
-        popup->render(display);
-        if (rerenderAfter) {
-            Delay(duration);
-            if (screen) {
-                display.clearDisplay();
-                screen->setNeedsRerender();
-                screen->render(display);
-            } else {
-                log_e("No screen to rerender after message. This is probably a bug where you "
-                      "passed in true to rerender but no Screen to rerender after message.");
-            }
-        }
-    }
-
     MsgPopup(DisplaySystem &display, const std::string &msg)
         : EinkView(display), boxView_(display, 12), textView_(display, 12) {
         textView_.setText(msg);
@@ -40,6 +22,14 @@ public:
         textView_.setFont(static_cast<Font *>(&fontFace0));
     }
     ~MsgPopup() override = default;
+
+    void startTimer(int duration = 2000) {
+        // Must stop the timer because ChangePeriod starts it. This prevents an issue where
+        // someone starts the timer multiple times and then there's an extra trigger of the Timer
+        // that another screen gets.
+        xTimerStop(DisplaySystem::animationTimer, 0);
+        xTimerChangePeriod(DisplaySystem::animationTimer, pdMS_TO_TICKS(duration), 0);
+    }
 
     auto layout(LayoutContext &context, Size size) -> Size override {
         auto textRect = context.setViewFrame(textView_, Rect::fromSize(size),
@@ -64,12 +54,9 @@ public:
     }
 
     void processCommand(RemoteCommand command) override {
-        switch (command) {
-        case RemoteCommand::ENTER:
-            back();
-            break;
-        default:
-            break;
-        }
+        // Stop the timer in case we get here through button press.
+        // Technically this does a stop even if it's not running (in the other case), but that's ok.
+        xTimerStop(DisplaySystem::animationTimer, 0);
+        back();
     }
 };
