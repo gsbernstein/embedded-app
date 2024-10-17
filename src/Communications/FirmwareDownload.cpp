@@ -34,8 +34,7 @@ void FirmwareDownloader::downloadFirmware(
 
     setState(FirmwareDownloadState{.state = FirmwareDownloadState::State::CheckingForLatest});
 
-    auto queue = DispatchGetCore0BackgroundQueue();
-    queue->dispatch([this, setState] {
+    auto updateFwIfNeeded = [this, setState] {
         auto httpCode = SindarinAPI::getInstance()->checkFirmware(&response);
         if (httpCode != 200) {
             // Try as HTTP in case something goes wrong with certs
@@ -139,5 +138,7 @@ void FirmwareDownloader::downloadFirmware(
         }
 
         setState(FirmwareDownloadState{.state = FirmwareDownloadState::State::Installed});
-    });
+    };
+    // Note: 8192 is the size that all the esp-idf examples use for esp_http_client.
+    DispatchQueue::dispatchOneOff(updateFwIfNeeded, 8192, 0, 1, "FWUpdate");
 }
