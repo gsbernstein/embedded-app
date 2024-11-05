@@ -18,36 +18,38 @@ std::shared_ptr<CancelFlag> cancel;
 
 void BackgroundSyncCancel() { CancelFlag::cancel(cancel); }
 
-void BackgroundSync(PowerManager &powerManager, PreferencesStore &prefs, LocalStore &localStore,
-                    Telemetry &telemetry, FileSystem &fileSystem) {
+auto BackgroundSync(PowerManager &powerManager, PreferencesStore &prefs, LocalStore &localStore,
+                    Telemetry &telemetry, FileSystem &fileSystem, bool useWifi, bool useBle)
+    -> bool {
+    log_d("Background sync starting");
 
     // Don't perform a background sync if wifi is disabled manually
     // TODO: Once BLE sync is merged, check to see if that is still enabled
     // and if so, continue with the sync but DON'T use wifi for it. Maybe have to
     // change the guts of this a bit to pull that off.
     if (prefs.wifiDisabled.get().value_or(false) && prefs.bleDisabled.get().value_or(false)) {
-        return;
+        return false;
     }
 
     auto wifiConnected = false;
-#if CONFIG_USE_BLE_SERVER_PROXY
     auto bleConnected = false;
-#endif
 
     cancel = std::make_shared<CancelFlag>();
 
     // Connect to WiFi
-    if (!WiFi::getInstance().connectWiFiFromSettings()) {
-        telemetry.logMetric(TelemetryField::METRIC_WIFI, "sync-wifi-failed");
-    } else {
-        wifiConnected = true;
+    if (useWifi) {
+        if (!WiFi::getInstance().connectWiFiFromSettings()) {
+            telemetry.logMetric(TelemetryField::METRIC_WIFI, "sync-wifi-failed");
+        } else {
+            wifiConnected = true;
+        }
     }
 
 #if CONFIG_USE_BLE_SERVER_PROXY
-    if (!wifiConnected) {
+    if (useBle && !wifiConnected) {
         if (!BLEManager::getInstance()->connectProxy(cancel)) {
             telemetry.logMetric(TelemetryField::METRIC_WIFI, "sync-ble-failed");
-            return;
+            return false;
         } else {
             bleConnected = true;
         }
@@ -79,11 +81,12 @@ void BackgroundSync(PowerManager &powerManager, PreferencesStore &prefs, LocalSt
     }
 
     if (CancelFlag::isCancelled(cancel)) {
-        return;
+        return false;
     }
 
-    localStore.syncFromRemote(PreferencesStore::syncReason, cancel,
-                              [&powerManager, &telemetry](const ContentSyncState &state) {
+    auto syncSuccessful =
+        localStore.syncFromRemote(wifiConnected, bleConnected, PreferencesStore::syncReason, cancel,
+                                  [&powerManager, &telemetry](const ContentSyncState &state) {
         powerManager.feedInactivityTimer();
 
         if (state.state == ContentSyncState::Failure || state.state == ContentSyncState::Synced ||
@@ -102,20 +105,22 @@ void BackgroundSync(PowerManager &powerManager, PreferencesStore &prefs, LocalSt
                 return;
             }
         }
-    });
+        });
+
+    log_d("Background content sync finished, syncSuccessful: %d", syncSuccessful);
 
     if (CancelFlag::isCancelled(cancel)) {
-        return;
+        return false;
     }
 
     if (wifiConnected && !WiFi::getInstance().connected()) {
         log_w("WiFi not connected, ending background sync");
-        return;
+        return false;
     }
 #if CONFIG_USE_BLE_SERVER_PROXY
     if (bleConnected && !BLEManager::getInstance()->connected()) {
         log_w("BLE proxy not connected, ending background sync");
-        return;
+        return false;
     }
 #endif
 
@@ -131,7 +136,7 @@ void BackgroundSync(PowerManager &powerManager, PreferencesStore &prefs, LocalSt
     }
 
     if (CancelFlag::isCancelled(cancel)) {
-        return;
+        return false;
     }
 
     // Upload core dumps
@@ -157,6 +162,8 @@ void BackgroundSync(PowerManager &powerManager, PreferencesStore &prefs, LocalSt
             });
         }
     }
+
+    return syncSuccessful;
 }
 
 // TODO: It would probably be good to do some sort of retry with exponential
@@ -171,7 +178,19 @@ void BackgroundSyncAndSleep(PowerManager &powerManager, PreferencesStore &prefs,
 
     DispatchQueue::dispatchOneOffSync(
         [&powerManager, &prefs, &localStore, &telemetry, &fileSystem]() {
-        BackgroundSync(powerManager, prefs, localStore, telemetry, fileSystem);
+        // Try WiFi first if enabled
+        auto syncSuccessful = false;
+        if (!prefs.wifiDisabled.get().value_or(false)) {
+            syncSuccessful =
+                BackgroundSync(powerManager, prefs, localStore, telemetry, fileSystem, true, false);
+        }
+
+        // If WiFi sync failed and BLE is enabled, try BLE
+        if (!syncSuccessful && !prefs.bleDisabled.get().value_or(false)) {
+            // Disconnect from wifi if connected
+            WiFi::getInstance().disconnectWiFi(3000);
+            BackgroundSync(powerManager, prefs, localStore, telemetry, fileSystem, false, true);
+        }
         },
         8192, 1, 0, "Sync", pdMS_TO_TICKS(15 * 60 * 1000));
 
