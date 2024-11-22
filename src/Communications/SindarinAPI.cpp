@@ -147,7 +147,21 @@ auto SindarinAPI::checkSync(const std::string &url, CheckSyncRequest &req, Check
     return httpCode;
 }
 
-auto SindarinAPI::checkFirmware(FirmwareResponse *resp, bool useHttp) -> int {
+auto SindarinAPI::checkFirmware(FirmwareResponse *resp, bool useBle,
+                                const std::shared_ptr<CancelFlag> &cancel) -> int {
+    // Try HTTPS first
+    int httpCode = tryCheckFirmware(resp, false, useBle, cancel);
+
+    // If HTTPS fails, try HTTP
+    if (httpCode != 200) {
+        httpCode = tryCheckFirmware(resp, true, useBle, cancel);
+    }
+
+    return httpCode;
+}
+
+auto SindarinAPI::tryCheckFirmware(FirmwareResponse *resp, bool useHttp, bool useBle,
+                                   const std::shared_ptr<CancelFlag> &cancel) -> int {
     auto endpoint = StringFormat("%s/firmware/", baseUrl_.c_str());
     if (useHttp) {
         // Replace the https prefix with http
@@ -155,7 +169,11 @@ auto SindarinAPI::checkFirmware(FirmwareResponse *resp, bool useHttp) -> int {
             endpoint = StringFormat("http://%s", endpoint.c_str() + 8);
         }
     }
-    auto client = createClient(endpoint, "application/json", HTTP_METHOD_GET, false, nullptr);
+
+    auto client = createClient(endpoint, "application/json", HTTP_METHOD_GET, useBle, cancel);
+    if (client == nullptr) {
+        return ERR_CLIENT_OPEN;
+    }
 
     auto err = setAuth(client);
     if (err != ESP_OK) {
@@ -379,4 +397,59 @@ auto SindarinAPI::uploadCrashReport(SFile &crashFile, const std::string &content
 
     client->fetchHeaders();
     return client->getStatusCode();
+}
+
+auto SindarinAPI::getServerTime(time_t *time, bool useBle,
+                                const std::shared_ptr<CancelFlag> &cancel) -> int {
+    auto endpoint = StringFormat("%s/time/", baseUrl_.c_str());
+    auto client = createClient(endpoint, "text/plain", HTTP_METHOD_GET, useBle, cancel);
+    if (client == nullptr) {
+        return ERR_CLIENT_OPEN;
+    }
+
+    auto err = client->open(0);
+    if (err != ESP_OK) {
+        return ERR_CLIENT_OPEN;
+    }
+    defer { client->close(); };
+
+    auto contentLength = client->fetchHeaders();
+    if (contentLength <= 0) {
+        log_e("Failed to fetch headers");
+        return ERR_CONTENT_LENGTH;
+    }
+
+    int httpCode = client->getStatusCode();
+    if (httpCode != 200) {
+        log_e("Failed to get time: %d", httpCode);
+        return httpCode;
+    }
+
+    // Read the timestamp directly as a string
+    auto buffer = SpiRamArrayPtr<char>(contentLength + 1);
+    auto stream = client->makeReadStream();
+    size_t totalRead = 0;
+
+    while (totalRead < contentLength) {
+        auto read = client->read(buffer.get() + totalRead, contentLength - totalRead);
+        if (read <= 0) {
+            break;
+        }
+        totalRead += read;
+    }
+
+    if (totalRead != contentLength) {
+        log_e("Failed to read time response");
+        return ERR_READ_EMPTY;
+    }
+    buffer[totalRead] = '\0';
+
+    // Convert string to time_t
+    *time = strtoll(buffer.get(), nullptr, 10);
+    if (*time == 0) {
+        log_e("Failed to parse time response: %s", buffer.get());
+        return ERR_JSON_DESERIALIZE;
+    }
+
+    return httpCode;
 }

@@ -12,6 +12,10 @@
 #include "Version.hpp"
 #include "sindarin-debug.h"
 
+#if CONFIG_USE_BLE_SERVER_PROXY
+#include "Communications/BLEManager.hpp"
+#include "Communications/BLEProxy.hpp"
+#endif
 void FirmwareDownloader::downloadFirmware(
     const std::function<void(FirmwareDownloadState state)> &progressCallback) {
 
@@ -32,16 +36,51 @@ void FirmwareDownloader::downloadFirmware(
 
     setState(FirmwareDownloadState{.state = FirmwareDownloadState::State::CheckingForLatest});
 
-    auto httpCode = SindarinAPI::getInstance()->checkFirmware(&response);
-    if (httpCode != 200) {
-        // Try as HTTP in case something goes wrong with certs
-        httpCode = SindarinAPI::getInstance()->checkFirmware(&response, true);
-        if (httpCode != 200) {
-            log_e("Failed to get firmware (HTTP %d)", httpCode);
+    // Try WiFi first if not disabled
+    bool wifiConnected = false;
+    bool bleConnected = false;
+    auto httpCode = 0;
+
+    if (!prefs_.wifiDisabled.get().value_or(false)) {
+        httpCode = SindarinAPI::getInstance()->checkFirmware(&response, false, cancel_);
+        if (httpCode == 200) {
+            wifiConnected = true;
+        } else {
+            log_e("Failed to get firmware over WiFi (HTTP %d)", httpCode);
+#if !CONFIG_USE_BLE_SERVER_PROXY
             setState(FirmwareDownloadState{.state = FirmwareDownloadState::State::Failure,
                                            .message = "Failed to check for update"});
             return;
+#endif
         }
+    }
+
+#if CONFIG_USE_BLE_SERVER_PROXY
+    // Try BLE if WiFi failed and BLE is not disabled
+    if (!wifiConnected && !prefs_.bleDisabled.get().value_or(false)) {
+        if (!BLEManager::getInstance()->connectProxy(cancel_)) {
+            setState(FirmwareDownloadState{.state = FirmwareDownloadState::State::Failure,
+                                           .message = "Failed to connect via WiFi or BLE"});
+            return;
+        }
+        bleConnected = true;
+
+        // Disconnect WiFi if we're using BLE
+        WiFi::getInstance().disconnectWiFi(3000);
+        log_d("Checking for firmware update via BLE");
+        httpCode = SindarinAPI::getInstance()->checkFirmware(&response, true, cancel_);
+        if (httpCode != 200) {
+            setState(FirmwareDownloadState{.state = FirmwareDownloadState::State::Failure,
+                                           .message = "Failed to check for update via BLE"});
+            return;
+        }
+    }
+#endif
+
+    if (!wifiConnected && !bleConnected) {
+        setState(FirmwareDownloadState{.state = FirmwareDownloadState::State::Failure,
+                                       .message = "No connection available"});
+        return;
     }
 
     if (skipInstall_ &&
@@ -96,7 +135,7 @@ void FirmwareDownloader::downloadFirmware(
         [](const uint8_t *buf, size_t size) {
         return Update.write(const_cast<uint8_t *>(buf), size);
         },
-        cancel_, false,
+        cancel_, bleConnected,
         [setState](int bytesWritten, float percentage) {
         setState(FirmwareDownloadState{.state = FirmwareDownloadState::State::Downloading,
                                        .percentage = static_cast<int>(percentage)});
