@@ -481,6 +481,8 @@ public:
           readableArchivedChanged(*this, "-ar"),
           readableBookmarksChanged(*this, "-bm"),
           invertSetting(boolFlags_, 0),
+          invertStartHour(*this, "invert-start"),
+          invertEndHour(*this, "invert-end"),
           vcom(*this, "vcom"),
           font(*this, "font"),
           lineSpacing(*this, "line-space"),
@@ -524,6 +526,7 @@ public:
           seenExperimentalOverview(boolFlags_, 19),
           seenPartialSummaryOverview(boolFlags_, 20),
           seenFastPageTransitionsOverview(boolFlags_, 21),
+          seenAutoDarkModeOverview(boolFlags_, 22),
           privateKey(*this, "private-key"),
           // only touch the lines above this when deleting those prefs. Do not renumber. Add below 
           // to add a new boolFlag with incrementing value.
@@ -807,6 +810,8 @@ public:
     KeyedPrefsItem<bool> readableArchivedChanged;
     KeyedPrefsItem<bool> readableBookmarksChanged;
     BooleanFlag invertSetting;
+    PrefsItem<int> invertStartHour;
+    PrefsItem<int> invertEndHour;
     PrefsItem<int> vcom;
     PrefsItem<int> font;
     PrefsItem<int> lineSpacing;
@@ -857,6 +862,7 @@ public:
     BooleanFlag seenExperimentalOverview;
     BooleanFlag seenPartialSummaryOverview;
     BooleanFlag seenFastPageTransitionsOverview;
+    BooleanFlag seenAutoDarkModeOverview;
     PrefsItem<SpiramVector<uint8_t>> privateKey;
 
     // These are RTC_SLOW_MEM variables that persist across deep sleep / wake cycles but will be

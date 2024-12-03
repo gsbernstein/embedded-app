@@ -42,6 +42,11 @@ public:
             menuItems_[selectedIndex_]->execute();
         }
     }
+    void executeSelectedItemRightButton() {
+        if (selectedIndex_ < menuItems_.size()) {
+            menuItems_[selectedIndex_]->executeRightButton();
+        }
+    }
 
     void drawFastElements() {
         indicatorView_.fillColor = display_.fg;

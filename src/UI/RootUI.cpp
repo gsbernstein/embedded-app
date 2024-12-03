@@ -42,6 +42,8 @@
 #include "UI/LineMenuScreen.hpp"
 #include "UI/LineSpacingScreen.hpp"
 #include "UI/Menu/DRMFreeWelcomeMenuScreen.hpp"
+#include "UI/Menu/DarkModeMenuItemCheckable.hpp"
+#include "UI/Menu/ExperimentalMenuScreen.hpp"
 #include "UI/Menu/FirstBookWelcomeMenuScreen.hpp"
 #include "UI/Menu/GenericSettingsMenuScreen.hpp"
 #include "UI/Menu/InactivitySettingMenuScreen.hpp"
@@ -776,7 +778,7 @@ void RootUI::setup(LocalStore &localStore, FileSystem &fileSystem,
                         "Standard Version"
                         " of the Bible (Copyright 2001, Crossway Publishing).\n\n"
                         " Not your thing? No worries! Just archive these books and the tab "
-                        " will disappear.\n\n"
+                        "will disappear.\n\n"
                         " Press \ue000 (center) to continue.");
                     auto tutorialScreen = createTutorialScreen(message, TUTORIAL_SCREEN_BIBLE);
                     this->pushScreen(tutorialScreen);
@@ -793,125 +795,11 @@ void RootUI::setup(LocalStore &localStore, FileSystem &fileSystem,
         menuItems->emplace_back(std::make_shared<MenuItemSingleLine>("Reading Style", [this]() {
             log_d("Loading Reading Settings Menu");
 
-            auto readingSettingsMenu =
-                std::make_shared<ReadingSettingsMenuScreen>(display_, "Main Menu", prefs_);
-
-            if (this->prefs_.autoPilot.get().value_or(false)) {
-                prefs_.autoPilotSpeed.set(10000);
-                readingSettingsMenu->turnOnAutoPilot();
-            } else {
-                prefs_.autoPilotSpeed.remove();
-                readingSettingsMenu->turnOffAutoPilot();
-            }
-
-            readingSettingsMenu->setBackCallback([this]() { this->popScreen(); });
-
-            readingSettingsMenu->addMenuItem(std::make_shared<MenuItemSingleLine>("Text Size",
-                                                                                  [this]() {
-                auto fontMenu =
-                    std::make_shared<ReadingSettingsMenuScreen>(display_, "Reading Style", prefs_);
-                fontMenu->addMenuItem(std::make_shared<MenuItemSingleLine>("Small", [this]() {
-                    display_.clearDisplay();
-                    prefs_.font.set(PREFS_SOL_SMALL);
-                    this->telemetry_.logMetricData(TelemetryField::METRIC_STYLE,
-                                                   {{"text_size", std::string("small")}});
-                    currentScreen()->setNeedsRerender();
-                }));
-                fontMenu->addMenuItem(std::make_shared<MenuItemSingleLine>("Medium", [this]() {
-                    display_.clearDisplay();
-                    prefs_.font.set(PREFS_SOL_MEDIUM);
-                    this->telemetry_.logMetricData(TelemetryField::METRIC_STYLE,
-                                                   {{"text_size", std::string("medium")}});
-                    currentScreen()->setNeedsRerender();
-                }));
-                fontMenu->addMenuItem(std::make_shared<MenuItemSingleLine>("Large", [this]() {
-                    display_.clearDisplay();
-                    prefs_.font.set(PREFS_SOL_LARGE);
-                    this->telemetry_.logMetricData(TelemetryField::METRIC_STYLE,
-                                                   {{"text_size", std::string("large")}});
-                    currentScreen()->setNeedsRerender();
-                }));
-                int menuIndex = 0;
-                if (prefs_.font.get().value_or(PREFS_SOL_SMALL) == PREFS_SOL_SMALL) {
-                    menuIndex = 0;
-                } else if (prefs_.font.get().value_or(PREFS_SOL_SMALL) == PREFS_SOL_MEDIUM) {
-                    menuIndex = 1;
-                } else if (prefs_.font.get().value_or(PREFS_SOL_SMALL) == PREFS_SOL_LARGE) {
-                    menuIndex = 2;
-                }
-                fontMenu->setSelectedIndex(menuIndex);
-                pushScreen(fontMenu);
-                fontMenu->setBackCallback([this]() { this->popScreen(false); });
-            }));
-
-            readingSettingsMenu->addMenuItem(
-                std::make_shared<MenuItemSingleLine>("Move Page in Display", [this]() {
-                    log_d("Loading adjust offset");
-                    auto offsetAdjust =
-                        std::make_shared<OffsetAdjustScreen>(display_, prefs_, this->telemetry_);
-                    this->pushScreen(offsetAdjust);
-                    log_d("setting up callback");
-                    offsetAdjust->setBackCallback([this]() { this->popScreen(false); });
-                    log_d("set up callback");
-                }));
-
-            readingSettingsMenu->addMenuItem(std::make_shared<MenuItemSingleLine>("Resize Page",
-                                                                                  [this]() {
-                log_d("Loading resize box");
-                auto resizeBox =
-                    std::make_shared<ResizeBoxScreen>(display_, prefs_, this->telemetry_);
-                this->pushScreen(resizeBox);
-                log_d("setting up callback");
-                resizeBox->setBackCallback([this]() { this->popScreen(false); });
-                log_d("set up callback");
-            }));
-
-            readingSettingsMenu->addMenuItem(std::make_shared<MenuItemSingleLine>("Line Spacing",
-                                                                                  [this]() {
-                auto lineSpacingScreen =
-                    std::make_shared<LineSpacingScreen>(display_, prefs_, this->telemetry_);
-                this->pushScreen(lineSpacingScreen);
-                lineSpacingScreen->setBackCallback([this]() {
-                    this->popScreen(false);
-                    std::static_pointer_cast<ReadingSettingsMenuScreen>(currentScreen())
-                        ->setRendererLineSpacingFromPrefs();
-                });
-            }));
-
-            readingSettingsMenu->addMenuItem(std::make_shared<MenuItemCheckable>(
-                "Dark Mode",
-                [this]() {
-                this->prefs_.darkMode.set(!this->prefs_.darkMode.get().value_or(false));
-                // Reserved for future use? Potentially lighting up and down?
-                display_.flipInversion();
-                // When we invert, we should do a full clear of the display to make sure
-                // the blacks are really gone.
-                display_.clearDisplay();
-                prefs_.invertSetting.set(display_.getInversion());
-                currentScreen()->setNeedsRerender();
-                currentScreen()->setFirstLoad();
-                },
-                [this]() -> bool { return this->prefs_.darkMode.get().value_or(false); }));
-
-            readingSettingsMenu->addMenuItem(std::make_shared<MenuItemCheckable>(
-                "Autopilot",
-                [this]() {
-                this->prefs_.autoPilot.set(!this->prefs_.autoPilot.get().value_or(false));
-                if (this->prefs_.autoPilot.get().value_or(false)) {
-                    prefs_.autoPilotSpeed.set(10000);
-                    // cast this to a readable
-                    std::static_pointer_cast<ReadingSettingsMenuScreen>(currentScreen())
-                        ->turnOnAutoPilot();
-                } else {
-                    prefs_.autoPilotSpeed.remove();
-                    std::static_pointer_cast<ReadingSettingsMenuScreen>(currentScreen())
-                        ->turnOffAutoPilot();
-                }
-                currentScreen()->setNeedsRerender();
-                currentScreen()->setFirstLoad();
-                },
-                [this]() -> bool { return this->prefs_.autoPilot.get().value_or(false); }));
-
+            auto readingSettingsMenu = std::make_shared<ReadingSettingsMenuScreen>(
+                display_, "Main Menu", prefs_, telemetry_,
+                [this](const std::shared_ptr<Screen> &screen) { this->pushScreen(screen); },
+                [this]() { this->popScreen(); });
+            readingSettingsMenu->populateMenuItems();
             readingSettingsMenu->setFirstLoad();
             this->pushScreen(readingSettingsMenu);
         }));
@@ -1212,61 +1100,11 @@ void RootUI::setup(LocalStore &localStore, FileSystem &fileSystem,
         menuItems->emplace_back(std::make_shared<MenuItemSingleLine>("Experimental Features",
                                                                      [this]() {
             log_d("Loading Experimental Settings Menu");
-            auto experimentalSettingsMenu =
-                std::make_shared<GenericSettingsMenuScreen>(display_, "Main Menu");
-
+            auto experimentalSettingsMenu = std::make_shared<ExperimentalMenuScreen>(
+                display_, "Main Menu", prefs_, telemetry_,
+                [this](const std::shared_ptr<Screen> &screen) { this->pushScreen(screen); });
             experimentalSettingsMenu->setBackCallback([this]() { this->popScreen(); });
-
-            experimentalSettingsMenu->addMenuItem(std::make_shared<MenuItemCheckable>(
-                "Show Partial Summary",
-                [this]() {
-                if (!prefs_.seenPartialSummaryOverview.get().value_or(false)) {
-                    std::string message =
-                        "You know how when you binge watch a show (you'd never do that, would "
-                        "you?), you often will get a \"Previously on\" overview "
-                        "at the beginning of each episode? This feature gives you \"Previously "
-                        "on\" "
-                        "but for your reading! Any time you leave a reading "
-                        "session in the middle of a chapter, we'll generate a partial chapter "
-                        "summary for you (no spoilers) to "
-                        "review on your next reading session.\n\n\n"
-                        "Press any button to continue...";
-                    showTemporaryMessage(message, TEMP_MSG_DURATION_NO_CLOSE);
-                    prefs_.seenPartialSummaryOverview.set(true);
-                } else {
-                    this->prefs_.noShowPartialChapterSummary.set(
-                        !this->prefs_.noShowPartialChapterSummary.get().value_or(false));
-                    currentScreen()->setNeedsRerender();
-                }
-                },
-                [this]() -> bool {
-                    return !this->prefs_.noShowPartialChapterSummary.get().value_or(false);
-                }));
-
-            experimentalSettingsMenu->addMenuItem(std::make_shared<MenuItemCheckable>(
-                "Fast Page Transitions",
-                [this]() {
-                if (!prefs_.seenFastPageTransitionsOverview.get().value_or(false)) {
-                    std::string message =
-                        "Have you noticed on some screen transitions, the Eink "
-                        "displays of your Sol Reader flash black and then white? "
-                        "This is called a full refresh. By default, all page "
-                        "turns use full refresh. "
-                        "The Fast Page Transitions "
-                        "option speeds up your page turns "
-                        "by only doing a full refresh when needed to ensure the display doesn't "
-                        "have too many remnants of previous pages.\n\n"
-                        "Press any button to continue...";
-                    showTemporaryMessage(message, TEMP_MSG_DURATION_NO_CLOSE);
-                    prefs_.seenFastPageTransitionsOverview.set(true);
-                } else {
-                    this->prefs_.fastTransitions.set(
-                        !this->prefs_.fastTransitions.get().value_or(false));
-                    currentScreen()->setNeedsRerender();
-                }
-                },
-                [this]() -> bool { return this->prefs_.fastTransitions.get().value_or(false); }));
-
+            experimentalSettingsMenu->populateMenuItems();
             experimentalSettingsMenu->setFirstLoad();
             pushScreen(experimentalSettingsMenu);
             if (!prefs_.seenExperimentalOverview.get().value_or(false)) {

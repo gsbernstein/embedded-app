@@ -567,6 +567,47 @@ extern "C" void app_main(void) { // NOLINT(readability-identifier-naming)
     });
 #endif
 
+    // Check if we should start in dark mode based on schedule
+    if (prefs.invertStartHour.get().has_value() || prefs.invertEndHour.get().has_value()) {
+        int startHour = prefs.invertStartHour.get().value_or(-1);
+        int endHour = prefs.invertEndHour.get().value_or(-1);
+        bool currentlyDark = prefs.darkMode.get().value_or(false);
+
+        // Get current hour (0-23)
+        time_t now = SolClock::getInstance().getEpochTime();
+        struct tm timeinfo = {};
+        localtime_r(&now, &timeinfo);
+        int currentHour = timeinfo.tm_hour;
+
+        bool shouldBeDark = currentlyDark; // Start with current state
+
+        if (startHour == -1) {
+            // Only end hour set - turn off dark mode if it's after end hour
+            if (currentHour >= endHour) {
+                shouldBeDark = false;
+            }
+        } else if (endHour == -1) {
+            // Only start hour set - turn off dark mode if it's before start hour
+            if (currentHour < startHour) {
+                shouldBeDark = false;
+            }
+        } else if (startHour < endHour) {
+            // Simple case: dark between start and end
+            // e.g., dark 8am (8) to 5pm (17)
+            shouldBeDark = (currentHour >= startHour && currentHour < endHour);
+        } else {
+            // Wraps around midnight
+            // e.g., dark 8pm (20) to 6am (6)
+            shouldBeDark = (currentHour >= startHour || currentHour < endHour);
+        }
+
+        if (shouldBeDark != currentlyDark) {
+            prefs.darkMode.set(shouldBeDark);
+            myDisplay.invertDisplay(shouldBeDark);
+            prefs.invertSetting.set(shouldBeDark);
+        }
+    }
+
     // Render the first thing
     DispatchGetUiQueue()->dispatch([showChargingScreen]() {
         if (powerManager.state() == PowerState::ActiveUSBCharging) {
