@@ -35,7 +35,10 @@
 extern PreferencesStore prefs;
 extern void UIInnerLoop(RemoteCommand command);
 
-#if CONFIG_DISPLAY_SIM_8BIT
+#if CONFIG_DISPLAY_SIM_16BIT
+#include "Displays/DisplaySim16Bit.hpp"
+extern DisplaySim16Bit myDisplay;
+#elif CONFIG_DISPLAY_SIM_8BIT
 #include "Displays/DisplaySim8Bit.hpp"
 extern DisplaySim8Bit myDisplay;
 #elif CONFIG_DISPLAY_SIM_1BIT
@@ -72,13 +75,13 @@ float lerp(float a, float b, float t) { return a + t * (b - a); }
 void SimDrawScreen() {
     for (int x = 0; x < myDisplay.gfxClass()->width(); x++) {
         for (int y = 0; y < myDisplay.gfxClass()->height(); y++) {
-#ifdef CONFIG_DISPLAY_SIM_1BIT
+#if CONFIG_DISPLAY_SIM_1BIT
             SDL_SetRenderDrawColor(renderer, 240, 240, 240, 0xFF);
 
             if (myDisplay.getPixel(x, y)) {
                 SDL_RenderDrawPoint(renderer, x, y);
             }
-#else
+#elif CONFIG_DISPLAY_SIM_8BIT || CONFIG_DISPLAY_EINKET013TT1
             uint8_t color = myDisplay.buffer()[x + y * myDisplay.gfxClass()->width()];
             float colorF = color / 255.0;
             uint16_t brightnessOffset =
@@ -89,9 +92,22 @@ void SimDrawScreen() {
                 lerp(40 + brightnessOffset, 240 - brightnessOffset, colorF),
                 lerp(40 + brightnessOffset, 227 - brightnessOffset, colorF), 0xFF);
             SDL_RenderDrawPoint(renderer, x, y);
+#elif CONFIG_DISPLAY_SIM_16BIT
+            uint16_t *buffer = reinterpret_cast<uint16_t *>(myDisplay.buffer().get());
+            uint16_t pixel = buffer[x + y * myDisplay.gfxClass()->width()];
+
+            uint8_t r = ((pixel >> 11) & 0x1F) << 3; // 5 bits red
+            uint8_t g = ((pixel >> 5) & 0x3F) << 2;  // 6 bits green
+            uint8_t b = (pixel & 0x1F) << 3;         // 5 bits blue
+
+            SDL_SetRenderDrawColor(renderer, r, g, b, 0xFF);
+            SDL_RenderDrawPoint(renderer, x, y);
+#else
+#error "No simulator display configured"
 #endif
         }
     }
+
     if (movieOn_) {
         totalFrames++;
         char filename[100];
