@@ -1,5 +1,7 @@
 #include "esp_http_client.h"
 
+#if CONFIG_USE_WIFI
+
 #include "sindarin-debug.h"
 
 // Ignore warnings about deprecated OpenSSL stuff
@@ -18,7 +20,7 @@ public:
         std::string protocol = urlStr.substr(0, found);
         // urlNew is the url excluding the http part
         std::string urlNew = urlStr.substr(found + 3);
-        size_t found1 = urlNew.find_first_of(":");
+        // size_t found1 = urlNew.find_first_of(":");
         size_t found2 = urlNew.find_first_of("/");
 
         host = urlStr.substr(0, found2 + protocol.length() + 3);
@@ -249,3 +251,5 @@ int esp_http_client_read_response(esp_http_client_handle_t client, char *buffer,
 // {}
 
 // esp_err_t esp_http_client_get_chunk_length(esp_http_client_handle_t client, int *len) {}
+
+#endif
