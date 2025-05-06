@@ -70,6 +70,9 @@ DisplayWaveshare6inHD myDisplay;
 #elif CONFIG_DISPLAY_SHARP_27IN
 #include "Displays/DisplaySharp27in.hpp"
 DisplaySharp27in myDisplay;
+#elif CONFIG_DISPLAY_ESP32_P4_FUNCTION_EV || CONFIG_DISPLAY_ESP32_P4_FUNCTION_EV_R0
+#include "Displays/DisplayEsp32P4FunctionEv.hpp"
+DisplayEsp32P4FunctionEv myDisplay;
 #else
 #error "No display selected"
 #endif
