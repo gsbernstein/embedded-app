@@ -7,6 +7,7 @@
 #include "Misc/Battery.hpp"
 #include "Misc/Telemetry.hpp"
 #include "Models/CheckSync.hpp"
+#include "Models/KindleBook.hpp"
 #include "Models/Place.hpp"
 #include "Models/Readable.hpp"
 #include "Models/UserReadable.hpp"
@@ -90,10 +91,13 @@ public:
 
     auto begin() -> bool;
     auto loadReadablesFromFile(ReadablesVector &readables, const std::string &path) -> bool;
+    auto loadKindleBooksFromFile(KindleBooksVector &kindleBooks, const std::string &path) const
+        -> bool;
 
     // Convenience methods
     auto books() -> ReadablesVector & { return books_; };
     auto articles() -> ReadablesVector & { return articles_; };
+    auto kindle() -> KindleBooksVector & { return kindle_; };
     auto recents() -> ReadablesVector & { return recents_; };
 
     auto readablesModelType(const ReadablesVector &readables) -> ReadablesModelType;
@@ -146,6 +150,7 @@ public:
     void sortReadables(ReadablesVector &readables);
     void purgeReadableToc(const std::shared_ptr<Readable> &readable);
     auto saveReadables(ReadablesVector &readables) -> bool;
+    auto saveKindleBooks(KindleBooksVector &kindleBooks) const -> bool;
     void saveBookQuestions(const BookQuestions &bookQuestions);
 
     // Methods for interacting with readable files on disk
@@ -188,6 +193,7 @@ private:
 
     ReadablesVector books_;
     ReadablesVector articles_;
+    KindleBooksVector kindle_;
 
     ReadablesVector recents_;
 };

@@ -12,6 +12,7 @@
 #include "Models/Firmware.hpp"
 #include "Models/FirmwareResponse.hpp"
 #include "Models/Json.hpp"
+#include "Models/KindlePageResponse.hpp"
 #include "Models/ReadableArchive.hpp"
 #include "Models/ReadableBookmark.hpp"
 #include "Models/ReadablePlacemark.hpp"
@@ -39,6 +40,9 @@ enum SindarinError {
     ERR_BLE_NOT_CONNECTED = -15,
     ERR_BLE_TIMED_OUT = -16,
     ERR_CREATE_DIR = -17,
+    ERR_CLIENT_READ = -18,
+    ERR_INVALID_PARAM = -19,
+    ERR_EXCEPTION = -20,
 };
 
 class SindarinAPI {
@@ -67,7 +71,7 @@ public:
                           const std::function<void(int percentage)> &progressCallback) -> int;
     static auto createClient(const std::string &url, const std::string &contentType,
                              esp_http_client_method_t method, bool useBle,
-                             const std::shared_ptr<CancelFlag> &cancel)
+                             const std::shared_ptr<CancelFlag> &cancel, int timeoutMs = 30000)
         -> std::shared_ptr<HttpClient>;
     auto uploadTelemetryFile(SFile &telemetryFile, const std::string &localPath,
                              FileSystem &fileSystem, bool useBle = false,
@@ -82,9 +86,17 @@ public:
     auto askQuestion(const BookQuestionRequest &req, BookQuestionResponse *resp, bool useBle,
                      const std::shared_ptr<CancelFlag> &cancel) -> int;
 
+    // Kindle book operations
+    auto openKindleBook(const SpiramString &title, KindlePageResponse *resp,
+                        const std::shared_ptr<CancelFlag> &cancelFlag, bool useBle) -> int;
+    auto navigateKindle(KindlePageResponse *resp, const std::shared_ptr<CancelFlag> &cancelFlag,
+                        bool useBle, int navigate, int preview) -> int;
+
 private:
     auto tryCheckFirmware(FirmwareResponse *resp, bool useHttp, bool useBle,
                           const std::shared_ptr<CancelFlag> &cancel) -> int;
+    auto makeKindleRequest(const std::string &path, KindlePageResponse *resp,
+                           const std::shared_ptr<CancelFlag> &cancelFlag, bool useBle) -> int;
 
 protected:
     static std::shared_ptr<SindarinAPI> instance;

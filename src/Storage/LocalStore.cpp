@@ -33,6 +33,7 @@
 
 #define BOOKS_PATH "/readables.json"
 #define ARTICLES_PATH "/articles.json"
+#define KINDLE_PATH "/kindle.json"
 
 enum { NUMBER_OF_READABLE_DOWNLOAD_TRIES = 3 };
 enum { MAX_NUMBER_OF_PAGES_TO_BACKFILL = 10 };
@@ -40,6 +41,7 @@ enum { MAX_NUMBER_OF_PAGES_TO_BACKFILL = 10 };
 auto LocalStore::begin() -> bool {
     auto loadedBooks = loadReadablesFromFile(books_, BOOKS_PATH);
     auto loadedArticles = loadReadablesFromFile(articles_, ARTICLES_PATH);
+    loadKindleBooksFromFile(kindle_, KINDLE_PATH);
 
     migrateIfNeeded();
 
@@ -47,6 +49,7 @@ auto LocalStore::begin() -> bool {
     computeRecentReadables();
     PROFILE_END_LOG_US(computeRecentReadables);
 
+    // loadedKindle is not critical, so we don't return false if it fails
     return loadedBooks && loadedArticles;
 }
 
@@ -98,8 +101,90 @@ auto LocalStore::loadReadablesFromFile(ReadablesVector &readables, const std::st
     return true;
 }
 
+// Helper method to load KindleBook objects from JSON
+auto LocalStore::loadKindleBooksFromFile(KindleBooksVector &kindleBooks,
+                                         const std::string &path) const -> bool {
+    log_d("Loading Kindle books JSON from %s", path.c_str());
+
+    bool foundActualBooks = false;
+
+    // Try to load the actual Kindle books from the JSON file
+    SFile readablesFile = fileSystem.open(path);
+    if (!readablesFile || static_cast<int>(readablesFile.size()) == 0) {
+        log_w("Failed to open Kindle JSON file: %s", path.c_str());
+        return foundActualBooks;
+    }
+
+    log_d("Successfully opened Kindle JSON file, size: %d bytes",
+          static_cast<int>(readablesFile.size()));
+
+    // Grab a minimum amount of ram, even if the readables file is empty
+    auto docSize = static_cast<int>(readablesFile.size()) * 2;
+    auto doc = std::make_unique<SpiRamJsonDocument>(docSize);
+    auto error = deserializeJson(*doc, readablesFile);
+    readablesFile.close();
+
+    if (error.code() != DeserializationError::Ok) {
+        log_e("Failed to deserialize Kindle JSON: %s", error.c_str());
+        return foundActualBooks;
+    }
+
+    if (!(*doc).containsKey("books")) {
+        log_w("No 'books' array found in Kindle JSON");
+        return foundActualBooks;
+    }
+
+    auto booksJson = (*doc)["books"].as<JsonArray>();
+    if (booksJson.size() == 0) {
+        log_w("Empty 'books' array in Kindle JSON");
+        return foundActualBooks;
+    }
+
+    log_i("Found %zu Kindle books in JSON", booksJson.size());
+
+    // Limit to 20 books for testing - remove this limitation in production
+    int maxBooks = 40;
+    int bookCount = 0;
+    int booksLoaded = 0;
+
+    for (JsonVariant v : booksJson) {
+        if (bookCount >= maxBooks) {
+            break;
+        }
+        bookCount++;
+
+        if (!v.is<JsonObject>()) {
+            log_w("Kindle book entry is not a valid JSON object");
+            continue;
+        }
+
+        // Parse book data
+        auto kindleBookObj = v.as<JsonObject>();
+        KindleBook kindleBook;
+        if (!kindleBook.fromJson(kindleBookObj)) {
+            log_w("Failed to parse Kindle book from JSON");
+            continue;
+        }
+
+        kindleBooks.push_back(kindleBook);
+        booksLoaded++;
+        foundActualBooks = true;
+    }
+
+    log_i("Successfully loaded %d Kindle books (from %d available in JSON)", booksLoaded,
+          bookCount);
+    return foundActualBooks;
+}
+
 auto LocalStore::readablesModelType(const ReadablesVector &readables) -> ReadablesModelType {
-    return &readables == &articles_ ? ReadablesModelType::Article : ReadablesModelType::Book;
+    if (&readables == &articles_) {
+        return ReadablesModelType::Article;
+    } else if (&readables == &books_) {
+        return ReadablesModelType::Book;
+    } else {
+        // Default case if vector doesn't match articles or books
+        return ReadablesModelType::Book;
+    }
 }
 
 auto LocalStore::isReadableUnchanged(const ReadablesVector &readables,
@@ -704,6 +789,8 @@ auto LocalStore::syncFromRemote(bool wifiConnected, bool bleConnected, SyncReaso
     bool articlesAlreadySynced = false;
     bool booksNowSynced = false;
     bool articlesNowSynced = false;
+    bool kindleNowSynced = false;
+    bool kindleAlreadySynced = false;
     int booksDownloaded = 0;
     int articlesDownloaded = 0;
 
@@ -748,6 +835,7 @@ auto LocalStore::syncFromRemote(bool wifiConnected, bool bleConnected, SyncReaso
         checkSyncRequest.gitHash = GitVersionString();
         checkSyncRequest.sn = GetSerialNumber();
         checkSyncRequest.bookQuestionsVersion = this->prefs_.bookQuestionsVersion.get().value_or(0);
+        checkSyncRequest.kindleLastSynced = this->prefs_.lastKindleSince.get().value_or("0");
 
         auto nextPageCounter = 0;
         auto nextPageUrl = std::string();
@@ -837,6 +925,43 @@ auto LocalStore::syncFromRemote(bool wifiConnected, bool bleConnected, SyncReaso
                 log_i("Received book questions (version %d) in sync response, saving to file",
                       checkSyncResponse.bookQuestions.version);
                 saveBookQuestions(checkSyncResponse.bookQuestions);
+            }
+
+            // Check for Kindle books in the response
+            if (checkSyncResponse.hasKindleBooks) {
+                log_i("Received %zu Kindle books from server",
+                      checkSyncResponse.kindleBooks.size());
+
+                // Replace the local Kindle books with those from the server
+                kindle_ = checkSyncResponse.kindleBooks;
+
+                // Save the Kindle books to the local JSON file
+                if (!saveKindleBooks(kindle_)) {
+                    log_e("Failed to save Kindle books to file");
+                    kindleAlreadySynced = false;
+                    kindleNowSynced = false;
+                    this->telemetry_.logMetric(TelemetryField::METRIC_SYNC_STATUS,
+                                               "failed-save-kindle");
+                } else {
+                    log_i("Successfully saved %zu Kindle books to file", kindle_.size());
+                    this->telemetry_.logMetric(TelemetryField::METRIC_SYNC_STATUS,
+                                               "success-sync-kindle",
+                                               {{"book-count", static_cast<int>(kindle_.size())}});
+
+                    kindleNowSynced = true;
+
+                    // Store the kindle_last_synced date for the next sync
+                    if (!checkSyncResponse.kindleLastSynced.empty()) {
+                        log_i("Setting lastKindleSince to %s",
+                              checkSyncResponse.kindleLastSynced.c_str());
+                        this->prefs_.lastKindleSince.set(
+                            checkSyncResponse.kindleLastSynced.c_str());
+                    }
+                }
+            } else {
+                log_i("No Kindle books returned from server");
+                kindleAlreadySynced = true;
+                kindleNowSynced = false;
             }
 
             // Look through all the books and articles and download any that we don't have
@@ -990,10 +1115,11 @@ auto LocalStore::syncFromRemote(bool wifiConnected, bool bleConnected, SyncReaso
               (unsigned int)uxTaskGetStackHighWaterMark(NULL), __FILE__, __LINE__);
     };
 
-    if (booksAlreadySynced && articlesAlreadySynced) {
+    // Return based on the sync status of books, articles, and Kindle books
+    if (booksAlreadySynced && articlesAlreadySynced && kindleAlreadySynced) {
         progressCallback(ContentSyncState{.state = ContentSyncState::State::AlreadySynced});
         return true;
-    } else if (booksNowSynced || articlesNowSynced) {
+    } else if (booksNowSynced || articlesNowSynced || kindleNowSynced) {
         progressCallback(ContentSyncState{.state = ContentSyncState::State::Synced,
                                           .booksDownloaded = booksDownloaded,
                                           .articlesDownloaded = articlesDownloaded});
@@ -1374,6 +1500,41 @@ auto LocalStore::saveReadables(ReadablesVector &readables) -> bool {
     file.close();
     log_d("Saved %zu %ss in %s", readables.size(), ReadableModelTypeToString(modelType).c_str(),
           path.c_str());
+
+    return true;
+}
+
+auto LocalStore::saveKindleBooks(KindleBooksVector &kindleBooks) const -> bool {
+    SHOW_HEAP();
+
+    // Each Kindle book entry is relatively small compared to readables
+    auto doc = std::make_unique<SpiRamJsonDocument>(
+        2000 * std::max(1, static_cast<int>(kindleBooks.size())));
+
+    // Create a key named books of type array
+    JsonArray booksJson = doc->createNestedArray("books");
+
+    log_d("Saving %zu Kindle books in %s", kindleBooks.size(), KINDLE_PATH);
+    for (const auto &book : kindleBooks) {
+        JsonObject bookObj = booksJson.createNestedObject();
+        convertToJson(book, bookObj);
+    }
+
+    if (doc->overflowed()) {
+        log_e("Out of space in SpiRamJsonDocument for %s", KINDLE_PATH);
+        return false;
+    }
+
+    // Write doc to disk
+    SFile file = fileSystem.open(KINDLE_PATH, FILE_WRITE, true);
+    if (!file) {
+        log_e("Failed to open Kindle file for writing");
+        return false;
+    }
+
+    serializeJsonPretty(*doc, file);
+    file.close();
+    log_d("Saved %zu Kindle books in %s", kindleBooks.size(), KINDLE_PATH);
 
     return true;
 };

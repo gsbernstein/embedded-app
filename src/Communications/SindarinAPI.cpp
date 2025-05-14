@@ -8,6 +8,7 @@
 #include "Communications/BLEProxy.hpp"
 #include "Communications/BLESyncService.hpp"
 #endif
+#include "Communications/UrlEncode.hpp"
 #include "Communications/WiFiHttpClient.hpp"
 #include "FileDownload.hpp"
 #include "Misc/Battery.hpp"
@@ -16,7 +17,6 @@
 #include "Misc/StringUtil.hpp"
 #include "Models/Json.hpp"
 #include "Models/UserReadable.hpp"
-#include "UrlEncode.hpp"
 #include "Version.hpp"
 #include "sindarin-debug.h"
 
@@ -186,7 +186,7 @@ auto SindarinAPI::tryCheckFirmware(FirmwareResponse *resp, bool useHttp, bool us
     }
     defer { client->close(); };
 
-    auto contentLength = client->fetchHeaders();
+    auto contentLength = client->fetchHeaders(cancel);
     if (contentLength <= 0) {
         log_e("Failed to fetch headers");
         return ERR_CONTENT_LENGTH;
@@ -262,7 +262,7 @@ auto SindarinAPI::downloadReadable(const std::shared_ptr<Readable> &readable,
 
 auto SindarinAPI::createClient(const std::string &url, const std::string &contentType,
                                esp_http_client_method_t method, bool useBle,
-                               const std::shared_ptr<CancelFlag> &cancel)
+                               const std::shared_ptr<CancelFlag> &cancel, int timeoutMs)
     -> std::shared_ptr<HttpClient> {
     HEAP_PROFILE_START(createClient);
     defer { HEAP_PROFILE_END(createClient); };
@@ -275,7 +275,8 @@ auto SindarinAPI::createClient(const std::string &url, const std::string &conten
     } else {
 #if CONFIG_USE_WIFI
         // Return an instance of WiFiHttpClient
-        return std::make_shared<WiFiHttpClient>(url.c_str(), contentType.c_str(), method);
+        return std::make_shared<WiFiHttpClient>(url.c_str(), contentType.c_str(), method, false,
+                                                timeoutMs);
 #else
         return nullptr;
 #endif
@@ -463,7 +464,7 @@ auto SindarinAPI::askQuestion(const BookQuestionRequest &req, BookQuestionRespon
     auto url = StringFormat("%s/questions/ask/", baseUrl_.c_str());
     log_d("Sending question request to: %s", url.c_str());
 
-    auto client = createClient(url, "application/json", HTTP_METHOD_POST, useBle, cancel);
+    auto client = createClient(url, "application/json", HTTP_METHOD_POST, useBle, cancel, 120000);
     if (client == nullptr) {
         log_e("Failed to create client");
         return ERR_CLIENT_OPEN;
@@ -526,4 +527,111 @@ auto SindarinAPI::askQuestion(const BookQuestionRequest &req, BookQuestionRespon
 
     log_d("Successfully parsed response (success=%d)", resp->success);
     return httpCode;
+}
+
+auto SindarinAPI::makeKindleRequest(const std::string &path, KindlePageResponse *resp,
+                                    const std::shared_ptr<CancelFlag> &cancelFlag, bool useBle)
+    -> int {
+    std::string url = StringFormat("%s%s", SINDARIN_SERVER_URL, path.c_str());
+    log_i("Making Kindle request to URL: %s (cancelFlag=%p)", url.c_str(), cancelFlag.get());
+
+    auto client =
+        createClient(url, "application/json", HTTP_METHOD_GET, useBle, cancelFlag, 120000);
+    if (!client) {
+        log_e("Failed to create HTTP client");
+        return ERR_CLIENT_OPEN;
+    }
+
+    // Set authentication
+    auto err = setAuth(client);
+    if (err != ESP_OK) {
+        log_e("Failed to set authentication: %d", err);
+        return ERR_SET_AUTH;
+    }
+
+    // Open the client
+    err = client->open();
+    if (err != ESP_OK) {
+        log_e("Failed to open HTTP client: %d", err);
+        return ERR_CLIENT_OPEN;
+    }
+    defer { client->close(); };
+
+    // Fetch headers - this returns content length, not an error code
+    int contentLength = client->fetchHeaders(cancelFlag);
+    if (contentLength <= 0) {
+        log_e("Failed to fetch HTTP headers or empty response: %d", contentLength);
+        return ERR_CONTENT_LENGTH;
+    }
+
+    int httpCode = client->getStatusCode();
+    if (httpCode != 200) {
+        log_e("HTTP request failed with status code: %d", httpCode);
+        return httpCode;
+    }
+
+    // Read the response using stream
+    auto stream = client->makeReadStream();
+    if (!stream) {
+        log_e("Failed to create read stream");
+        return ERR_CLIENT_READ;
+    }
+
+    auto respJson = std::make_unique<SpiRamJsonDocument>(1024 + contentLength * 3);
+    auto error = ArduinoJson::deserializeJson(*respJson, *stream);
+
+    if (error.code() != DeserializationError::Ok) {
+        log_e("Failed to deserialize Kindle response: %s (length=%d)", error.c_str(),
+              contentLength);
+        return ERR_JSON_DESERIALIZE;
+    }
+
+    if (!resp->fromJson(respJson->as<JsonObject>())) {
+        log_e("Failed to parse Kindle page response");
+        return ERR_JSON_OBJECT_PARSE;
+    }
+
+    log_d("Successfully parsed Kindle page response (success=%d)", resp->success);
+    return httpCode;
+}
+
+auto SindarinAPI::openKindleBook(const SpiramString &title, KindlePageResponse *resp,
+                                 const std::shared_ptr<CancelFlag> &cancelFlag, bool useBle)
+    -> int {
+    if (!resp) {
+        assert(false && "Null KindlePageResponse");
+    }
+
+    // Validate parameters
+    if (title.empty()) {
+        log_e("Empty title provided to openKindleBook");
+        return ERR_INVALID_PARAM;
+    }
+
+    // Properly URL encode the title
+    std::string encodedTitle = Urlencode(std::string(title));
+    log_i("Encoded title for Kindle API: %s", encodedTitle.c_str());
+
+    // Construct the path with URL-encoded title
+    std::string path = "/kindle/open-book?ocr=1&title=" + encodedTitle;
+    log_i("Kindle open book path: %s", path.c_str());
+
+    // Make the request (no try-catch since exceptions are disabled)
+    int result = makeKindleRequest(path, resp, cancelFlag, useBle);
+
+    // Log the result
+    if (result == 200) {
+        log_i("Successfully opened Kindle book '%s'", title.c_str());
+    } else {
+        log_e("Failed to open Kindle book '%s', HTTP code: %d", title.c_str(), result);
+    }
+
+    return result;
+}
+
+auto SindarinAPI::navigateKindle(KindlePageResponse *resp,
+                                 const std::shared_ptr<CancelFlag> &cancelFlag, bool useBle,
+                                 int navigate, int preview) -> int {
+    std::string path = StringFormat("/kindle/navigate?navigate=%d&preview=%d", navigate, preview);
+    return makeKindleRequest(path, resp, cancelFlag, useBle);
 }

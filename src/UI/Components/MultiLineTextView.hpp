@@ -32,6 +32,10 @@ public:
 
     void setFont(Font *font) { font_ = font; }
 
+    // Accessor methods for font and text
+    auto getFont() const -> Font * { return font_; }
+    auto getText() const -> const std::string & { return text_; }
+
     void splitMultiLine(DisplaySystem &display, int width, const std::string &text) {
         if (cachedWidth_ == width) {
             return;

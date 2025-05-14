@@ -1,0 +1,853 @@
+#include "UI/KindleReadableScreen.hpp"
+
+#if CONFIG_USE_BLE_SERVER_PROXY
+#include "Communications/BLEManager.hpp"
+#endif
+#include "Communications/SindarinAPI.hpp"
+#include "Communications/WiFi.hpp"
+#include "Menu/ReadingSettingsMenuScreen.hpp"
+#include "Models/Readable.hpp"
+#include "UI/Fonts/Fonts.hpp"
+#include "UI/Menu/MenuItemSingleLine.hpp"
+#include "sindarin-debug.h"
+
+KindleReadableScreen::KindleReadableScreen(DisplaySystem &display,
+                                           const std::shared_ptr<KindleBook> &kindleBook,
+                                           PreferencesStore &prefs, Telemetry &telemetry,
+                                           FileSystem &fileSystem,
+                                           LightingController &lightingController,
+                                           LocalStore &localStore, Font *font)
+    : EinkView(display), renderer_(display, GetTextRectFromPrefs(display, prefs), font),
+      prefs_(prefs), telemetry_(telemetry), fileSystem_(fileSystem),
+      lightingController_(lightingController), localStore_(localStore), kindleBook_(kindleBook),
+      cancelFlag_(std::make_shared<CancelFlag>()), pageFlipper_(kindleBook, cancelFlag_),
+      loadingMessageView_(display, 5), delayedMessageView_(display, 5),
+      errorMessageView_(display, 5) {
+
+    log_i("Created KindleReadableScreen for book: %s by %s", kindleBook->title.c_str(),
+          kindleBook->author.c_str());
+
+    currentPlace_ = std::dynamic_pointer_cast<TxtPlace>(Place::factory(0));
+
+    auto cancelFlag = cancelFlag_;
+    pageFlipper_.setGotContentFunction([this, cancelFlag]() {
+        if (CancelFlag::isCancelled(cancelFlag)) {
+            return;
+        }
+        DispatchGetUiQueue()->dispatch([this, cancelFlag]() {
+            if (CancelFlag::isCancelled(cancelFlag)) {
+                return;
+            }
+            if (state_ == State::LOADING_CONTENT || state_ == State::DISPLAY_PARTIAL_CONTENT) {
+                setState(State::DISPLAY_CONTENT);
+                setNeedsLayout();
+                setNeedsRerender();
+                render(display_);
+            }
+        });
+    });
+
+    pageFlipper_.setOnErrorFunction([this, cancelFlag](const std::string &error) {
+        if (CancelFlag::isCancelled(cancelFlag)) {
+            return;
+        }
+        DispatchGetUiQueue()->dispatch([this, error, cancelFlag]() {
+            if (CancelFlag::isCancelled(cancelFlag)) {
+                return;
+            }
+
+            // Only show error message for non-connection errors
+            // CONNECTION_ERROR is handled by the onConnectionErrorFunction below
+            if (error != "CONNECTION_ERROR") {
+                setErrorMessage(error);
+            }
+        });
+    });
+
+    // Set a separate callback specifically for network connectivity issues
+    pageFlipper_.setOnConnectionErrorFunction([this, cancelFlag]() {
+        if (CancelFlag::isCancelled(cancelFlag)) {
+            return;
+        }
+        DispatchGetUiQueue()->dispatch([this, cancelFlag]() {
+            if (CancelFlag::isCancelled(cancelFlag)) {
+                return;
+            }
+
+            // If we have a connection error, silently try to reconnect
+            log_i("Network connection issue detected, attempting reconnection");
+            attemptReconnection();
+        });
+    });
+
+    renderer_.setStream(pageFlipper_.getStream());
+    renderer_.setLineSpacing(prefs_.lineSpacing.get().value_or(0));
+
+    // Set up loading message
+    loadingMessageView_.setText("Connecting to your Kindle...");
+    loadingMessageView_.setFont(font);
+    loadingMessageView_.alignCenter = true;
+    loadingMessageView_.dynamicWidth = false; // Ensure we use the full width of our frame
+
+    // Set up error message view
+    errorMessageView_.setFont(font);
+    errorMessageView_.setText(""); // Initialize with empty text
+    errorMessageView_.alignCenter = true;
+    errorMessageView_.setHidden(true); // Start hidden until needed
+
+    // Set up delayed message view (for "This can take up to 60 seconds")
+    delayedMessageView_.setFont(font);
+    delayedMessageView_.setText("");
+    delayedMessageView_.alignCenter = true;
+    delayedMessageView_.setHidden(true); // Start hidden until needed
+
+    // Initialize network connection
+    setState(State::CONNECTING);
+
+    // Initialize the popup menu
+    auto popupNavigationFactory = [this]() {
+        std::shared_ptr<std::vector<std::shared_ptr<MenuItem>>> menuItems =
+            std::make_shared<std::vector<std::shared_ptr<MenuItem>>>();
+
+        menuItems->emplace_back(
+            std::make_shared<MenuItemSingleLine>("Main Menu", [this]() { dismissScreen(); }));
+
+        menuItems->emplace_back(std::make_shared<MenuItemSingleLine>("Brightness", [this]() {
+            auto brightness = std::make_shared<LightingAdjustScreen>(
+                display_, prefs_, lightingController_, telemetry_);
+
+            brightness->setBackCallback([this]() {
+                setCurrentScreen(nullptr);
+                setNeedsRerender();
+            });
+            setCurrentScreen(brightness);
+        }));
+
+        menuItems->emplace_back(std::make_shared<MenuItemSingleLine>("Back to Text", [this]() {
+            display_.clearDisplay();
+            setCurrentScreen(nullptr);
+            setNeedsRerender();
+        }));
+
+        return menuItems;
+    };
+
+    auto popupStyleFactory = [this]() -> MenuItemSharedPtrVector {
+        auto menuItems = std::make_shared<MenuItemVector>();
+
+        auto menuItem = std::make_shared<MenuItemSingleLine>("Text Size", [this]() {
+            auto fontMenu = std::make_shared<ReadingSettingsMenuScreen>(
+                display_, "Back to Text", prefs_, telemetry_,
+                [this](const std::shared_ptr<Screen> &screen) { setCurrentScreen(screen); },
+                [this]() { setCurrentScreen(nullptr); });
+            fontMenu->addMenuItem(std::make_shared<MenuItemSingleLine>("Small", [this]() {
+                display_.clearDisplay();
+                prefs_.font.set(PREFS_SOL_SMALL);
+                telemetry_.logMetricData(TelemetryField::METRIC_STYLE,
+                                         {{"text_size", std::string("small")}});
+                getCurrentScreen()->setNeedsRerender();
+            }));
+            fontMenu->addMenuItem(std::make_shared<MenuItemSingleLine>("Medium", [this]() {
+                display_.clearDisplay();
+                prefs_.font.set(PREFS_SOL_MEDIUM);
+                telemetry_.logMetricData(TelemetryField::METRIC_STYLE,
+                                         {{"text_size", std::string("medium")}});
+                getCurrentScreen()->setNeedsRerender();
+            }));
+            fontMenu->addMenuItem(std::make_shared<MenuItemSingleLine>("Large", [this]() {
+                display_.clearDisplay();
+                prefs_.font.set(PREFS_SOL_LARGE);
+                telemetry_.logMetricData(TelemetryField::METRIC_STYLE,
+                                         {{"text_size", std::string("large")}});
+                getCurrentScreen()->setNeedsRerender();
+            }));
+            int menuIndex = 0;
+            if (prefs_.font.get().value_or(PREFS_SOL_SMALL) == PREFS_SOL_SMALL) {
+                menuIndex = 0;
+            } else if (prefs_.font.get().value_or(PREFS_SOL_SMALL) == PREFS_SOL_MEDIUM) {
+                menuIndex = 1;
+            } else if (prefs_.font.get().value_or(PREFS_SOL_SMALL) == PREFS_SOL_LARGE) {
+                menuIndex = 2;
+            }
+            fontMenu->setSelectedIndex(menuIndex);
+
+            setCurrentScreen(fontMenu);
+            fontMenu->setBackCallback([this]() {
+                Font *font = FontFromPrefs(prefs_.font.get().value_or(PREFS_SOL_SMALL));
+                if (font) {
+                    renderer_.setFont(font);
+                }
+                setCurrentScreen(nullptr);
+            });
+        });
+
+        menuItems->emplace_back(menuItem);
+
+        menuItem = std::make_shared<MenuItemSingleLine>("Move Text", [this]() {
+            log_d("Loading adjust offset");
+            auto offsetAdjust = std::make_shared<OffsetAdjustScreen>(display_, prefs_, telemetry_,
+                                                                     renderer_, currentPlace_);
+            setCurrentScreen(offsetAdjust);
+            log_d("setting up callback");
+            offsetAdjust->setBackCallback([this]() {
+                renderer_.setRect(GetTextRectFromPrefs(display_, prefs_));
+                setCurrentScreen(nullptr);
+            });
+            log_d("set up callback");
+        });
+
+        menuItems->emplace_back(menuItem);
+
+        menuItem = std::make_shared<MenuItemSingleLine>("Resize Page", [this]() {
+            log_d("Loading resize box");
+            auto resizeBox = std::make_shared<ResizeBoxScreen>(display_, prefs_, telemetry_,
+                                                               renderer_, currentPlace_);
+            setCurrentScreen(resizeBox);
+            log_d("setting up callback");
+            resizeBox->setBackCallback([this]() {
+                renderer_.setRect(GetTextRectFromPrefs(display_, prefs_));
+                setCurrentScreen(nullptr);
+            });
+            log_d("set up callback");
+        });
+
+        menuItems->emplace_back(menuItem);
+
+        menuItem = std::make_shared<MenuItemSingleLine>("Line Spacing", [this]() {
+            auto lineSpacingScreen = std::make_shared<LineSpacingScreen>(
+                display_, prefs_, telemetry_, renderer_, currentPlace_);
+            setCurrentScreen(lineSpacingScreen);
+            lineSpacingScreen->setBackCallback([this]() {
+                setCurrentScreen(nullptr);
+                // Update the renderer with the new line spacing -- needed here, otherwise we'd have
+                // to do it in the render() method and that'd be reading from NVS a lot...
+                renderer_.setLineSpacing(prefs_.lineSpacing.get().value_or(0));
+            });
+        });
+
+        menuItems->emplace_back(menuItem);
+
+        auto menuItemCheckable = std::make_shared<MenuItemCheckable>(
+            "Dark Mode",
+            [this]() {
+            prefs_.darkMode.set(!prefs_.darkMode.get().value_or(false));
+            // Reserved for future use? Potentially lighting up and down?
+            display_.flipInversion();
+            // When we invert, we should do a full clear of the display to make sure
+            // the blacks are really gone.
+            display_.clearDisplay();
+            prefs_.invertSetting.set(display_.getInversion());
+            display_.clearDisplay();
+            setNeedsRerender();
+            setFirstLoad();
+            },
+            [this]() -> bool { return prefs_.darkMode.get().value_or(false); });
+
+        menuItems->emplace_back(menuItemCheckable);
+
+        menuItem = std::make_shared<MenuItemSingleLine>("Back to Text", [this]() {
+            display_.clearDisplay();
+            setCurrentScreen(nullptr);
+            setNeedsRerender();
+        });
+
+        menuItems->emplace_back(menuItem);
+
+        return menuItems;
+    };
+
+    // Create a readable-like object for the popup menu to use
+    // TODO(john): We should make a KindleReadable object that can be used for Kindle books
+    auto readablePlaceholder = std::make_shared<Readable>();
+    readablePlaceholder->title = kindleBook_->title;
+
+    // Add authors from kindle book to readable
+    Author author;
+    author.name = kindleBook_->author;
+    readablePlaceholder->authors.push_back(author);
+
+    auto stream = pageFlipper_.getStream();
+    popupMenuScreen_ = std::make_shared<NewReadablePopupMenuScreen>(
+        display, prefs_, fileSystem_, readablePlaceholder, lightingController_, renderer_,
+        telemetry_, localStore_, stream);
+
+    popupMenuScreen_->addTab("Popup", popupNavigationFactory, 8);
+    popupMenuScreen_->addTab("Style", popupStyleFactory, 8);
+    popupMenuScreen_->populateMenuView();
+}
+
+void KindleReadableScreen::begin() {
+    // Reset reconnection attempts counter
+    reconnectionAttempts_ = 0;
+
+    // Log telemetry for opening a Kindle book
+    telemetry_.logMetric(TelemetryField::METRIC_READABLE_OPEN, kindleBook_->uuid,
+                         getTelemetryMetrics());
+
+    // Define the callback for initial connection - load the book content
+    auto initialConnectionCallback = [this](bool connected) {
+        if (!connected) {
+            // Connection failed - error message is handled by connectToNetwork
+            return;
+        }
+
+        // Successfully connected, now load the book content
+        auto cancelFlag = cancelFlag_;
+
+        DispatchGetUiQueue()->dispatch([this, cancelFlag]() {
+            if (CancelFlag::isCancelled(cancelFlag)) {
+                return;
+            }
+
+            log_d("Setting loading message to \"Opening your Kindle book...\"");
+
+            loadingMessageView_.setText("Opening your Kindle book...");
+            setNeedsLayout();
+            setState(State::LOADING_CONTENT);
+            render(display_);
+
+            // Schedule a delayed message after 10 seconds if loading takes too long
+            scheduleDelayedLoadingMessage();
+        });
+
+        // Now load the content in the background queue
+        pageFlipper_.loadInitialPage();
+    };
+
+    // Start connection process
+    DispatchGetCore0BackgroundQueue()->dispatch([this, initialConnectionCallback]() {
+        std::string errorMessage;
+        connectToNetwork(false, errorMessage, initialConnectionCallback);
+    });
+}
+
+auto KindleReadableScreen::layout(LayoutContext &context, SolSize size) -> SolSize {
+    context.setViewFrame(errorMessageView_, SolRect::fromSize(size),
+                         LayoutOptionsSizeToFit | LayoutOptionsAlignCenter);
+
+    context.setViewFrame(loadingMessageView_, SolRect::fromSize(size),
+                         LayoutOptionsSizeToFit | LayoutOptionsAlignCenter);
+
+    context.setViewFrame(delayedMessageView_, SolRect::fromSize(size),
+                         LayoutOptionsSizeToFit | LayoutOptionsAlignCenterHorizontal |
+                             LayoutOptionsAlignBottom);
+
+    return size;
+}
+
+void KindleReadableScreen::drawInRect(SolRect rect) {
+    loadingMessageView_.draw();
+    errorMessageView_.draw();
+    delayedMessageView_.draw();
+
+    if (state_ == State::DISPLAY_CONTENT || state_ == State::DISPLAY_PARTIAL_CONTENT) {
+        // Render the current page content
+        uint8_t darkPicturePercent = 0;
+
+        // Render using our current place and get the next place
+        std::tie(newPlace_, darkPicturePercent) = renderer_.renderPage(currentPlace_);
+
+        // If we're at the end of loaded content
+        // TODO(john): Differentiate between end of loaded content and end of book
+        bool atEndOfContent = renderer_.atEndOfFile();
+        if (atEndOfContent) {
+            setState(State::DISPLAY_PARTIAL_CONTENT);
+        }
+        pageFlipper_.updatePlace(currentPlace_, atEndOfContent);
+
+        // Log the current and next place offsets for debugging
+        uint32_t currentOffset = currentPlace_->getOffset();
+        uint32_t nextOffset = newPlace_->getOffset();
+        uint32_t totalSize = renderer_.size();
+        log_i("Reading at offset: %" PRIu32 "-%" PRIu32 ", total size: %" PRIu32 " bytes",
+              currentOffset, nextOffset, totalSize);
+    }
+}
+
+void KindleReadableScreen::render(DisplaySystem &display) {
+    // If we have a popup menu or other screen, let it handle rendering
+    if (currentScreen_) {
+        log_d("Letting current screen (a popup menu) render KindleReadableScreen, state: %d",
+              static_cast<int>(state_));
+        currentScreen_->render(display);
+        return;
+    }
+    log_d("Rendering KindleReadableScreen, state: %d", static_cast<int>(state_));
+
+    setFrame(defaultFrameRect());
+    draw();
+
+    display.updateDisplay(updateType_, true);
+}
+
+void KindleReadableScreen::processCommand(RemoteCommand command) {
+    // If we have a popup menu or other screen, delegate command processing to it
+    if (currentScreen_) {
+        // Save a pointer to the current screen in case it gets reset by a command
+        auto screen = currentScreen_;
+        screen->processCommand(command);
+        // Check if we need to rerender after the command
+        if (currentScreen_ && currentScreen_->needsRerender()) {
+            setNeedsRerender();
+        }
+        return;
+    }
+
+    // Handle navigation commands specially for Kindle content
+    switch (command) {
+    case RemoteCommand::RIGHT:
+    case RemoteCommand::ENTER:
+        if (state_ == State::DISPLAY_CONTENT || state_ == State::DISPLAY_PARTIAL_CONTENT) {
+            navigateNext();
+        }
+        break;
+    case RemoteCommand::LEFT:
+        if (state_ == State::DISPLAY_CONTENT || state_ == State::DISPLAY_PARTIAL_CONTENT) {
+            navigatePrevious();
+        }
+        break;
+    case RemoteCommand::BACK:
+    case RemoteCommand::UP:
+    case RemoteCommand::DOWN:
+        showPopupMenu();
+        break;
+    case RemoteCommand::ANIMATION:
+    default:
+        break;
+    }
+}
+
+auto KindleReadableScreen::stateToString(State state) -> const char * {
+    switch (state) {
+    case State::CONNECTING:
+        return "CONNECTING";
+    case State::LOADING_CONTENT:
+        return "LOADING_CONTENT";
+    case State::ERROR:
+        return "ERROR";
+    case State::DISPLAY_CONTENT:
+        return "DISPLAY_CONTENT";
+    case State::DISPLAY_PARTIAL_CONTENT:
+        return "DISPLAY_PARTIAL_CONTENT";
+    default:
+        return "UNKNOWN";
+    }
+}
+
+void KindleReadableScreen::setState(State newState) {
+    updateType_ = DisplaySystem::UpdateType::FULL;
+
+    switch (newState) {
+    case State::CONNECTING:
+    case State::LOADING_CONTENT:
+        loadingMessageView_.setHidden(false);
+        delayedMessageView_.setHidden(true);
+        errorMessageView_.setHidden(true);
+        break;
+    case State::ERROR:
+        loadingMessageView_.setHidden(true);
+        delayedMessageView_.setHidden(true);
+        errorMessageView_.setHidden(false);
+        break;
+    case State::DISPLAY_CONTENT:
+    case State::DISPLAY_PARTIAL_CONTENT:
+        loadingMessageView_.setHidden(true);
+        delayedMessageView_.setHidden(true);
+        errorMessageView_.setHidden(true);
+        // When going from partial content to full page content, always only do a partial
+        // refresh
+        if (state_ == State::DISPLAY_PARTIAL_CONTENT) {
+            updateType_ = DisplaySystem::UpdateType::PARTIAL;
+        }
+        break;
+    }
+
+    log_d("KindleReadableScreen state change: %s -> %s", stateToString(state_),
+          stateToString(newState));
+    state_ = newState;
+    firstLoad_ = true;
+}
+
+void KindleReadableScreen::setErrorMessage(const std::string &message) {
+    if (CancelFlag::isCancelled(cancelFlag_)) {
+        return;
+    }
+    log_i("Showing error message: %s", message.c_str());
+    errorMessageView_.setText(message);
+    setState(State::ERROR);
+    setNeedsLayout();
+    setNeedsRerender();
+    render(display_);
+
+    // TODO: Re-add auto-dismiss?
+}
+
+auto KindleReadableScreen::connectToNetwork(bool useBleOnly, std::string &errorMessage,
+                                            const ConnectionCallback &callback) -> bool {
+    log_d("Connecting to network for Kindle book");
+    bool wifiConnected = false;
+    bool bleConnected = false;
+
+    // Reset connection tracking
+    isUsingBleConnection_ = false;
+
+    SindarinAPI::getInstance()->setAccessToken(prefs_.cloudToken.get().value());
+
+#if CONFIG_USE_BLE_SERVER_PROXY
+    // Try BLE first if not disabled
+    if (!prefs_.bleDisabled.get().value_or(false)) {
+        log_i("Attempting BLE connection for Kindle book...");
+
+        // Disconnect WiFi if we're using BLE
+        if (WiFi::getInstance().connected()) {
+            log_i("Disconnecting WiFi since BLE is connecting");
+            WiFi::getInstance().disconnectWiFi(3000);
+        }
+
+        // For reconnection, first disconnect any stale connection
+        auto bleManager = BLEManager::getInstance();
+        if (bleManager->connected()) {
+            log_i("Disconnecting existing BLE connection first");
+            bleManager->disconnectProxy();
+
+            // Give it a moment to disconnect
+            vTaskDelay(pdMS_TO_TICKS(1000));
+        }
+
+        if (!bleManager->connectProxy(cancelFlag_)) {
+            log_w("BLE connection failed for Kindle book");
+            telemetry_.logMetric(TelemetryField::METRIC_WIFI, "kindle-ble-failed");
+        } else {
+            log_i("BLE successfully connected for Kindle book");
+            telemetry_.logMetric(TelemetryField::METRIC_WIFI, "kindle-ble-connected");
+            bleConnected = true;
+            isUsingBleConnection_ = true;
+        }
+    }
+#endif
+
+    // Try WiFi if BLE failed and not in BLE-only mode
+    if (!bleConnected && !useBleOnly && !prefs_.wifiDisabled.get().value_or(false)) {
+        log_i("Attempting WiFi connection for Kindle book...");
+
+        auto connected = WiFi::getInstance().connectWiFiFromSettings();
+        if (connected != ESP_OK && connected != true) {
+            log_w("WiFi connection failed for Kindle book");
+            telemetry_.logMetric(TelemetryField::METRIC_WIFI, "kindle-wifi-failed");
+            wifiConnected = false;
+        } else {
+            log_i("WiFi connection successful for Kindle book");
+            telemetry_.logMetric(TelemetryField::METRIC_WIFI, "kindle-wifi-connected");
+            wifiConnected = true;
+            isUsingBleConnection_ = false;
+        }
+    } else if (useBleOnly) {
+        log_i("BLE-only mode for Kindle book, skipping WiFi connection");
+    } else if (!bleConnected) {
+        log_i("WiFi is disabled in preferences, skipping WiFi connection");
+    }
+
+    bool connected = wifiConnected || bleConnected;
+
+    if (!connected) {
+        log_w("Failed to establish any network connection for Kindle book");
+        if (prefs_.wifiDisabled.get().value_or(false) && prefs_.bleDisabled.get().value_or(false)) {
+            errorMessage = "Both WiFi and Bluetooth are disabled. Please enable one of them to "
+                           "use Kindle books.";
+            telemetry_.logMetricData(TelemetryField::METRIC_DIALOG,
+                                     {{"dialog", std::string("kindle-books")},
+                                      {"action", std::string("kindle-connection-failed")},
+                                      {"reason", std::string("all-disabled")}});
+        } else if (prefs_.wifiDisabled.get().value_or(false)) {
+            errorMessage = "WiFi is disabled in settings and BLE connection failed. Please check "
+                           "your BLE connection or enable WiFi to use Kindle books.";
+            telemetry_.logMetricData(TelemetryField::METRIC_DIALOG,
+                                     {{"dialog", std::string("kindle-books")},
+                                      {"action", std::string("kindle-connection-failed")},
+                                      {"reason", std::string("wifi-disabled-ble-failed")}});
+        } else if (prefs_.bleDisabled.get().value_or(false)) {
+            errorMessage = "Bluetooth is disabled in settings and WiFi connection failed. Please "
+                           "check your WiFi connection or enable Bluetooth to use Kindle books.";
+            telemetry_.logMetricData(TelemetryField::METRIC_DIALOG,
+                                     {{"dialog", std::string("kindle-books")},
+                                      {"action", std::string("kindle-connection-failed")},
+                                      {"reason", std::string("ble-disabled-wifi-failed")}});
+        } else {
+            errorMessage = "Could not connect to network. Please check your WiFi and Bluetooth "
+                           "settings and try again.";
+            telemetry_.logMetricData(TelemetryField::METRIC_DIALOG,
+                                     {{"dialog", std::string("kindle-books")},
+                                      {"action", std::string("kindle-connection-failed")},
+                                      {"reason", std::string("connection-failed")}});
+        }
+    }
+
+    // Update page flipper with the connection type
+    pageFlipper_.setUseBle(isUsingBleConnection_);
+    log_i("Setting KindlePageFlipper to use BLE: %s", isUsingBleConnection_ ? "true" : "false");
+
+    // Call the callback if provided
+    if (callback) {
+        callback(connected);
+    }
+
+    return connected;
+}
+
+void KindleReadableScreen::disconnectNetworkConnections() {
+    // Cancel any ongoing network operations
+    if (cancelFlag_) {
+        CancelFlag::cancel(cancelFlag_);
+        cancelFlag_ = nullptr;
+    }
+
+    // Disconnect WiFi if connected
+    if (WiFi::getInstance().connected()) {
+        WiFi::getInstance().disconnectWiFi(3000);
+    }
+
+#if CONFIG_USE_BLE_SERVER_PROXY
+    // Check if BLE manager exists
+    auto bleManager = BLEManager::getInstance(false); // Don't create it if it doesn't exist
+    if (bleManager) {
+        // Add a safety check to see if it's connected first
+        if (bleManager->connected()) {
+            log_i("Disconnecting BLE proxy");
+            bleManager->disconnectProxy();
+        } else {
+            log_i("BLE proxy not connected, skipping disconnection");
+        }
+    } else {
+        log_i("BLE manager not available, skipping disconnection");
+    }
+#endif
+}
+
+void KindleReadableScreen::navigateNext() {
+    // Transition to loading state if we're showing partial content
+    if (state_ == State::DISPLAY_PARTIAL_CONTENT) {
+        setState(State::LOADING_CONTENT);
+        loadingMessageView_.setText("Loading next page...");
+        setNeedsLayout();
+        setNeedsRerender();
+        return;
+    }
+
+    currentPlace_ = newPlace_;
+
+    // Log telemetry for navigating to next page
+    telemetry_.logMetric(TelemetryField::METRIC_READABLE_PLACE, kindleBook_->uuid.c_str(),
+                         getTelemetryMetrics());
+
+    updateType_ = prefs_.fastTransitions.get().value_or(false) ? DisplaySystem::UpdateType::PARTIAL
+                                                               : DisplaySystem::UpdateType::FULL;
+    setNeedsRerender();
+}
+
+void KindleReadableScreen::navigatePrevious() {
+    currentPlace_ = renderer_.getPreviousPlace();
+
+    // Log telemetry for navigating to previous page
+    telemetry_.logMetric(TelemetryField::METRIC_READABLE_PLACE, kindleBook_->uuid.c_str(),
+                         getTelemetryMetrics());
+
+    updateType_ = prefs_.fastTransitions.get().value_or(false) ? DisplaySystem::UpdateType::PARTIAL
+                                                               : DisplaySystem::UpdateType::FULL;
+    setNeedsRerender();
+}
+
+void KindleReadableScreen::dismissScreen() {
+    log_d("Dismissing KindleReadableScreen");
+
+    CancelFlag::cancel(cancelFlag_);
+    cancelDelayedLoadingMessage();
+    cancelReconnectionAttempt();
+
+    // Reset reconnection attempts counter
+    reconnectionAttempts_ = 0;
+
+    disconnectNetworkConnections();
+    back();
+}
+
+void KindleReadableScreen::showPopupMenu() {
+    // Create a readable-like object for the popup menu to use
+    // TODO(john): Don't we already do this?
+    auto readablePlaceholder = std::make_shared<Readable>();
+    readablePlaceholder->title = kindleBook_->title;
+
+    // Add authors from kindle book to readable
+    Author author;
+    author.name = kindleBook_->author;
+    readablePlaceholder->authors.push_back(author);
+
+    readablePlaceholder->place = currentPlace_; // Use current reading position
+
+    // Show the popup menu - no need to set readable since that's only needed for some features
+    setCurrentScreen(popupMenuScreen_);
+    updateType_ = DisplaySystem::UpdateType::PARTIAL;
+    setNeedsRerender();
+}
+
+void KindleReadableScreen::scheduleDelayedLoadingMessage() {
+    // Cancel any existing delayed message
+    cancelDelayedLoadingMessage();
+
+    // Create a new cancel flag for this delayed message
+    delayedMessageCancelFlag_ = std::make_shared<CancelFlag>();
+    // Capture a copy of the flag for the lambda
+    auto localFlag = delayedMessageCancelFlag_;
+
+    // TODO(john): Timers would be better here. Maybe we could make a DispatchAfter method
+    DispatchGetCore0BackgroundQueue()->dispatch([this, localFlag]() {
+        // Wait for 5 seconds
+        vTaskDelay(pdMS_TO_TICKS(5 * 1000));
+
+        // Check if the task was cancelled
+        if (CancelFlag::isCancelled(localFlag)) {
+            return;
+        }
+
+        // Display the message on the UI thread
+        DispatchGetUiQueue()->dispatch([this]() {
+            if (state_ != State::LOADING_CONTENT) {
+                return; // Don't show if we're no longer loading or screen was dismissed
+            }
+
+            // Set and show the delayed message
+            delayedMessageView_.setText("This can take up to 60 seconds.");
+            delayedMessageView_.setHidden(false);
+            setNeedsLayout();
+
+            // Call setNeedsLayout to recalculate positions of all views
+            draw();
+            display_.updateDisplay(DisplaySystem::UpdateType::PARTIAL, true);
+
+            log_i("Showing delayed loading message after 10 seconds");
+        });
+    });
+}
+
+void KindleReadableScreen::cancelDelayedLoadingMessage() {
+    if (delayedMessageCancelFlag_ == nullptr ||
+        CancelFlag::isCancelled(delayedMessageCancelFlag_)) {
+        return;
+    }
+
+    CancelFlag::cancel(delayedMessageCancelFlag_);
+    delayedMessageCancelFlag_ = nullptr;
+}
+
+void KindleReadableScreen::attemptReconnection() {
+    // Increment the reconnection attempts counter
+    reconnectionAttempts_++;
+
+    // If we've exceeded the maximum number of attempts, show an error and stop trying
+    if (reconnectionAttempts_ > MAX_RECONNECTION_ATTEMPTS) {
+        log_w("Exceeded maximum reconnection attempts (%d). Giving up.", MAX_RECONNECTION_ATTEMPTS);
+        DispatchGetUiQueue()->dispatch([this]() {
+            if (isUsingBleConnection_) {
+                setErrorMessage("Bluetooth connection lost. Please reconnect your phone.");
+            } else {
+                setErrorMessage("Failed to load content. Please check your network connection.");
+            }
+        });
+        return;
+    }
+
+    log_i("Reconnection attempt %d/%d", reconnectionAttempts_, MAX_RECONNECTION_ATTEMPTS);
+
+    // Cancel any existing reconnection attempt
+    cancelReconnectionAttempt();
+
+    // Don't show an error message immediately - wait and see if we can reconnect
+    // But we should show the loading state to indicate we're trying to reconnect
+    DispatchGetUiQueue()->dispatch([this]() {
+        if (state_ != State::LOADING_CONTENT) {
+            // If we're not already in LOADING_CONTENT state, switch to it
+            setState(State::LOADING_CONTENT);
+            loadingMessageView_.setText("Reconnecting...");
+            setNeedsLayout();
+            setNeedsRerender();
+            render(display_);
+        }
+    });
+
+    // Create a new cancel flag for this attempt
+    reconnectionAttemptCancelFlag_ = std::make_shared<CancelFlag>();
+    // Capture a copy of the flag for the lambda
+    auto localFlag = reconnectionAttemptCancelFlag_;
+
+    // Define the callback for reconnection
+    auto reconnectionCallback = [this, localFlag](bool connected) {
+        // Check if we've been cancelled
+        if (CancelFlag::isCancelled(localFlag)) {
+            log_i("Reconnection attempt cancelled");
+            return;
+        }
+
+        if (connected) {
+            log_i("Network reconnected successfully");
+
+            // Successfully reconnected, retry the operation
+            pageFlipper_.retryNetworkOperation(renderer_.atEndOfFile());
+
+            // Reset reconnection attempts on successful connection
+            reconnectionAttempts_ = 0;
+        } else {
+            log_w("Failed to reconnect");
+
+            // Only show error message if reconnection failed and we've exceeded max attempts
+            if (reconnectionAttempts_ >= MAX_RECONNECTION_ATTEMPTS) {
+                DispatchGetUiQueue()->dispatch([this]() {
+                    if (isUsingBleConnection_) {
+                        setErrorMessage("Bluetooth connection lost. Please reconnect your phone.");
+                    } else {
+                        setErrorMessage(
+                            "Failed to load content. Please check your network connection.");
+                    }
+                });
+            }
+        }
+    };
+
+    // Use a short delay to allow the connection to potentially recover
+    DispatchGetCore0BackgroundQueue()->dispatch([this, localFlag, reconnectionCallback]() {
+        // Wait a moment before attempting reconnection
+        vTaskDelay(
+            pdMS_TO_TICKS(3000)); // 3 second delay - give more time for the network stack to reset
+
+        // Check if we've been cancelled
+        if (CancelFlag::isCancelled(localFlag)) {
+            log_i("Reconnection attempt cancelled");
+            return;
+        }
+
+        std::string errorMessage;
+        bool useBleOnly = isUsingBleConnection_; // Only use BLE if we were using it before
+        connectToNetwork(useBleOnly, errorMessage, reconnectionCallback);
+    });
+}
+
+void KindleReadableScreen::cancelReconnectionAttempt() {
+    if (reconnectionAttemptCancelFlag_ == nullptr ||
+        CancelFlag::isCancelled(reconnectionAttemptCancelFlag_)) {
+        return;
+    }
+
+    CancelFlag::cancel(reconnectionAttemptCancelFlag_);
+    reconnectionAttemptCancelFlag_ = nullptr;
+}
+
+void KindleReadableScreen::setCurrentScreen(const std::shared_ptr<Screen> &screen) {
+    if (currentScreen_) {
+        currentScreen_->setFirstLoad();
+    }
+    if (screen) {
+        screen->setNeedsRerender();
+    } else {
+        updateType_ = DisplaySystem::UpdateType::PARTIAL;
+        setNeedsRerender();
+    }
+    currentScreen_ = screen;
+}

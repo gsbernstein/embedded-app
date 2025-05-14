@@ -19,6 +19,7 @@
 #include "Misc/SolClock.hpp"
 #include "Misc/StringUtil.hpp"
 #include "Misc/Telemetry.hpp"
+#include "Models/KindleBook.hpp"
 #include "Models/Readable.hpp"
 #include "Renderers/Renderer.hpp"
 #if CONFIG_INCLUDE_DEFAULT_CONTENT
@@ -38,6 +39,7 @@
 #include "UI/DemoScreen.hpp"
 #include "UI/FirmwareUpdateScreen.hpp"
 #include "UI/Fonts/Fonts.hpp"
+#include "UI/KindleReadableScreen.hpp"
 #include "UI/LayoutTestScreen.hpp"
 #include "UI/LegalScreen.hpp"
 #include "UI/LightingAdjustScreen.hpp"
@@ -54,6 +56,7 @@
 #include "UI/Menu/MenuItemArticle.hpp"
 #include "UI/Menu/MenuItemBook.hpp"
 #include "UI/Menu/MenuItemCheckable.hpp"
+#include "UI/Menu/MenuItemKindleBookView.hpp"
 #include "UI/Menu/MenuItemMultiLine.hpp"
 #include "UI/Menu/MenuItemSingleLine.hpp"
 #include "UI/Menu/ReadingSettingsMenuScreen.hpp"
@@ -719,6 +722,61 @@ void RootUI::setup(LocalStore &localStore, FileSystem &fileSystem,
                         "continue.\n");
                     auto tutorialScreen = createTutorialScreen(message, TUTORIAL_SCREEN_ARTICLES);
                     this->pushScreen(tutorialScreen);
+                }));
+        }
+
+        return menuItems;
+    };
+
+    auto kindleMenuFactory = [this, &localStore, &fileSystem, &lightingController,
+                              createTutorialScreen,
+                              makeReleaseNotesMenuItem]() -> MenuItemSharedPtrVector {
+        auto &kindle = localStore.kindle();
+        auto menuItems = std::make_shared<MenuItemVector>();
+
+        if (this->prefs_.firmwareLoaded.get().has_value()) {
+            Firmware firmware;
+            auto upgradeAvailable = localStore.getPendingFirmwareUpdate(firmware);
+            if (upgradeAvailable) {
+                menuItems->emplace_back(makeReleaseNotesMenuItem(firmware));
+            }
+        }
+
+        for (const auto &book : kindle) {
+            // Using shortened ID as the key for archive status
+            bool archived = prefs_.readableArchivedChanged.get(book.shortenedUuid.c_str());
+            menuItems->emplace_back(std::make_shared<MenuItemKindleBook>(
+                book,
+                [this, book, &fileSystem, &lightingController, &localStore]() {
+                // Create a new KindleReadableScreen for the selected book
+                auto kindleReadableScreen = std::make_shared<KindleReadableScreen>(
+                    display_, std::make_shared<KindleBook>(book), prefs_, telemetry_, fileSystem,
+                    lightingController, localStore,
+                    FontFromPrefs(prefs_.font.get().value_or(PREFS_SOL_SMALL)));
+
+                // Push the screen and set up back callback
+                this->pushScreen(kindleReadableScreen);
+                kindleReadableScreen->setBackCallback([this]() { this->popScreen(); });
+                kindleReadableScreen->begin();
+                },
+                archived));
+        }
+
+        bool noKindleContent = kindle.empty();
+        if (noKindleContent &&
+            !(prefs_.tutorialsDeleted.get().value_or(0) & TUTORIAL_SCREEN_KINDLE)) {
+            menuItems->emplace_back(
+                std::make_shared<MenuItemSingleLine>("\ue000 Connect your Kindle",
+                                                     [this, createTutorialScreen]() {
+                SpiramString message = SpiRamStringFormat(
+                    "To add your Kindle books, connect your Amazon Kindle account in the Sol app."
+                    "\n\n"
+                    "After connecting your Kindle account, your books will appear here for easy "
+                    "reading."
+                    "\n\n"
+                    " Press \ue000 (center) to continue.");
+                auto tutorialScreen = createTutorialScreen(message, TUTORIAL_SCREEN_KINDLE);
+                this->pushScreen(tutorialScreen);
                 }));
         }
 
@@ -1804,6 +1862,9 @@ void RootUI::setup(LocalStore &localStore, FileSystem &fileSystem,
     }
     if (!booksMenuFactory()->empty()) {
         newMainMenu->addTab("Books", booksMenuFactory, 4);
+    }
+    if (!kindleMenuFactory()->empty()) {
+        newMainMenu->addTab("Kindle", kindleMenuFactory, 4);
     }
     if (!articlesMenuFactory()->empty()) {
         newMainMenu->addTab("Articles", articlesMenuFactory, 4);
