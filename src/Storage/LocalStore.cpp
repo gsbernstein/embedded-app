@@ -281,8 +281,9 @@ void LocalStore::processKindleBookSync(const KindleBooksVector &serverKindleBook
                   serverBook.title.c_str());
             removeKindleBook(std::string(serverBook.uuid));
             booksRemoved++;
-            this->telemetry_.logMetric(TelemetryField::METRIC_SYNC_STATUS, "ki-book-removed",
-                                       {{"uuid", serverBook.uuid}, {"title", serverBook.title}});
+            this->telemetry_.logMetric(
+                TelemetryField::METRIC_SYNC_STATUS, "kindle-book-removed",
+                {{"uuid", serverBook.uuid}, {"title", serverBook.title}, {"kindle", true}});
         } else {
             bool isNewBook = addOrUpdateKindleBook(serverBook);
 
@@ -290,8 +291,8 @@ void LocalStore::processKindleBookSync(const KindleBooksVector &serverKindleBook
                 log_i("Adding new Kindle book \"%s\"", serverBook.title.c_str());
                 booksAdded++;
                 this->telemetry_.logMetric(
-                    TelemetryField::METRIC_SYNC_STATUS, "ki-book-added",
-                    {{"uuid", serverBook.uuid}, {"title", serverBook.title}});
+                    TelemetryField::METRIC_SYNC_STATUS, "kindle-book-added",
+                    {{"uuid", serverBook.uuid}, {"title", serverBook.title}, {"kindle", true}});
             } else {
                 log_i("Updating existing Kindle book \"%s\"", serverBook.title.c_str());
             }
@@ -299,8 +300,9 @@ void LocalStore::processKindleBookSync(const KindleBooksVector &serverKindleBook
     }
 
     if (booksAdded > 0 || booksRemoved > 0) {
-        this->telemetry_.logMetric(TelemetryField::METRIC_SYNC_STATUS, "ki-sync-changes",
-                                   {{"added", booksAdded}, {"removed", booksRemoved}});
+        this->telemetry_.logMetric(
+            TelemetryField::METRIC_SYNC_STATUS, "kindle-sync-summary",
+            {{"added", booksAdded}, {"removed", booksRemoved}, {"kindle", true}});
     }
 
     log_d("After sync: %zu Kindle books in library", kindle_.size());
@@ -1005,12 +1007,12 @@ auto LocalStore::syncFromRemote(bool wifiConnected, bool bleConnected, SyncReaso
                     kindleAlreadySynced = false;
                     kindleNowSynced = false;
                     this->telemetry_.logMetric(TelemetryField::METRIC_SYNC_STATUS,
-                                               "failed-save-kindle");
+                                               "kindle-failed-save", {{"kindle", true}});
                 } else {
                     log_i("Successfully saved %zu Kindle books to file", kindle_.size());
-                    this->telemetry_.logMetric(TelemetryField::METRIC_SYNC_STATUS,
-                                               "success-sync-kindle",
-                                               {{"book-count", static_cast<int>(kindle_.size())}});
+                    this->telemetry_.logMetric(
+                        TelemetryField::METRIC_SYNC_STATUS, "kindle-success-sync",
+                        {{"book-count", static_cast<int>(kindle_.size())}, {"kindle", true}});
 
                     kindleNowSynced = true;
 
