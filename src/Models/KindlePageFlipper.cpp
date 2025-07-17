@@ -15,8 +15,11 @@ KindlePageFlipper::KindlePageFlipper(const std::shared_ptr<KindleBook> &kindleBo
                                      bool useBle)
     : kindleBook_(kindleBook), useBle_(useBle), cancelFlag_(std::move(cancelFlag)),
       telemetry_(telemetry) {
-    log_i("Created KindlePageFlipper for book: %s by %s", kindleBook->title.c_str(),
-          kindleBook->author.c_str());
+    // Capture string copies to avoid use-after-free
+    std::string bookTitle = kindleBook ? std::string(kindleBook->title) : "Unknown";
+    std::string bookAuthor = kindleBook ? std::string(kindleBook->author) : "Unknown";
+
+    log_i("Created KindlePageFlipper for book: %s by %s", bookTitle.c_str(), bookAuthor.c_str());
 
     pageStream_ = std::make_shared<KindlePageStream>();
 }
@@ -74,23 +77,27 @@ auto KindlePageFlipper::checkForLastReadDialog(const std::shared_ptr<KindlePageR
 }
 
 void KindlePageFlipper::loadInitialPage() {
-    log_i("Loading initial page for Kindle book: %s", kindleBook_->title.c_str());
+    // Capture string copies to avoid use-after-free
+    SpiramString bookTitle = kindleBook_ ? kindleBook_->title : SpiramString("Unknown");
+    std::string bookUuid = kindleBook_ ? std::string(kindleBook_->uuid) : "";
 
-    telemetry_.logMetric(TelemetryField::METRIC_READABLE_REQUEST, kindleBook_->uuid,
+    log_i("Loading initial page for Kindle book: %s", bookTitle.c_str());
+
+    telemetry_.logMetric(TelemetryField::METRIC_READABLE_REQUEST, bookUuid,
                          {{"event", std::string("book-open")},
                           {"action", std::string("open-begin")},
                           {"kindle", true}});
 
     auto cancelFlag = cancelFlag_;
     // Execute the API call on the background thread
-    DispatchGetCore0BackgroundQueue()->dispatch([this, cancelFlag]() {
+    DispatchGetCore0BackgroundQueue()->dispatch([this, cancelFlag, bookTitle, bookUuid]() {
         // Track book open start time
         int64_t bookOpenStartTime = esp_timer_get_time();
         // Create a response object
         auto response = std::make_shared<KindlePageResponse>();
 
-        int httpCode = SindarinAPI::getInstance()->openKindleBook(
-            kindleBook_->title, response.get(), cancelFlag, useBle_);
+        int httpCode = SindarinAPI::getInstance()->openKindleBook(bookTitle, response.get(),
+                                                                  cancelFlag, useBle_);
         if (CancelFlag::isCancelled(cancelFlag)) {
             return;
         }
@@ -100,7 +107,7 @@ void KindlePageFlipper::loadInitialPage() {
             log_w("Error loading initial page: %s", errorMessage.c_str());
 
             int64_t elapsedMs = (esp_timer_get_time() - bookOpenStartTime) / 1000;
-            telemetry_.logMetric(TelemetryField::METRIC_READABLE_REQUEST, kindleBook_->uuid,
+            telemetry_.logMetric(TelemetryField::METRIC_READABLE_REQUEST, bookUuid,
                                  {{"event", std::string("book-open")},
                                   {"action", std::string("open-failed")},
                                   {"kindle", true},
@@ -134,24 +141,29 @@ void KindlePageFlipper::loadInitialPage() {
 }
 
 void KindlePageFlipper::updatePlace(const std::shared_ptr<Place> &place, bool atEndOfContent) {
+    // Capture needed values to avoid use-after-free
+    SpiramString bookTitle = kindleBook_ ? kindleBook_->title : SpiramString("Unknown");
+    std::string bookUuid = kindleBook_ ? std::string(kindleBook_->uuid) : "";
+
     auto cancelFlag = cancelFlag_;
 
     // Perform the logic in a queue so we always have the latest data before making API calls
-    DispatchGetCore0BackgroundQueue()->dispatch([this, place, cancelFlag, atEndOfContent]() {
+    DispatchGetCore0BackgroundQueue()->dispatch(
+        [this, place, cancelFlag, atEndOfContent, bookTitle, bookUuid]() {
         if (CancelFlag::isCancelled(cancelFlag)) {
             log_i("Cancelled while updating place");
             return;
         }
 
-        if (place_ == nullptr) {
+        if (serverSyncPlace_ == nullptr) {
             // First time we're setting the place
-            place_ = std::dynamic_pointer_cast<TxtPlace>(place);
+            serverSyncPlace_ = std::dynamic_pointer_cast<TxtPlace>(place);
         }
 
-        log_i("Updating place from %s to %s %s", place_->str().c_str(), place->str().c_str(),
-              atEndOfContent ? "(at end of content)" : "");
+        log_i("Updating place from %s to %s %s", serverSyncPlace_->str().c_str(),
+              place->str().c_str(), atEndOfContent ? "(at end of content)" : "");
 
-        auto previousPageIndex = pageStream_->pageIndexForOffset(place_->getOffset());
+        auto previousPageIndex = pageStream_->pageIndexForOffset(serverSyncPlace_->getOffset());
         auto currentPageIndex = pageStream_->pageIndexForOffset(place->getOffset());
         auto lastPageIndex = pageStream_->lastPageIndex();
 
@@ -183,14 +195,13 @@ void KindlePageFlipper::updatePlace(const std::shared_ptr<Place> &place, bool at
             if (pageToPreview > 0) {
                 beginTelemetryData["preview"] = pageToPreview;
             }
-            telemetry_.logMetric(TelemetryField::METRIC_READABLE_REQUEST, kindleBook_->uuid,
+            telemetry_.logMetric(TelemetryField::METRIC_READABLE_REQUEST, bookUuid,
                                  beginTelemetryData);
 
             auto response = std::make_shared<KindlePageResponse>();
 
             int httpCode = SindarinAPI::getInstance()->navigateKindle(
-                kindleBook_->title, response.get(), cancelFlag, useBle_, pagesToAdvance,
-                pageToPreview);
+                bookTitle, response.get(), cancelFlag, useBle_, pagesToAdvance, pageToPreview);
             if (CancelFlag::isCancelled(cancelFlag)) {
                 return;
             }
@@ -210,7 +221,7 @@ void KindlePageFlipper::updatePlace(const std::shared_ptr<Place> &place, bool at
                 if (pageToPreview > 0) {
                     failedTelemetryData["preview"] = pageToPreview;
                 }
-                telemetry_.logMetric(TelemetryField::METRIC_READABLE_REQUEST, kindleBook_->uuid,
+                telemetry_.logMetric(TelemetryField::METRIC_READABLE_REQUEST, bookUuid,
                                      failedTelemetryData);
 
                 // Only propagate non-connection errors
@@ -250,13 +261,27 @@ void KindlePageFlipper::updatePlace(const std::shared_ptr<Place> &place, bool at
             if (pageToPreview > 0) {
                 successTelemetryData["preview"] = pageToPreview;
             }
-            telemetry_.logMetric(TelemetryField::METRIC_READABLE_REQUEST, kindleBook_->uuid,
+            telemetry_.logMetric(TelemetryField::METRIC_READABLE_REQUEST, bookUuid,
                                  successTelemetryData);
 
             // Always signal that we got content (to dismiss loading)
             gotContentFunction_(ocrTextLength);
-        }
 
-        place_ = std::dynamic_pointer_cast<TxtPlace>(place);
+            // Update server sync position only after successful navigation
+            serverSyncPlace_ = std::dynamic_pointer_cast<TxtPlace>(place);
+        } else {
+            log_d("Skipping navigation request - already have buffered content (currentPage=%d, "
+                  "lastPage=%d, pagesToAdvance=%d)",
+                  currentPageIndex, lastPageIndex, pagesToAdvance);
+
+            // For cached content, still call the gotContentFunction to maintain consistent behavior
+            if (gotContentFunction_) {
+                // Get the current content length from the page stream
+                size_t contentLength = pageStream_->getOcrTextLength();
+                log_d("Calling gotContentFunction for cached content with length=%zu",
+                      contentLength);
+                gotContentFunction_(contentLength);
+            }
+        }
     });
 }

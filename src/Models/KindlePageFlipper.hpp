@@ -108,6 +108,14 @@ public:
 
     auto lastPageIndex() -> int { return pages_.size() - 1; }
 
+    auto getOcrTextLength() -> size_t {
+        size_t totalLength = 0;
+        for (const auto &page : pages_) {
+            totalLength += page.content.size();
+        }
+        return totalLength;
+    }
+
     void clear() {
         pages_.clear();
         currentPageIndex_ = 0;
@@ -172,9 +180,9 @@ public:
         // Retry loading the initial page if we're at the beginning
         if (pageStream_->size() == 0) {
             loadInitialPage();
-        } else if (place_ != nullptr) {
+        } else if (serverSyncPlace_ != nullptr) {
             // Otherwise retry from the current place
-            updatePlace(place_, atEndOfContent);
+            updatePlace(serverSyncPlace_, atEndOfContent);
         }
     }
 
@@ -191,7 +199,7 @@ public:
         if (pageStream_) {
             pageStream_->clear();
         }
-        place_ = nullptr;
+        serverSyncPlace_ = nullptr;
     }
 
 private:
@@ -203,7 +211,7 @@ private:
     std::shared_ptr<KindlePageStream> pageStream_;
     Telemetry &telemetry_;
 
-    std::shared_ptr<TxtPlace> place_;
+    std::shared_ptr<TxtPlace> serverSyncPlace_; // Last position synced with server
     std::function<void(size_t ocrTextLength)> gotContentFunction_;
     std::function<void(const std::string &errorMessage)> onErrorFunction_;
     std::function<void()> onConnectionErrorFunction_;

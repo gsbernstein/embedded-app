@@ -59,6 +59,13 @@ void appMainTask(void *parameters) {
 pthread_t mainThread;
 
 void StartFreeRtos(bool runAppMain) {
+    static bool started = false;
+    if (started) {
+        assert(false && "FreeRTOS scheduler already started");
+        return;
+    }
+    started = true;
+
     std::binary_semaphore semaphore(0);
 
     // Start the FreeRTOS scheduler
@@ -87,12 +94,13 @@ void StartFreeRtos(bool runAppMain) {
     semaphore.try_acquire_for(std::chrono::seconds(5));
 }
 
-void StartAppMain(FONT_CHOICES font, int x, int y, int lineSpacing) {
+void StartAppMain(FONT_CHOICES font, int x, int y, int lineSpacing, std::string prefsDir) {
     // Skip waveform processing. Technically not a FreeRTOS thing but this is a convenient spot to
     // do it
     GetRootDisplay().setSkipWaveform(true);
 
-    auto prefsFile = "test/CatchTests/TestData/simprefs.ini";
+    char prefsFile[PATH_MAX];
+    snprintf(prefsFile, sizeof(prefsFile), "%s/simprefs.ini", prefsDir.c_str());
     // Delete the prefs file and start fresh
     std::filesystem::remove(prefsFile);
     prefs.begin(prefsFile);
@@ -186,9 +194,10 @@ auto CheckViewUnchanged(DisplayEinkET013TT1 &display, std::string key) -> ViewTe
         .renderedImagePath = directory + testRunPrefix + key + ".png",
     };
 
-    // Create the TestRun directory if needed
-    std::filesystem::create_directory(GetDirectory(directory + testRunPrefix));
-    std::filesystem::create_directory(GetDirectory(directory + testRunPrefix + key));
+    // Create the TestRun directory and any parent directories if needed
+    // This handles both the base TestRun directory and any subdirectories in the key
+    std::filesystem::create_directories(
+        std::filesystem::path(result.renderedImagePath).parent_path());
 
     if (!stbi_write_png(result.renderedImagePath.c_str(), CONFIG_DISPLAY_WIDTH,
                         CONFIG_DISPLAY_HEIGHT, 1, display.buffer().get(), 0)) {
@@ -210,6 +219,9 @@ auto CheckViewUnchanged(DisplayEinkET013TT1 &display, std::string key) -> ViewTe
         // If ACCEPT_CHANGES is defined, automatically accept the changes
 #ifdef ACCEPT_CHANGES
         UNSCOPED_INFO("  ---> Accepting changes");
+        // Create the accepted directory if it doesn't exist
+        std::filesystem::create_directories(
+            std::filesystem::path(result.acceptedImagePath).parent_path());
         std::filesystem::copy(result.renderedImagePath, result.acceptedImagePath,
                               std::filesystem::copy_options::overwrite_existing);
 #endif
@@ -253,6 +265,9 @@ auto CheckViewUnchanged(DisplayEinkET013TT1 &display, std::string key) -> ViewTe
         // If ACCEPT_CHANGES is defined, automatically accept the changes
 #ifdef ACCEPT_CHANGES
         UNSCOPED_INFO("  ---> Accepting changes");
+        // Create the accepted directory if it doesn't exist
+        std::filesystem::create_directories(
+            std::filesystem::path(result.acceptedImagePath).parent_path());
         std::filesystem::copy(result.renderedImagePath, result.acceptedImagePath,
                               std::filesystem::copy_options::overwrite_existing);
 #endif

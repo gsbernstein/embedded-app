@@ -2,6 +2,9 @@
 
 #include <esp_timer.h>
 
+// Uncomment to enable simulated connection loss for debugging reconnection issues
+// #define DEBUG_KINDLE_RECONNECTION
+
 #if CONFIG_USE_BLE_SERVER_PROXY
 #include "Communications/BLEManager.hpp"
 #endif
@@ -26,8 +29,9 @@ KindleReadableScreen::KindleReadableScreen(DisplaySystem &display,
       pageFlipper_(kindleBook, cancelFlag_, telemetry_), loadingMessageView_(display, 5),
       delayedMessageView_(display, 5), errorMessageView_(display, 5) {
 
-    log_i("Created KindleReadableScreen for book: %s by %s", kindleBook->title.c_str(),
-          kindleBook->author.c_str());
+    log_i("Created KindleReadableScreen for book: %s by %s",
+          kindleBook ? kindleBook->title.c_str() : "Unknown",
+          kindleBook ? kindleBook->author.c_str() : "Unknown");
 
     currentPlace_ = std::dynamic_pointer_cast<TxtPlace>(Place::factory(0));
 
@@ -271,17 +275,11 @@ void KindleReadableScreen::begin() {
         pageFlipper_.loadInitialPage();
     };
 
-    // Set initial state and UI
-    DispatchGetUiQueue()->dispatch([this]() {
-        setState(State::CONNECTING);
-        loadingMessageView_.setText("Connecting to your Kindle...");
-        setNeedsLayout();
-        render(display_);
-    });
-
     // Start connection process
     DispatchGetCore0BackgroundQueue()->dispatch([this, initialConnectionCallback]() {
         std::string errorMessage;
+        // Record connection start time for kindle-connect elapsed_ms tracking
+        connectionStartTime_ = esp_timer_get_time();
         bool connected = connectToNetwork(errorMessage, initialConnectionCallback);
 
         // Show error if initial connection failed completely
@@ -548,11 +546,13 @@ auto KindleReadableScreen::connectToNetwork(std::string &errorMessage,
             log_w("BLE connection failed for Kindle book");
 
             // Log BLE failure telemetry
+            int64_t bleElapsedMs = (esp_timer_get_time() - connectionStartTime_) / 1000;
             telemetry_.logMetric(TelemetryField::METRIC_READABLE_REQUEST, kindleBook_->uuid,
                                  {{"event", std::string("kindle-connect")},
                                   {"action", std::string("failed-ble")},
                                   {"kindle", true},
-                                  {"state", std::string(stateToString(state_))}});
+                                  {"state", std::string(stateToString(state_))},
+                                  {"elapsed_ms", static_cast<int>(bleElapsedMs)}});
         } else {
             log_i("BLE successfully connected for Kindle book");
             bleConnected = true;
@@ -578,7 +578,13 @@ auto KindleReadableScreen::connectToNetwork(std::string &errorMessage,
 
                 // Dispatch reconnection attempt - don't check the old cancel flag here
                 // since we just cancelled it
-                DispatchGetUiQueue()->dispatch([this]() { attemptReconnection(); });
+                DispatchGetUiQueue()->dispatch([this]() {
+                    if (!isReconnecting_) {
+                        attemptReconnection();
+                    } else {
+                        log_i("BLE disconnected during reconnection attempt, ignoring");
+                    }
+                });
             });
         }
     }
@@ -598,7 +604,7 @@ auto KindleReadableScreen::connectToNetwork(std::string &errorMessage,
                               {"state", std::string(stateToString(state_))}});
 
         auto connected = WiFi::getInstance().connectWiFiFromSettings();
-        if (connected != ESP_OK && connected != true) {
+        if (!connected) {
             log_w("WiFi connection failed for Kindle book");
             wifiConnected = false;
         } else {
@@ -608,11 +614,13 @@ auto KindleReadableScreen::connectToNetwork(std::string &errorMessage,
             isUsingBleConnection_ = false;
             if (wasPreviouslyUsingBle && reconnectionAttempts_ > 0) {
                 log_i("Successfully switched from BLE to Wi-Fi during reconnection");
+                int64_t fallbackElapsedMs = (esp_timer_get_time() - connectionStartTime_) / 1000;
                 telemetry_.logMetric(TelemetryField::METRIC_READABLE_REQUEST, kindleBook_->uuid,
                                      {{"event", std::string("kindle-connect")},
                                       {"action", std::string("ble-to-wifi-fallback")},
                                       {"kindle", true},
-                                      {"state", std::string(stateToString(state_))}});
+                                      {"state", std::string(stateToString(state_))},
+                                      {"elapsed_ms", static_cast<int>(fallbackElapsedMs)}});
             }
         }
     } else {
@@ -665,6 +673,7 @@ auto KindleReadableScreen::connectToNetwork(std::string &errorMessage,
         resultAction = "failed";
     }
 
+    int64_t finalElapsedMs = (esp_timer_get_time() - connectionStartTime_) / 1000;
     telemetry_.logMetric(TelemetryField::METRIC_READABLE_REQUEST, kindleBook_->uuid,
                          {{"event", std::string("kindle-connect")},
                           {"action", resultAction},
@@ -672,7 +681,8 @@ auto KindleReadableScreen::connectToNetwork(std::string &errorMessage,
                           {"ble_attempted", connectionMethod == "ble"},
                           {"ble_connected", bleConnected},
                           {"wifi_connected", wifiConnected},
-                          {"state", std::string(stateToString(state_))}});
+                          {"state", std::string(stateToString(state_))},
+                          {"elapsed_ms", static_cast<int>(finalElapsedMs)}});
 
     // Call the callback if provided
     if (callback) {
@@ -775,9 +785,13 @@ void KindleReadableScreen::dismissScreen() {
     CancelFlag::cancel(cancelFlag_);
     cancelDelayedLoadingMessage();
     cancelReconnectionAttempt();
+#ifdef DEBUG_KINDLE_RECONNECTION
+    cancelTestDisconnect();
+#endif
 
-    // Reset reconnection attempts counter
+    // Reset reconnection attempts counter and flags
     reconnectionAttempts_ = 0;
+    isReconnecting_ = false;
 
     disconnectNetworkConnections();
     back();
@@ -927,13 +941,101 @@ void KindleReadableScreen::delayedMessageTimerCallback(TimerHandle_t timer) {
     });
 }
 
+#ifdef DEBUG_KINDLE_RECONNECTION
+/*
+ * DEBUG: Connection Loss Simulation for Testing Reconnection Behavior
+ * ===================================================================
+ *
+ * To enable simulated connection loss for debugging reconnection issues:
+ *
+ * 1. At the top of this file, uncomment:
+ *    #define DEBUG_KINDLE_RECONNECTION
+ *
+ * 2. How it works:
+ *    - 15 seconds after Kindle content is displayed, it simulates a connection error
+ *    - This triggers attemptReconnection() just like a real connection loss would
+ *    - Helps debug reconnection loops and retry logic
+ *    - Only executes once per session (testDisconnectExecuted_ flag)
+ *
+ * 3. What to look for in logs:
+ *    - "TEST ONLY: Simulating connection loss" messages
+ *    - "attemptReconnection called" with attempt counts
+ *    - Whether reconnection succeeds or fails
+ *    - Any recursive reconnection attempts
+ *
+ * IMPORTANT: This is DEBUG CODE ONLY - DO NOT SHIP WITH THIS ENABLED!
+ */
+
+void KindleReadableScreen::scheduleTestDisconnect() {
+    if (testDisconnectExecuted_) {
+        log_i("TEST: Forced disconnect already executed once, skipping");
+        return;
+    }
+    cancelTestDisconnect();
+    log_e("TEST ONLY: Scheduling simulated connection loss in 15 seconds - REMOVE BEFORE RELEASE!");
+    testDisconnectTimer_ = xTimerCreate("TestConnLoss", pdMS_TO_TICKS(15 * 1000), pdFALSE, this,
+                                        testDisconnectTimerCallback);
+    xTimerStart(testDisconnectTimer_, 0);
+    log_i("TEST: Scheduled simulated connection loss for 15 seconds from now");
+}
+
+void KindleReadableScreen::cancelTestDisconnect() {
+    if (testDisconnectTimer_ != nullptr) {
+        xTimerStop(testDisconnectTimer_, 0);
+        xTimerDelete(testDisconnectTimer_, 0);
+        testDisconnectTimer_ = nullptr;
+        log_d("TEST: Cancelled forced disconnect timer");
+    }
+}
+
+void KindleReadableScreen::testDisconnectTimerCallback(TimerHandle_t timer) {
+    auto *instance = static_cast<KindleReadableScreen *>(pvTimerGetTimerID(timer));
+    DispatchGetUiQueue()->dispatch([instance]() {
+        if (instance->state_ != State::DISPLAY_CONTENT) {
+            log_i("TEST: Skipping simulated connection loss - not in DISPLAY_CONTENT state");
+            return;
+        }
+        instance->testDisconnectExecuted_ = true;
+        log_e("TEST ONLY: Simulating connection loss to test reconnection behavior!");
+        log_e("TEST ONLY: Current state: %s", instance->stateToString(instance->state_));
+        log_e("TEST ONLY: Using BLE: %s", instance->isUsingBleConnection_ ? "yes" : "no");
+        log_e("TEST ONLY: Reconnection attempts before: %d", instance->reconnectionAttempts_);
+
+        instance->telemetry_.logMetric(
+            TelemetryField::METRIC_READABLE_REQUEST, instance->kindleBook_->uuid,
+            {{"event", std::string("test-simulated-connection-loss")},
+             {"action", std::string("connection-loss-triggered")},
+             {"kindle", true},
+             {"po",
+              instance->currentPlace_ ? static_cast<int>(instance->currentPlace_->getOffset()) : 0},
+             {"ble", instance->isUsingBleConnection_}});
+
+        // Trigger reconnection just like the page flipper's error handler does
+        instance->attemptReconnection();
+        log_e("TEST ONLY: Connection error handler triggered - reconnection should begin");
+    });
+}
+#endif // DEBUG_KINDLE_RECONNECTION
+
 void KindleReadableScreen::attemptReconnection() {
+    // Check if we're already in the middle of a reconnection attempt
+    if (isReconnecting_) {
+        log_i("Already attempting reconnection, ignoring duplicate request");
+        return;
+    }
+
+    // Set the flag to prevent recursive calls
+    isReconnecting_ = true;
+
     // Increment the reconnection attempts counter
     reconnectionAttempts_++;
+
+    log_i("Reconnection attempt %d of %d", reconnectionAttempts_, MAX_RECONNECTION_ATTEMPTS);
 
     // If we've exceeded the maximum number of attempts, show an error and stop trying
     if (reconnectionAttempts_ > MAX_RECONNECTION_ATTEMPTS) {
         log_w("Exceeded maximum reconnection attempts (%d). Giving up.", MAX_RECONNECTION_ATTEMPTS);
+        isReconnecting_ = false;
         DispatchGetUiQueue()->dispatch([this]() {
             telemetry_.logMetric(
                 TelemetryField::METRIC_READABLE_REQUEST, kindleBook_->uuid,
@@ -981,6 +1083,7 @@ void KindleReadableScreen::attemptReconnection() {
         // Check if we've been cancelled
         if (CancelFlag::isCancelled(localFlag)) {
             log_i("Reconnection attempt cancelled");
+            isReconnecting_ = false;
             return;
         }
 
@@ -1000,6 +1103,7 @@ void KindleReadableScreen::attemptReconnection() {
 
             // Reset reconnection attempts on successful connection
             reconnectionAttempts_ = 0;
+            isReconnecting_ = false;
 
             // If we have content already (were just reconnecting), restore display state
             if (pageFlipper_.hasContent()) {
@@ -1029,6 +1133,7 @@ void KindleReadableScreen::attemptReconnection() {
 
             // If we've reached max attempts, show appropriate error
             if (reconnectionAttempts_ >= MAX_RECONNECTION_ATTEMPTS) {
+                isReconnecting_ = false;
                 DispatchGetUiQueue()->dispatch([this]() {
                     setErrorMessage(
                         "Failed to load content. Please check your network connection.");
@@ -1118,6 +1223,10 @@ void KindleReadableScreen::updatePageFlipperCallbacks() {
                 setNeedsLayout();
                 setNeedsRerender();
                 render(display_);
+
+#ifdef DEBUG_KINDLE_RECONNECTION
+                scheduleTestDisconnect();
+#endif
             }
         });
     });
