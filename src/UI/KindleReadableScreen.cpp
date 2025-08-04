@@ -29,9 +29,8 @@ KindleReadableScreen::KindleReadableScreen(DisplaySystem &display,
       pageFlipper_(kindleBook, cancelFlag_, telemetry_), loadingMessageView_(display, 5),
       delayedMessageView_(display, 5), errorMessageView_(display, 5) {
 
-    log_i("Created KindleReadableScreen for book: %s by %s",
-          kindleBook ? kindleBook->title.c_str() : "Unknown",
-          kindleBook ? kindleBook->author.c_str() : "Unknown");
+    log_i("Created KindleReadableScreen for book: %s by %s", kindleBook_->title.c_str(),
+          kindleBook_->author.c_str());
 
     currentPlace_ = std::dynamic_pointer_cast<TxtPlace>(Place::factory(0));
 
@@ -242,15 +241,20 @@ void KindleReadableScreen::begin() {
     metrics["kindle"] = true;
     telemetry_.logMetric(TelemetryField::METRIC_READABLE_OPEN, kindleBook_->uuid, metrics);
 
+    // Capture cancel flag before the callback to avoid use-after-free
+    auto cancelFlag = cancelFlag_;
+
     // Define the callback for initial connection - load the book content
-    auto initialConnectionCallback = [this](bool connected) {
+    auto initialConnectionCallback = [this, cancelFlag](bool connected) {
         if (!connected) {
             // Connection failed - error message is handled by connectToNetwork
             return;
         }
 
         // Successfully connected, now load the book content
-        auto cancelFlag = cancelFlag_;
+        if (CancelFlag::isCancelled(cancelFlag)) {
+            return;
+        }
 
         // Record book open start time (content loading phase)
         bookOpenStartTime_ = esp_timer_get_time();
@@ -276,7 +280,7 @@ void KindleReadableScreen::begin() {
     };
 
     // Start connection process
-    DispatchGetCore0BackgroundQueue()->dispatch([this, initialConnectionCallback]() {
+    DispatchGetCore0BackgroundQueue()->dispatch([this, initialConnectionCallback, cancelFlag]() {
         std::string errorMessage;
         // Record connection start time for kindle-connect elapsed_ms tracking
         connectionStartTime_ = esp_timer_get_time();
@@ -284,8 +288,12 @@ void KindleReadableScreen::begin() {
 
         // Show error if initial connection failed completely
         if (!connected && !errorMessage.empty()) {
-            DispatchGetUiQueue()->dispatch(
-                [this, errorMessage]() { setErrorMessage(errorMessage); });
+            DispatchGetUiQueue()->dispatch([this, errorMessage, cancelFlag]() {
+                if (CancelFlag::isCancelled(cancelFlag)) {
+                    return;
+                }
+                setErrorMessage(errorMessage);
+            });
         }
     });
 }
@@ -607,8 +615,7 @@ auto KindleReadableScreen::connectToNetwork(std::string &errorMessage,
                               {"state", std::string(stateToString(state_))},
                               {"elapsed_ms", static_cast<int>(wifiAttemptElapsedMs)}});
 
-        auto connected = WiFi::getInstance().connectWiFiFromSettings();
-        if (!connected) {
+        if (!WiFi::getInstance().connectWiFiFromSettings()) {
             log_w("WiFi connection failed for Kindle book");
             wifiConnected = false;
         } else {
