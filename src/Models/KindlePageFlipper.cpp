@@ -163,6 +163,16 @@ void KindlePageFlipper::updatePlace(const std::shared_ptr<Place> &place, bool at
         auto currentPageIndex = pageStream_->pageIndexForOffset(place->getOffset());
         auto lastPageIndex = pageStream_->lastPageIndex();
 
+        // Calculate buffer state
+        uint32_t currentOffset = place->getOffset();
+        size_t bytesRemaining = pageStream_->getBytesRemainingFrom(currentOffset);
+        int pagesRemaining = pageStream_->getPagesRemainingFrom(currentOffset);
+
+        log_d("Buffer analysis: %" PRIu32 " bytes from offset %" PRIu32
+              ", %zu bytes remaining, %d pages remaining",
+              static_cast<uint32_t>(pageStream_->size()), currentOffset, bytesRemaining,
+              pagesRemaining);
+
         auto pagesToAdvance = currentPageIndex - previousPageIndex;
         // Cases:
         // 1. We don't have a full page of content ahead (load one preview page)
@@ -268,9 +278,7 @@ void KindlePageFlipper::updatePlace(const std::shared_ptr<Place> &place, bool at
             // Update server sync position only after successful navigation
             serverSyncPlace_ = std::dynamic_pointer_cast<TxtPlace>(place);
         } else {
-            log_d("Skipping navigation request - already have buffered content (currentPage=%d, "
-                  "lastPage=%d, pagesToAdvance=%d)",
-                  currentPageIndex, lastPageIndex, pagesToAdvance);
+            log_d("Skipping navigation request - sufficient buffer available");
 
             // For cached content, still call the gotContentFunction to maintain consistent behavior
             if (gotContentFunction_) {
