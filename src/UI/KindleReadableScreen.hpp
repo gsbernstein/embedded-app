@@ -89,6 +89,7 @@ private:
     State state_{State::CONNECTING};
 
     std::shared_ptr<NewReadablePopupMenuScreen> popupMenuScreen_;
+    std::shared_ptr<Readable> popupMenuReadable_;
     std::shared_ptr<Screen> currentScreen_;
     DisplaySystem::UpdateType updateType_ = DisplaySystem::UpdateType::FULL;
 
@@ -123,6 +124,7 @@ private:
 
     auto stateToString(State state) -> const char *;
     void showPopupMenu();
+    void showTableOfContents();
     void showLastReadDialog(const SpiramString &dialogText);
     void handleLastReadDialogResponse(bool gotoLastReadPage);
     void submitLastReadDialogChoice(bool gotoLastReadPage, const std::string &loadingMessage);
@@ -170,8 +172,13 @@ public:
         onTestLastReadDialogChoice_ = std::move(callback);
     }
 
+    void setOnTestLastReadDialogPostComplete(std::function<void(bool)> callback) {
+        onTestLastReadDialogPostComplete_ = std::move(callback);
+    }
+
 private:
     std::function<void()> onTestLastReadDialogShown_;
     std::function<void(bool)> onTestLastReadDialogChoice_;
+    std::function<void(bool)> onTestLastReadDialogPostComplete_;
 #endif
 };

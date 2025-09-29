@@ -12,6 +12,7 @@
 #include "Models/Firmware.hpp"
 #include "Models/FirmwareResponse.hpp"
 #include "Models/Json.hpp"
+#include "Models/KindleChaptersResponse.hpp"
 #include "Models/KindlePageResponse.hpp"
 #include "Models/ReadableArchive.hpp"
 #include "Models/ReadableBookmark.hpp"
@@ -96,6 +97,12 @@ public:
     // Submit user's choice for last read page dialog
     auto submitLastReadPageChoice(bool gotoLastReadPage, bool useBle,
                                   const std::shared_ptr<CancelFlag> &cancel) -> int;
+    auto fetchKindleChaptersWithUuids(const std::string &kindleUuid, int currentPage,
+                                      KindleChaptersResponse *resp, bool useBle,
+                                      const std::shared_ptr<CancelFlag> &cancel) -> int;
+    auto navigateKindleToChapter(const std::string &kindleUuid, const std::string &chapterUuid,
+                                 int currentPage, KindlePageResponse *resp, bool useBle,
+                                 const std::shared_ptr<CancelFlag> &cancel) -> int;
 
 private:
     auto tryCheckFirmware(FirmwareResponse *resp, bool useHttp, bool useBle,
