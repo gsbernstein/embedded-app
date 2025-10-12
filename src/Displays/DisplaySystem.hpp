@@ -10,8 +10,7 @@
 #include "Displays/EinkTypes.hpp"
 #include "Misc/StringUtil.hpp"
 #include "Storage/FileSystem.hpp"
-#include "UI/Fonts/Font.hpp"
-#include "UI/Fonts/Fonts.hpp"
+#include "UI/Fonts.hpp"
 #include "UI/Layout/Types.hpp"
 
 struct DisplayInset {

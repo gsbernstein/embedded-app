@@ -9,7 +9,7 @@
 #include "UI/Components/EinkView.hpp"
 #include "UI/Components/IconView.hpp"
 #include "UI/Components/SingleLineTextView.hpp"
-#include "UI/Fonts/Fonts.hpp"
+#include "UI/Fonts.hpp"
 #include "UI/Screen.hpp"
 #include "Version.hpp"
 

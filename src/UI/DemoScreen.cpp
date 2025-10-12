@@ -36,7 +36,7 @@
 #include "UI/Bitmaps/mani-volcano.hpp"
 #include "UI/Bitmaps/mani-warrior.hpp"
 #include "UI/Bitmaps/sol-logo.hpp"
-#include "UI/Fonts/Fonts.hpp"
+#include "UI/Fonts.hpp"
 #include "UI/Layout/Types.hpp"
 #include "sindarin-debug.h"
 

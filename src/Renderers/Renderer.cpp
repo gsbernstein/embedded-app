@@ -3,7 +3,7 @@
 #include <algorithm>
 #include <utility>
 
-#include "UI/Fonts/Fonts.hpp"
+#include "UI/Fonts.hpp"
 
 // Retrieve and show the page at fromPlace location.
 auto Renderer::renderPage(std::shared_ptr<Place> fromPlace, int16_t numSkipLines, bool forceRefresh,

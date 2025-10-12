@@ -6,7 +6,7 @@
 
 #include "EinkView.hpp"
 #include "SingleLineTextView.hpp"
-#include "UI/Fonts/Fonts.hpp"
+#include "UI/Fonts.hpp"
 
 // A view that draws multiple lines of text
 class MultiLineTextView : public EinkView {

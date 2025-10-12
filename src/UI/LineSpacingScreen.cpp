@@ -1,6 +1,6 @@
 #include "UI/LineSpacingScreen.hpp"
 
-#include "UI/Fonts/Fonts.hpp"
+#include "UI/Fonts.hpp"
 #include "sindarin-debug.h"
 
 #define MIN_LINE_SPACING (-2)

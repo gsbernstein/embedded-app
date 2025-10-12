@@ -13,7 +13,7 @@
 #include "DisplayUtil.hpp"
 #include "EPub/EPubFile.hpp"
 #include "Renderers/Renderer.hpp"
-#include "UI/Fonts/Fonts.hpp"
+#include "UI/Fonts.hpp"
 
 int main(int argc, char **argv) {
     argparse::ArgumentParser program("epub-render");

@@ -9,7 +9,7 @@
 #include "Communications/WiFi.hpp"
 #include "Menu/ReadingSettingsMenuScreen.hpp"
 #include "Models/Readable.hpp"
-#include "UI/Fonts/Fonts.hpp"
+#include "UI/Fonts.hpp"
 #include "UI/KindleTableOfContentsScreen.hpp"
 #include "UI/Menu/MenuItemSingleLine.hpp"
 #include "sindarin-debug.h"

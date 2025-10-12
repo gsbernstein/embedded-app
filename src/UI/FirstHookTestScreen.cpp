@@ -2,7 +2,7 @@
 
 #include <memory>
 
-#include "UI/Fonts/Fonts.hpp"
+#include "UI/Fonts.hpp"
 #include "sindarin-debug.h"
 
 #define OFFSET_ADJUST_AMOUNT 5

@@ -9,8 +9,7 @@
 #include "Misc/Dispatch.hpp"
 #include "Misc/PBMImage.hpp"
 #include "Misc/StringUtil.hpp"
-#include "UI/Fonts/Font.hpp"
-#include "UI/Fonts/Fonts.hpp"
+#include "UI/Fonts.hpp"
 #include "sindarin-debug.h"
 
 DisplaySystem::DisplaySystem() = default;

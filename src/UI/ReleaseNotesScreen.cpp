@@ -3,7 +3,7 @@
 #include <Update.h>
 
 #include "Misc/Platform.hpp"
-#include "UI/Fonts/Fonts.hpp"
+#include "UI/Fonts.hpp"
 #include "UI/Menu/MenuItemSingleLine.hpp"
 #include "sindarin-debug.h"
 
