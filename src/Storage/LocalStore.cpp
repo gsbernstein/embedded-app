@@ -1,5 +1,7 @@
 #include "LocalStore.hpp"
 
+#include <Defer/Defer.hpp>
+#include <StringUtil/StringUtil.hpp>
 #include <algorithm>
 #include <cmath>
 #include <esp_system.h>
@@ -15,15 +17,14 @@
 #if USE_BLE
 #include "Communications/BLEManager.hpp"
 #endif
+
 #include "Communications/HtmlCleaner.hpp"
 #include "Communications/WiFi.hpp"
 #include "Misc/Crypto.hpp"
-#include "Misc/Defer.hpp"
 #include "Misc/GUnzipStream.hpp"
 #include "Misc/Platform.hpp"
 #include "Misc/PowerManager.hpp"
 #include "Misc/SemVer.hpp"
-#include "Misc/StringUtil.hpp"
 #include "Models/BookQuestion.hpp"
 #include "Models/Json.hpp"
 #include "Models/Place.hpp"
@@ -84,7 +85,7 @@ auto LocalStore::loadReadablesFromFile(ReadablesVector &readables, const std::st
     readables.reserve(readablesJson.size());
 
     for (JsonVariant v : readablesJson) {
-        std::shared_ptr<Readable> readable = SpiRamPtr<Readable>();
+        std::shared_ptr<Readable> readable = SpiramPtr<Readable>();
 
         if (!readable->fromJson(v.as<JsonObject>())) {
             log_e("Failed to parse Readable");

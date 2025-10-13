@@ -43,6 +43,15 @@ add_subdirectory(${REPO_ROOT_DIR}/components/miniz ${CMAKE_CURRENT_BINARY_DIR}/m
 
 add_subdirectory(${REPO_ROOT_DIR}/components/Adafruit-GFX-Library ${CMAKE_CURRENT_BINARY_DIR}/Adafruit-GFX-Library)
 
+add_subdirectory("${REPO_ROOT_DIR}/components/cpp-misc/defer" ${CMAKE_CURRENT_BINARY_DIR}/defer)
+
+add_subdirectory("${REPO_ROOT_DIR}/components/cpp-misc/spiram-cpp" ${CMAKE_CURRENT_BINARY_DIR}/spiram-cpp)
+# Have spiram-cpp use our esp-idf stubs
+target_include_directories(spiram-cpp PUBLIC ${REPO_ROOT_DIR}/lib/Simulator/stubs/esp-idf)
+target_compile_definitions(spiram-cpp PUBLIC ESP_PLATFORM=1)
+
+add_subdirectory("${REPO_ROOT_DIR}/components/cpp-misc/stringutil" ${CMAKE_CURRENT_BINARY_DIR}/stringutil)
+
 add_subdirectory(${REPO_ROOT_DIR}/components/tiny-font ${CMAKE_CURRENT_BINARY_DIR}/tiny-font)
 
 # Conditionally link freetype if we're using 8-bit or 16-bit display
@@ -81,7 +90,7 @@ endif()
 
 add_library(${PROJECT_NAME} STATIC ${SOURCES} ${HTTP_CLIENT_SOURCE})
 
-target_link_libraries(${PROJECT_NAME} PUBLIC pugixml ArduinoJson miniz astubs esp-idf-stubs nvs_flash Adafruit-GFX-Library tiny-font mbedtls mbedx509 mbedcrypto esp_ringbuf)
+target_link_libraries(${PROJECT_NAME} PUBLIC pugixml ArduinoJson miniz astubs esp-idf-stubs nvs_flash Adafruit-GFX-Library tiny-font mbedtls mbedx509 mbedcrypto esp_ringbuf defer spiram-cpp stringutil)
 
 target_include_directories(${PROJECT_NAME} PUBLIC
     "${REPO_ROOT_DIR}/src"
