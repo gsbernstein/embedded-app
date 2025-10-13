@@ -108,18 +108,17 @@ TEST_CASE("Test EPub Books Rendering", "[.][epub]") {
 
     // First screen renders twice once with a full refresh and once with a AU4
     WAIT_FOR_DRAW(display);
-    WAIT_FOR_DRAW(display);
+    WAIT_FOR_DRAW(display, false);
 
     ASSERT_VIEW_UNCHANGED(display, "FirstScreen");
 
     SECTION("Books") {
         SendRemoteCommand(ENTER);
-        WAIT_FOR_DRAW(display);
-        // WAIT_FOR_DRAW(display);
+        WAIT_FOR_DRAW(display, false);
 
         ASSERT_VIEW_UNCHANGED(display, "OnePageTutorial");
         SendRemoteCommand(ENTER);
-        WAIT_FOR_DRAW(display);
+        WAIT_FOR_DRAW(display, false);
 
         auto screen = UIGetCurrentScreen();
         auto readableScreen = std::dynamic_pointer_cast<ReadableScreen>(screen);
@@ -147,7 +146,7 @@ TEST_CASE("Test EPub Books Rendering", "[.][epub]") {
                     if (readableScreen->checkAtEnd()) break;
 
                     SendRemoteCommand(ENTER);
-                    WAIT_FOR_DRAW(display);
+                    WAIT_FOR_DRAW(display, false);
                 }
             }
 
@@ -158,13 +157,13 @@ TEST_CASE("Test EPub Books Rendering", "[.][epub]") {
 
         SendRemoteCommand(UP);
         WAIT_FOR_DRAW(display);
-        WAIT_FOR_DRAW(display);
+        WAIT_FOR_DRAW(display, false);
 
         ASSERT_VIEW_UNCHANGED(display, "LastPagePopupMenu");
 
         SendRemoteCommand(ENTER);
         WAIT_FOR_DRAW(display);
-        WAIT_FOR_DRAW(display);
+        WAIT_FOR_DRAW(display, false);
 
         ASSERT_VIEW_UNCHANGED(display, "MainMenu");
 
@@ -178,7 +177,7 @@ TEST_CASE("Test EPub Books Rendering", "[.][epub]") {
         WAIT_FOR_DRAW(display);
 
         SendRemoteCommand(ENTER);
-        WAIT_FOR_DRAW(display);
+        WAIT_FOR_DRAW(display, false);
 
         screen = UIGetCurrentScreen();
         readableScreen = std::dynamic_pointer_cast<ReadableScreen>(screen);
@@ -208,7 +207,7 @@ TEST_CASE("Test EPub Books Rendering", "[.][epub]") {
                 if (readableScreen->checkAtEnd()) break;
 
                 SendRemoteCommand(ENTER);
-                WAIT_FOR_DRAW(display);
+                WAIT_FOR_DRAW(display, false);
             }
 
         } else {
@@ -218,13 +217,13 @@ TEST_CASE("Test EPub Books Rendering", "[.][epub]") {
 
         SendRemoteCommand(UP);
         WAIT_FOR_DRAW(display);
-        WAIT_FOR_DRAW(display);
+        WAIT_FOR_DRAW(display, false);
 
         ASSERT_VIEW_UNCHANGED(display, "MainMenu");
 
         SendRemoteCommand(ENTER);
         WAIT_FOR_DRAW(display);
-        WAIT_FOR_DRAW(display);
+        WAIT_FOR_DRAW(display, false);
 
         ASSERT_VIEW_UNCHANGED(display, "ThirdScreen");
 
@@ -236,7 +235,7 @@ TEST_CASE("Test EPub Books Rendering", "[.][epub]") {
         WAIT_FOR_DRAW(display);
 
         SendRemoteCommand(ENTER);
-        WAIT_FOR_DRAW(display);
+        WAIT_FOR_DRAW(display, false);
 
         screen = UIGetCurrentScreen();
         readableScreen = std::dynamic_pointer_cast<ReadableScreen>(screen);
@@ -266,7 +265,7 @@ TEST_CASE("Test EPub Books Rendering", "[.][epub]") {
                 if (readableScreen->checkAtEnd()) break;
 
                 SendRemoteCommand(ENTER);
-                WAIT_FOR_DRAW(display);
+                WAIT_FOR_DRAW(display, false);
             }
         } else {
             UNSCOPED_INFO("Unable to get ReadableScreen instance for Book3.");
