@@ -47,6 +47,15 @@ public:
 
     void setShowPageIndicators(bool show) { showPageIndicators_ = show; }
 
+    // Set explicit page numbers (e.g., from server) instead of calculating from offset
+    void setExplicitPageNumbers(int currentPage, int totalPages) {
+        explicitCurrentPage_ = currentPage;
+        explicitTotalPages_ = totalPages;
+    }
+
+    // When true, don't show calculated page numbers as fallback
+    void setSuppressFallbackPageNumbers(bool suppress) { suppressFallbackPageNumbers_ = suppress; }
+
 protected:
     DisplaySystem &display_;
     PreferencesStore &prefs_;
@@ -69,4 +78,13 @@ protected:
 
     ChapterIdx currentChapterIdx_ = -1;
     bool showPageIndicators_ = true;
+
+    // Generic page number overrides (not Kindle-specific)
+    int explicitCurrentPage_ = -1;
+    int explicitTotalPages_ = -1;
+    bool suppressFallbackPageNumbers_ = false;
+
+    auto hasExplicitPageNumbers() const -> bool {
+        return explicitCurrentPage_ > 0 && explicitTotalPages_ > 0;
+    }
 };
