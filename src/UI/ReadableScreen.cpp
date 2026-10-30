@@ -678,7 +678,8 @@ void ReadableScreen::turnPage() {
         showPopupMenu();
 
         // See the layout in popupNavigationFactory to ensure this is still the right setting.
-        popupMenuScreen_->setTabWithName("Popup", 3);
+        // Selects Delete/Archive, which shifts up a row when Autopilot is hidden.
+        popupMenuScreen_->setTabWithName("Popup", CONFIG_SHOW_STOCK_SOL_UI ? 3 : 2);
     } else {
         readable_->placePrev = readable_->place;
         readable_->place = newPlace_;
