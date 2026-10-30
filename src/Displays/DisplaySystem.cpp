@@ -273,7 +273,14 @@ void DisplaySystem::drawPBM(int16_t x, int16_t y, RendererStream &stream) {
             return;
         }
 
-        gfxClass_->drawBitmap(x, y, bitmap.get(), width, height, 0, 1);
+        // pbm files have 0 white and 1 black
+        // invert to display properly (convert PBM format to display format)
+        for (int i = 0; i < byteSize; i++) {
+            bitmap[i] = bitmap[i] ^ 0xFF;
+        }
+
+        // Use actual fg/bg colors to respect dark mode in the canvas area
+        gfxClass_->drawBitmap(x, y, bitmap.get(), width, height, fg, bg);
     }
 }
 
