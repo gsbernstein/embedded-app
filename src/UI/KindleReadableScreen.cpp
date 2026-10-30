@@ -37,6 +37,7 @@ KindleReadableScreen::KindleReadableScreen(DisplaySystem &display,
 
     renderer_.setStream(pageFlipper_.getStream());
     renderer_.setLineSpacing(prefs_.lineSpacing.get().value_or(0));
+    renderer_.setWordSpacing(prefs_.wordSpacing.get().value_or(0));
 
     // Set up loading message
     loadingMessageView_.setText("Connecting to your Kindle...");
@@ -185,6 +186,7 @@ KindleReadableScreen::KindleReadableScreen(DisplaySystem &display,
                 // Update the renderer with the new line spacing -- needed here, otherwise we'd have
                 // to do it in the render() method and that'd be reading from NVS a lot...
                 renderer_.setLineSpacing(prefs_.lineSpacing.get().value_or(0));
+                renderer_.setWordSpacing(prefs_.wordSpacing.get().value_or(0));
             });
         });
 

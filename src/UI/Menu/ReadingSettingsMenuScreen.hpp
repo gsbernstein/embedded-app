@@ -54,6 +54,7 @@ public:
 
     void setRendererLineSpacingFromPrefs() {
         renderer_.setLineSpacing(prefs_.lineSpacing.get().value_or(0));
+        renderer_.setWordSpacing(prefs_.wordSpacing.get().value_or(0));
     }
 
     void regenerateMenuItems() {

@@ -36,6 +36,7 @@ ReadableScreen::ReadableScreen(const std::shared_ptr<RendererStream> &stream,
     assert(stream != nullptr && "stream cannot be nullptr");
 
     renderer_.setLineSpacing(prefs.lineSpacing.get().value_or(0));
+    renderer_.setWordSpacing(prefs.wordSpacing.get().value_or(0));
 
     readablePlacemarkHistoryScreen_ = std::make_shared<ReadablePlacemarkHistoryScreen>(
         this->prefs_, this->fileSystem_, this->readable_, this->renderer_, this->display_,
@@ -444,6 +445,7 @@ ReadableScreen::ReadableScreen(const std::shared_ptr<RendererStream> &stream,
                 // Update the renderer with the new line spacing -- needed here, otherwise we'd have
                 // to do it in the render() method and that'd be reading from NVS a lot...
                 this->renderer_.setLineSpacing(prefs_.lineSpacing.get().value_or(0));
+                this->renderer_.setWordSpacing(prefs_.wordSpacing.get().value_or(0));
             });
         });
 

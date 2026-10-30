@@ -233,6 +233,35 @@ void ReadingSettingsMenuScreen::populateMenuItems() {
         });
     }));
 
+    addMenuItem(std::make_shared<MenuItemSingleLine>("Word Spacing", [this]() {
+        auto wordSpacingMenu = std::make_shared<GenericSettingsMenuScreen>(display_, "Word Spacing");
+        auto isChecked = [this](int val) -> bool {
+            return prefs_.wordSpacing.get().value_or(0) == val;
+        };
+
+        wordSpacingMenu->addMenuItem(std::make_shared<MenuItemCheckable>(
+            "Tight", [this]() { prefs_.wordSpacing.set(-2); }, [isChecked]() { return isChecked(-2); }));
+        wordSpacingMenu->addMenuItem(std::make_shared<MenuItemCheckable>(
+            "Normal", [this]() { prefs_.wordSpacing.set(0); }, [isChecked]() { return isChecked(0); }));
+        wordSpacingMenu->addMenuItem(std::make_shared<MenuItemCheckable>(
+            "Wide", [this]() { prefs_.wordSpacing.set(2); }, [isChecked]() { return isChecked(2); }));
+        wordSpacingMenu->addMenuItem(std::make_shared<MenuItemCheckable>(
+            "Extra Wide", [this]() { prefs_.wordSpacing.set(4); }, [isChecked]() { return isChecked(4); }));
+
+        int currentVal = prefs_.wordSpacing.get().value_or(0);
+        wordSpacingMenu->setSelectedIndex(
+            currentVal == -2 ? 0 :
+            currentVal == 0 ? 1 :
+            currentVal == 2 ? 2 : 3
+        );
+
+        pushScreen_(wordSpacingMenu);
+        wordSpacingMenu->setBackCallback([this]() {
+            popScreen_();
+            setRendererLineSpacingFromPrefs();
+        });
+    }));
+
     // Helper function to convert 24h to 12h format with AM/PM
     auto formatTime = [](int hour) -> std::string {
         if (hour == -1) {
