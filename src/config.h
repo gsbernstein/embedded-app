@@ -25,6 +25,11 @@
 
 #define HOSTNAME "solreader"
 
+// Kconfig leaves disabled bools undefined; default to 0 so it can be used in plain `if` checks
+#ifndef CONFIG_SHOW_STOCK_SOL_UI
+#define CONFIG_SHOW_STOCK_SOL_UI 0
+#endif
+
 #ifdef CONFIG_LED_INVERT
 #define LED_ON LOW
 #define LED_OFF HIGH

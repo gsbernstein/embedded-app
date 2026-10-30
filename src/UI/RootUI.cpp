@@ -706,11 +706,12 @@ void RootUI::setup(LocalStore &localStore, FileSystem &fileSystem,
                 archived));
         }
 
-        if (noArticles) {
+        if (CONFIG_SHOW_STOCK_SOL_UI && noArticles) {
             menuItems->emplace_back(makeContentSyncMenuItem("Sync Content"));
         }
 
-        if (!(prefs_.tutorialsDeleted.get().value_or(0) & TUTORIAL_SCREEN_ARTICLES)) {
+        if (CONFIG_SHOW_STOCK_SOL_UI &&
+            !(prefs_.tutorialsDeleted.get().value_or(0) & TUTORIAL_SCREEN_ARTICLES)) {
             menuItems->emplace_back(std::make_shared<MenuItemSingleLine>(
                 "\ue000 Articles Tutorial", [this, createTutorialScreen]() {
                     SpiramString message = SpiRamStringFormat(
@@ -1872,10 +1873,12 @@ void RootUI::setup(LocalStore &localStore, FileSystem &fileSystem,
     if (!booksMenuFactory()->empty()) {
         newMainMenu->addTab("Books", booksMenuFactory, 4);
     }
-    if (!kindleMenuFactory()->empty()) {
+    if (CONFIG_SHOW_STOCK_SOL_UI && !kindleMenuFactory()->empty()) {
         newMainMenu->addTab("Kindle", kindleMenuFactory, 4);
     }
-    if (!articlesMenuFactory()->empty()) {
+    // Without the stock UI, only show Articles when some are already on the device
+    if (CONFIG_SHOW_STOCK_SOL_UI ? !articlesMenuFactory()->empty()
+                                 : !localStore.articles().empty()) {
         newMainMenu->addTab("Articles", articlesMenuFactory, 4);
     }
 
