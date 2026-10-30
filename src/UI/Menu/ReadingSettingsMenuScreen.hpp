@@ -11,6 +11,7 @@
 #include "UI/Components/RendererView.hpp"
 #include "UI/Components/SingleLineTextView.hpp"
 #include "UI/LineSpacingScreen.hpp"
+#include "UI/WordSpacingScreen.hpp"
 #include "UI/Menu/DarkModeMenuItemCheckable.hpp"
 #include "UI/Menu/GenericSettingsMenuScreen.hpp"
 #include "UI/Menu/MenuItemCheckable.hpp"
