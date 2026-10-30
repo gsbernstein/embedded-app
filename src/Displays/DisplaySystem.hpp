@@ -296,9 +296,7 @@ public:
     }
 
     inline void setItalicFont(FontHandle font, bool italic) override {
-#if CONFIG_TINYFONT_TTF
         reinterpret_cast<Font *>(font.ptr)->setItalicFont(italic);
-#endif
     }
 
     inline auto drawSingleLineOfText(const char *cstr, int16_t x, int16_t y, bool invert,
