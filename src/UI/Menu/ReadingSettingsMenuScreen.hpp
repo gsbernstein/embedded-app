@@ -11,6 +11,7 @@
 #include "UI/Components/RendererView.hpp"
 #include "UI/Components/SingleLineTextView.hpp"
 #include "UI/LineSpacingScreen.hpp"
+#include "UI/WordSpacingScreen.hpp"
 #include "UI/Menu/DarkModeMenuItemCheckable.hpp"
 #include "UI/Menu/GenericSettingsMenuScreen.hpp"
 #include "UI/Menu/MenuItemCheckable.hpp"
@@ -54,6 +55,7 @@ public:
 
     void setRendererLineSpacingFromPrefs() {
         renderer_.setLineSpacing(prefs_.lineSpacing.get().value_or(0));
+        renderer_.setWordSpacing(prefs_.wordSpacing.get().value_or(0));
     }
 
     void regenerateMenuItems() {

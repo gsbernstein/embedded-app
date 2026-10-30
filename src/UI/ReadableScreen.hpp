@@ -15,6 +15,7 @@
 #include "UI/LightingAdjustScreen.hpp"
 #include "UI/LineMenuScreen.hpp"
 #include "UI/LineSpacingScreen.hpp"
+#include "UI/WordSpacingScreen.hpp"
 #include "UI/Menu/MenuItemCheckable.hpp"
 #include "UI/Menu/MenuItemSingleLine.hpp"
 #include "UI/Menu/ReadingSettingsMenuScreen.hpp"
