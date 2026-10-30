@@ -101,6 +101,26 @@ TEST_CASE("Test some individual EPub formatting edge cases", "[epub-format]") {
             i++;
         }
     }
+
+    SECTION("Test that italic text renders slanted") {
+        auto file = fs.open("/Fixtures/epub/italic-test.epub");
+        auto prefs = PreferencesStore();
+        auto solDrm = std::make_shared<SolDrm>(prefs);
+        auto epubFile =
+            std::make_shared<EPubFile>(std::make_shared<SFileUnzipperStream>(file), solDrm);
+        auto epubStream = std::make_shared<EPubFileRendererStream>(epubFile);
+
+        Renderer renderer(*display, display->defaultTextRect(), FontHandle{&fontFace0});
+        renderer.setStream(epubStream);
+
+        renderer.renderPage(std::make_shared<EPubPlace>(0, "content.xhtml"));
+        display->updateDisplay(DisplaySystem::UpdateType::FULL, true);
+        ASSERT_VIEW_UNCHANGED(display, "ItalicTags");
+
+        renderer.renderPage(std::make_shared<EPubPlace>(0, "calibre_spans.xhtml"));
+        display->updateDisplay(DisplaySystem::UpdateType::FULL, true);
+        ASSERT_VIEW_UNCHANGED(display, "ItalicCalibreSpans");
+    }
 }
 
 TEST_CASE("Test EPub Books Rendering", "[.][epub]") {
