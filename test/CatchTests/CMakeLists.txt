@@ -20,6 +20,8 @@ file(GLOB_RECURSE SOURCES
 
 list(FILTER SOURCES EXCLUDE REGEX "${PROJECT_SOURCE_DIR}/build/.*")
 
+# View tests navigate the full in-book popup menu, so keep the stock UI for them
+set(SHOW_STOCK_SOL_UI ON)
 add_subdirectory(${REPO_ROOT_DIR}/lib/Simulator/Common ${CMAKE_CURRENT_BINARY_DIR}/Common)
 
 add_subdirectory(${REPO_ROOT_DIR}/lib/Catch2 ${CMAKE_CURRENT_BINARY_DIR}/Catch2)

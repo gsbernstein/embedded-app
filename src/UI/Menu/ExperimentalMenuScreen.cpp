@@ -122,30 +122,32 @@ void ExperimentalMenuScreen::populateMenuItems() {
         },
         [this]() -> bool { return !this->prefs_.alwaysShowBattery.get().value_or(false); }));
 
-    addMenuItem(std::make_shared<MenuItemCheckable>(
-        "Show Partial Summary",
-        [this]() {
-        this->prefs_.noShowPartialChapterSummary.set(
-            !this->prefs_.noShowPartialChapterSummary.get().value_or(false));
-        setNeedsRerender();
-        if (!prefs_.seenPartialSummaryOverview.get().value_or(false)) {
-            std::string message =
-                "You know how when you binge watch a show (you'd never do that, would "
-                "you?), you often will get a \"Previously on\" overview "
-                "at the beginning of each episode? This feature gives you \"Previously "
-                "on\" "
-                "but for your reading! Any time you leave a reading "
-                "session in the middle of a chapter, we'll generate a partial chapter "
-                "summary for you (no spoilers) to "
-                "review on your next reading session.\n\n\n"
-                "Press any button to continue...";
-            RootUI::getInstance().showTemporaryMessage(message, TEMP_MSG_DURATION_NO_CLOSE);
-            prefs_.seenPartialSummaryOverview.set(true);
-        }
-        },
-        [this]() -> bool {
-            return !this->prefs_.noShowPartialChapterSummary.get().value_or(false);
-        }));
+    if (CONFIG_SHOW_STOCK_SOL_UI) {
+        addMenuItem(std::make_shared<MenuItemCheckable>(
+            "Show Partial Summary",
+            [this]() {
+            this->prefs_.noShowPartialChapterSummary.set(
+                !this->prefs_.noShowPartialChapterSummary.get().value_or(false));
+            setNeedsRerender();
+            if (!prefs_.seenPartialSummaryOverview.get().value_or(false)) {
+                std::string message =
+                    "You know how when you binge watch a show (you'd never do that, would "
+                    "you?), you often will get a \"Previously on\" overview "
+                    "at the beginning of each episode? This feature gives you \"Previously "
+                    "on\" "
+                    "but for your reading! Any time you leave a reading "
+                    "session in the middle of a chapter, we'll generate a partial chapter "
+                    "summary for you (no spoilers) to "
+                    "review on your next reading session.\n\n\n"
+                    "Press any button to continue...";
+                RootUI::getInstance().showTemporaryMessage(message, TEMP_MSG_DURATION_NO_CLOSE);
+                prefs_.seenPartialSummaryOverview.set(true);
+            }
+            },
+            [this]() -> bool {
+                return !this->prefs_.noShowPartialChapterSummary.get().value_or(false);
+            }));
+    }
 
     addMenuItem(std::make_shared<MenuItemCheckable>(
         "Fast Page Transitions",

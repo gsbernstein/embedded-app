@@ -120,7 +120,7 @@ ReadableScreen::ReadableScreen(const std::shared_ptr<RendererStream> &stream,
 
         menuItems->emplace_back(menuItem);
 
-        auto menuItemCheckable = std::make_shared<MenuItemCheckable>(
+        auto autopilotMenuItem = std::make_shared<MenuItemCheckable>(
             "Autopilot",
             [this]() {
             this->prefs_.autoPilot.set(!this->prefs_.autoPilot.get().value_or(false));
@@ -143,7 +143,9 @@ ReadableScreen::ReadableScreen(const std::shared_ptr<RendererStream> &stream,
             },
             [this]() -> bool { return this->prefs_.autoPilot.get().value_or(false); });
 
-        menuItems->emplace_back(menuItemCheckable);
+        if (CONFIG_SHOW_STOCK_SOL_UI) {
+            menuItems->emplace_back(autopilotMenuItem);
+        }
 
         auto deleteMenuItem = std::make_shared<MenuItemSingleLine>("Delete", [this]() {
             log_d("Showing delete confirmation!");
@@ -268,47 +270,53 @@ ReadableScreen::ReadableScreen(const std::shared_ptr<RendererStream> &stream,
                 std::dynamic_pointer_cast<EPubPlace>(renderer_.getCurrentPlace())->getHRef();
 
             // Always show "Ask AI" option, but show pairing message if no cloud token
-            menuItems->emplace_back(std::make_shared<MenuItemSingleLine>("Ask AI", [this]() {
-                // If we're not yet paired, show the app screen instead
-                if (PreferencesStore::paired == PairedStatus::Unpaired) {
-                    auto appDownloadScreen = std::make_shared<AppDownloadScreen>(display_);
-                    setCurrentScreen(appDownloadScreen);
-                    appDownloadScreen->setBackCallback(
-                        [this]() { this->setCurrentScreen(nullptr); });
-                    return;
-                }
-
-                // If wifi & ble have been disabled, show a popup encouraging the user to
-                // turn on wifi or BLE to perform the content sync.
-                if (prefs_.wifiDisabled.get().value_or(false) &&
-                    prefs_.bleDisabled.get().value_or(false)) {
-                    RootUI::getInstance().showTemporaryMessage("Enable WiFi or BLE to use Ask AI.");
-                    if (currentScreen_) {
-                        currentScreen_->setFirstLoad();
+            if (CONFIG_SHOW_STOCK_SOL_UI) {
+                menuItems->emplace_back(std::make_shared<MenuItemSingleLine>("Ask AI", [this]() {
+                    // If we're not yet paired, show the app screen instead
+                    if (PreferencesStore::paired == PairedStatus::Unpaired) {
+                        auto appDownloadScreen = std::make_shared<AppDownloadScreen>(display_);
+                        setCurrentScreen(appDownloadScreen);
+                        appDownloadScreen->setBackCallback(
+                            [this]() { this->setCurrentScreen(nullptr); });
+                        return;
                     }
-                    return;
-                }
 
-                auto epubPlace = std::dynamic_pointer_cast<EPubPlace>(renderer_.getCurrentPlace());
-                bookQuestionsScreen_->reset();
-                bookQuestionsScreen_->setPlaceInReadable(epubPlace);
-                setCurrentScreen(bookQuestionsScreen_);
-            }));
+                    // If wifi & ble have been disabled, show a popup encouraging the user to
+                    // turn on wifi or BLE to perform the content sync.
+                    if (prefs_.wifiDisabled.get().value_or(false) &&
+                        prefs_.bleDisabled.get().value_or(false)) {
+                        RootUI::getInstance().showTemporaryMessage(
+                            "Enable WiFi or BLE to use Ask AI.");
+                        if (currentScreen_) {
+                            currentScreen_->setFirstLoad();
+                        }
+                        return;
+                    }
 
-            if (HasSummary(epubFile, placeHref)) {
-                menuItems->emplace_back(std::make_shared<MenuItemSingleLine>("Summary", [this]() {
                     auto epubPlace =
                         std::dynamic_pointer_cast<EPubPlace>(renderer_.getCurrentPlace());
-                    readableSummaryScreen_->setPlaceInReadable(epubPlace);
-                    readableSummaryScreen_->setFirstLoad();
-                    setCurrentScreen(readableSummaryScreen_);
+                    bookQuestionsScreen_->reset();
+                    bookQuestionsScreen_->setPlaceInReadable(epubPlace);
+                    setCurrentScreen(bookQuestionsScreen_);
                 }));
-            } else {
-                log_d("No summary for spine %s", placeHref.c_str());
-                menuItems->emplace_back(std::make_shared<MenuItemSingleLine>("Summary", [this]() {
-                    RootUI::getInstance().showTemporaryMessage(notExistMessage_,
-                                                               TEMP_MSG_DURATION_NO_CLOSE);
-                }));
+
+                if (HasSummary(epubFile, placeHref)) {
+                    menuItems->emplace_back(std::make_shared<MenuItemSingleLine>("Summary",
+                                                                                 [this]() {
+                        auto epubPlace =
+                            std::dynamic_pointer_cast<EPubPlace>(renderer_.getCurrentPlace());
+                        readableSummaryScreen_->setPlaceInReadable(epubPlace);
+                        readableSummaryScreen_->setFirstLoad();
+                        setCurrentScreen(readableSummaryScreen_);
+                    }));
+                } else {
+                    log_d("No summary for spine %s", placeHref.c_str());
+                    menuItems->emplace_back(std::make_shared<MenuItemSingleLine>("Summary",
+                                                                                 [this]() {
+                        RootUI::getInstance().showTemporaryMessage(notExistMessage_,
+                                                                   TEMP_MSG_DURATION_NO_CLOSE);
+                    }));
+                }
             }
 
             if (fileSystem_.exists(readable_->placemarkHistoryFilePath())) {
@@ -324,10 +332,12 @@ ReadableScreen::ReadableScreen(const std::shared_ptr<RendererStream> &stream,
                 }));
             }
         } else {
-            menuItems->emplace_back(std::make_shared<MenuItemSingleLine>("Summary", [this]() {
-                RootUI::getInstance().showTemporaryMessage(notExistMessage_,
-                                                           TEMP_MSG_DURATION_NO_CLOSE);
-            }));
+            if (CONFIG_SHOW_STOCK_SOL_UI) {
+                menuItems->emplace_back(std::make_shared<MenuItemSingleLine>("Summary", [this]() {
+                    RootUI::getInstance().showTemporaryMessage(notExistMessage_,
+                                                               TEMP_MSG_DURATION_NO_CLOSE);
+                }));
+            }
 
             menuItems->emplace_back(std::make_shared<MenuItemSingleLine>("History", [this]() {
                 RootUI::getInstance().showTemporaryMessage(notExistMessage_,
@@ -336,12 +346,13 @@ ReadableScreen::ReadableScreen(const std::shared_ptr<RendererStream> &stream,
             log_d("Not an EPub, so no history or summary or dictionary");
         }
 
-        menuItem = std::make_shared<MenuItemSingleLine>("Report Page", [onReport]() {
-            log_d("Reporting a problem with the page");
-            onReport();
-        });
-
-        menuItems->emplace_back(menuItem);
+        if (CONFIG_SHOW_STOCK_SOL_UI) {
+            menuItems->emplace_back(std::make_shared<MenuItemSingleLine>("Report Page",
+                                                                         [onReport]() {
+                log_d("Reporting a problem with the page");
+                onReport();
+            }));
+        }
 
         menuItem = std::make_shared<MenuItemSingleLine>("Back to Text", [this]() {
             display_.clearDisplay();
@@ -718,7 +729,7 @@ void ReadableScreen::render(DisplaySystem &display) {
                          readable_->telemetryPlacemarkMetrics());
 
     // If there is a partial chapter summary, open that instead
-    if (firstLoad_ && !renderedPartialSummary_ &&
+    if (CONFIG_SHOW_STOCK_SOL_UI && firstLoad_ && !renderedPartialSummary_ &&
         !prefs_.noShowPartialChapterSummary.get().value_or(false)) {
         auto partialChapterSummary =
             UserReadablePartialChapterSummary::loadForReadable(fileSystem_, readable_);

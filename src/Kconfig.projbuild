@@ -300,6 +300,16 @@ menu "Sol Options"
         config INCLUDE_DEFAULT_CONTENT
             bool "Include Default Content"
             default y
+
+        config SHOW_STOCK_SOL_UI
+            bool "Show the full stock Sol UI"
+            default n
+            help
+                Show menu entries that are hidden in the trimmed-down UI: the Kindle
+                tab, Articles tutorial and sync prompts, Ask AI, chapter summaries
+                (including the automatic partial-chapter summary on open),
+                Report Page, and Autopilot in the in-book popup (Autopilot remains
+                available in Reading Style either way).
     endmenu
 
     menu "File Storage"
