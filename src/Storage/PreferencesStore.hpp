@@ -509,6 +509,7 @@ public:
           vcom(*this, "vcom"),
           font(*this, "font"),
           lineSpacing(*this, "line-space"),
+          wordSpacing(*this, "word-space"),
           bootCount(*this, "boot-count"),
           firstRead(boolFlags_, 1),
           autoPilotSpeed(*this, "auto-speed"),
@@ -862,6 +863,7 @@ public:
     PrefsItem<int> vcom;
     PrefsItem<int> font;
     PrefsItem<int> lineSpacing;
+    PrefsItem<int> wordSpacing;
     PrefsItem<uint32_t> bootCount;
     BooleanFlag firstRead;
     PrefsItem<uint32_t> autoPilotSpeed;
