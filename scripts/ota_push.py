@@ -26,10 +26,9 @@ CHUNK_SIZE = 16 * 1024
 SOL_SERVICE_UUID = "db65598c-04b1-469f-833f-517f285db256"
 SETTINGS_CHARACTERISTIC_UUID = "611f68af-5ffe-4944-9b8f-ef6773326268"
 # One key per computer (matching the default `cli@<hostname>` label), shared by every checkout.
-USER_KEY_FILE = os.path.join(os.path.expanduser("~"), ".config", "solreader", "ota-key")
-DEFAULT_KEY_FILE = os.environ.get("SOLREADER_OTA_KEY", USER_KEY_FILE)
-# Where keys lived before they moved to a per-user location; migrated on first use.
-LEGACY_KEY_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".ota-key")
+DEFAULT_KEY_FILE = os.environ.get(
+    "SOLREADER_OTA_KEY", os.path.join(os.path.expanduser("~"), ".config", "solreader", "ota-key")
+)
 
 
 def sign(key, data):
@@ -156,10 +155,6 @@ def write_private_file(path, contents):
 
 
 def load_key(path, create=False):
-    if not os.path.isfile(path) and path == USER_KEY_FILE and os.path.isfile(LEGACY_KEY_FILE):
-        with open(LEGACY_KEY_FILE) as f:
-            write_private_file(path, f.read())
-        print(f"Moved key from {os.path.normpath(LEGACY_KEY_FILE)} to {path} (old file can be deleted)")
     if not os.path.isfile(path):
         if not create:
             sys.exit(f"Signing key not found: {path} (run `make pair` with the glasses plugged in)")
