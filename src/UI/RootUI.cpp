@@ -68,6 +68,7 @@
 #include "UI/ReadableScreen.hpp"
 #include "UI/ReleaseNotesScreen.hpp"
 #include "UI/ResizeBoxScreen.hpp"
+#include "UI/StereoTestScreen.hpp"
 #include "UI/TestAlignmentScreen.hpp"
 #include "UI/TutorialScreen.hpp"
 #include "UI/WiFiScanScreen.hpp"
@@ -1600,6 +1601,14 @@ void RootUI::setup(LocalStore &localStore, FileSystem &fileSystem,
                         this->pushScreen(opticsTestScreen);
                         opticsTestScreen->setBackCallback([this]() { this->popScreen(false); });
                     }));
+
+                debugSettingsMenu->addMenuItem(std::make_shared<MenuItemSingleLine>("Stereo Test",
+                                                                                    [this]() {
+                    auto stereoTestScreen = std::make_shared<StereoTestScreen>(display_);
+                    display_.clearDisplay();
+                    this->pushScreen(stereoTestScreen);
+                    stereoTestScreen->setBackCallback([this]() { this->popScreen(false); });
+                }));
 
                 SHOW_HEAP();
 
