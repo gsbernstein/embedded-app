@@ -125,7 +125,6 @@ void DirectCommand::handleCommand(const std::string &line, const DirectCommand::
     }
     auto commandBuffer = ResolveBackspace(line);
     DispatchGetCore0BackgroundQueue()->dispatch([this, commandBuffer, txLine] {
-        log_i("Received command: %s", commandBuffer.c_str());
         std::string commandId;
         std::string payload;
         auto spacePos = commandBuffer.find(' ');
@@ -137,6 +136,9 @@ void DirectCommand::handleCommand(const std::string &line, const DirectCommand::
         }
         // Uppercase the commandId
         std::transform(commandId.begin(), commandId.end(), commandId.begin(), ::toupper);
+        // PAIR carries a secret key, so keep it out of the logs.
+        log_i("Received command: %s",
+              commandId == "PAIR" ? "PAIR <redacted>" : commandBuffer.c_str());
         for (auto &commandHandler : commandHandlers_) {
             if (commandHandler(commandId, payload, txLine)) {
                 // if the command was handled, break out of this loop

@@ -200,12 +200,21 @@ else
 	idf.py $(IDF_PROFILE) flash --port $$(python3 scripts/port_tool.py find_port programming)
 endif
 
-# Push a build over WiFi (requires CONFIG_DEV_WIRELESS_FLASH, on in glasses-debug). By default the
-# glasses are woken over BLE (needs `pip install bleak`); set OTA_HOST to push directly to glasses
-# showing Debug > Wireless Flash. Set OTA_DEVICE to pick one of several nearby glasses.
+# Wireless flashing (requires CONFIG_DEV_WIRELESS_FLASH, on in glasses-debug). Pair once over USB
+# with `make pair`, then `make ota` builds and pushes over WiFi. By default the glasses are woken
+# over BLE (needs `pip install bleak`); set OTA_HOST to push directly to glasses showing
+# Debug > Wireless Flash. Set OTA_DEVICE to pick one of several nearby glasses.
 .PHONY: ota
 ota: build
-	python3 scripts/ota_push.py build-$(TARGET)/embedded-app.bin $(if $(OTA_HOST),--host $(OTA_HOST)) $(if $(OTA_DEVICE),--device "$(OTA_DEVICE)")
+	python3 scripts/ota_push.py push build-$(TARGET)/embedded-app.bin $(if $(OTA_HOST),--host $(OTA_HOST)) $(if $(OTA_DEVICE),--device "$(OTA_DEVICE)")
+
+.PHONY: pair
+pair:
+	python3 scripts/ota_push.py pair $(if $(PAIR_LABEL),--label "$(PAIR_LABEL)")
+
+.PHONY: unpair
+unpair:
+	python3 scripts/ota_push.py unpair $(if $(PAIR_LABEL),--label "$(PAIR_LABEL)")
 
 .PHONY: monitor
 monitor: check_idf

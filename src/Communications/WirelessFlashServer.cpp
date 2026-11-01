@@ -10,6 +10,7 @@
 #include <esp_ota_ops.h>
 #include <mbedtls/md.h>
 #include <memory>
+#include <vector>
 
 #include "Version.hpp"
 #include "sindarin-debug.h"
@@ -191,7 +192,11 @@ auto WirelessFlashServer::receiveFirmware(httpd_req_t *req) -> esp_err_t {
         log_w("No X-MD5 header; image integrity will not be verified");
     }
 
-    HmacSha256 hmac(key_);
+    std::vector<std::unique_ptr<HmacSha256>> hmacs;
+    hmacs.reserve(keys_.size());
+    for (const auto &key : keys_) {
+        hmacs.push_back(std::make_unique<HmacSha256>(key));
+    }
     auto buffer = std::make_unique<uint8_t[]>(RECV_CHUNK_SIZE);
     size_t received = 0;
     int timeouts = 0;
@@ -210,7 +215,9 @@ auto WirelessFlashServer::receiveFirmware(httpd_req_t *req) -> esp_err_t {
         }
         timeouts = 0;
 
-        hmac.update(buffer.get(), len);
+        for (auto &hmac : hmacs) {
+            hmac->update(buffer.get(), len);
+        }
         if (Update.write(buffer.get(), len) != static_cast<size_t>(len)) {
             return fail(StringFormat("Update.write: %s", Update.errorString()));
         }
@@ -224,11 +231,15 @@ auto WirelessFlashServer::receiveFirmware(httpd_req_t *req) -> esp_err_t {
     }
 
     // Update.end() is what switches the boot partition, so the signature must be checked first.
-    if (!wirelessFlashSignatureMatches(hmac.finishHex(), signature)) {
+    bool signatureValid = false;
+    for (auto &hmac : hmacs) {
+        signatureValid |= wirelessFlashSignatureMatches(hmac->finishHex(), signature);
+    }
+    if (!signatureValid) {
         log_e("Wireless flash signature mismatch");
         Update.abort();
         notify(WirelessFlashEvent::State::Failed, 0, "Bad signature");
-        return sendStatus(req, "403 Forbidden", "Signature mismatch (wrong .ota-key?)\n");
+        return sendStatus(req, "403 Forbidden", "Signature mismatch (run make pair?)\n");
     }
 
     if (!Update.end()) {

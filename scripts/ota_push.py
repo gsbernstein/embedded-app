@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
-"""Push a firmware image to glasses over WiFi (requires CONFIG_DEV_WIRELESS_FLASH).
+"""Wireless flashing for glasses built with CONFIG_DEV_WIRELESS_FLASH.
 
-Without --host, the glasses are found over BLE and asked to start listening (BLE needs `bleak`).
-With --host, the image goes straight to glasses showing Debug > Wireless Flash.
-Images are signed with the per-checkout .ota-key that was baked into the running firmware.
+  pair     Authorize this computer: sends .ota-key (created if missing) over USB serial.
+  push     Push a firmware image over WiFi. Without --host, the glasses are found over BLE and
+           asked to start listening (needs `bleak`). With --host, the image goes straight to
+           glasses showing Debug > Wireless Flash. Images are signed with .ota-key.
+  unpair   Remove a paired key (this computer's label by default, or --all).
+  paired   List paired computers.
 """
 
 import argparse
@@ -13,6 +16,9 @@ import hmac
 import http.client
 import json
 import os
+import re
+import secrets
+import socket
 import sys
 import time
 
@@ -86,7 +92,7 @@ async def ble_trigger(key, device_filter):
         result = await ble_request(client, queue, f"wireless-flash={response}", "wireless-flash", 90)
 
     if result == "error:auth":
-        sys.exit("Glasses rejected the BLE challenge. Was this build flashed from this checkout's .ota-key?")
+        sys.exit("Glasses rejected the BLE challenge. Pair this computer first with `make pair`.")
     if result.startswith("error:"):
         sys.exit(f"Glasses couldn't start wireless flash: {result[len('error:'):]}")
     return result
@@ -138,22 +144,65 @@ def push(name, port, image, signature):
     return resp.status, body
 
 
-def main():
-    parser = argparse.ArgumentParser(
-        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
-    )
-    parser.add_argument("image", help="Firmware image, e.g. build-glasses-debug/embedded-app.bin")
-    parser.add_argument("--host", help="Skip BLE and push to this IP/hostname[:port]")
-    parser.add_argument("--device", help="BLE name/address substring when several glasses are nearby")
-    parser.add_argument("--key", default=DEFAULT_KEY_FILE, help="Signing key file (default: .ota-key)")
-    args = parser.parse_args()
+def load_key(path, create=False):
+    if not os.path.isfile(path):
+        if not create:
+            sys.exit(f"Signing key not found: {path} (run `make pair` with the glasses plugged in)")
+        with open(path, "w") as f:
+            f.write(secrets.token_hex(32) + "\n")
+        print(f"Created {path}")
+    with open(path) as f:
+        return f.read().strip().lower()
 
+
+def default_label():
+    host = socket.gethostname().split(".")[0]
+    return re.sub(r"[^A-Za-z0-9._@-]", "-", f"cli@{host}")[:32]
+
+
+def serial_command(line, expect, timeout=5):
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    import serial
+    from port_tool import wait_for_control_port
+
+    port = wait_for_control_port(3)
+    if not port:
+        sys.exit("Glasses not found over USB. Plug them in (and close any serial monitor).")
+    with serial.Serial(port, 115200, timeout=0.5) as ser:
+        ser.write(f"\n{line}\n".encode())
+        ser.flush()
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            response = ser.readline().decode(errors="replace").strip()
+            if response.startswith(expect + " "):
+                return response[len(expect) + 1 :]
+            if response == expect:
+                return ""
+    sys.exit(f"No {expect} response from glasses. Is this firmware built with wireless flashing?")
+
+
+def cmd_pair(args):
+    key = load_key(args.key, create=True)
+    result = serial_command(f"PAIR {args.label} {key}", "PAIR")
+    if not result.startswith("OK"):
+        sys.exit(f"Pairing failed: {result}")
+    print(f"Paired as '{args.label}'. Push with `make ota`.")
+
+
+def cmd_unpair(args):
+    result = serial_command("UNPAIR" if args.all else f"UNPAIR {args.label}", "UNPAIR")
+    print(f"Removed {result.removeprefix('OK ').strip()} key(s)")
+
+
+def cmd_paired(args):
+    labels = serial_command("PAIRED", "PAIRED")
+    print("\n".join(labels.split(",")) if labels else "No paired computers")
+
+
+def cmd_push(args):
     if not os.path.isfile(args.image):
         sys.exit(f"Firmware image not found: {args.image}")
-    if not os.path.isfile(args.key):
-        sys.exit(f"Signing key not found: {args.key} (it's created by the first glasses-debug build)")
-    with open(args.key) as f:
-        key = f.read().strip()
+    key = load_key(args.key)
     with open(args.image, "rb") as f:
         image = f.read()
 
@@ -171,6 +220,35 @@ def main():
     if status != 200:
         sys.exit(f"Flash failed (HTTP {status}): {body}")
     print(body)
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    parser.add_argument("--key", default=DEFAULT_KEY_FILE, help="Key file (default: .ota-key)")
+    sub = parser.add_subparsers(dest="command", required=True)
+
+    pair_parser = sub.add_parser("pair", help="Authorize this computer over USB")
+    pair_parser.add_argument("--label", default=default_label(), help="Name shown on the glasses")
+    pair_parser.set_defaults(func=cmd_pair)
+
+    unpair_parser = sub.add_parser("unpair", help="Remove a paired key over USB")
+    unpair_parser.add_argument("--label", default=default_label())
+    unpair_parser.add_argument("--all", action="store_true", help="Remove every paired key")
+    unpair_parser.set_defaults(func=cmd_unpair)
+
+    paired_parser = sub.add_parser("paired", help="List paired computers over USB")
+    paired_parser.set_defaults(func=cmd_paired)
+
+    push_parser = sub.add_parser("push", help="Push a firmware image over WiFi")
+    push_parser.add_argument("image", help="Firmware image, e.g. build-glasses-debug/embedded-app.bin")
+    push_parser.add_argument("--host", help="Skip BLE and push to this IP/hostname[:port]")
+    push_parser.add_argument("--device", help="BLE name/address substring when several glasses are nearby")
+    push_parser.set_defaults(func=cmd_push)
+
+    args = parser.parse_args()
+    args.func(args)
 
 
 if __name__ == "__main__":

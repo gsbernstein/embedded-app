@@ -38,6 +38,7 @@
 #include "UI/CrashReportScreen.hpp"
 #include "UI/DebugAboutScreen.hpp"
 #if CONFIG_DEV_WIRELESS_FLASH
+#include "Communications/WirelessFlashManager.hpp"
 #include "UI/WirelessFlashScreen.hpp"
 #endif
 #include "UI/DemoScreen.hpp"
@@ -1509,6 +1510,12 @@ void RootUI::setup(LocalStore &localStore, FileSystem &fileSystem,
                         this->pushScreen(wirelessFlashScreen);
                         wirelessFlashScreen->setBackCallback([this]() { this->popScreen(); });
                         wirelessFlashScreen->begin();
+                    }));
+
+                debugSettingsMenu->addMenuItem(
+                    std::make_shared<MenuItemSingleLine>("Forget Paired Computers", [this]() {
+                        auto removed = WirelessFlashManager::getInstance().unpair("");
+                        showTemporaryMessage(StringFormat("Forgot %zu computer(s)", removed));
                     }));
 #endif
 

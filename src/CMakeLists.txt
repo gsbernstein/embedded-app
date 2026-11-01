@@ -126,30 +126,3 @@ if(IDF_TARGET STREQUAL "esp32s3")
 endif()
 
 target_compile_options(${COMPONENT_TARGET} PUBLIC ${compile_options})
-
-# Wireless flashing signs images with a per-checkout key (see scripts/ota_push.py). The key is
-# created on first build, kept out of git, and baked into the firmware so only this checkout can
-# push builds to the glasses.
-if(CONFIG_DEV_WIRELESS_FLASH)
-    set(ota_key_file "${CMAKE_SOURCE_DIR}/.ota-key")
-    if(NOT EXISTS "${ota_key_file}")
-        execute_process(
-            COMMAND ${PYTHON} -c "import secrets; print(secrets.token_hex(32))"
-            OUTPUT_FILE "${ota_key_file}"
-            RESULT_VARIABLE ota_key_result)
-        if(NOT ota_key_result EQUAL 0)
-            message(FATAL_ERROR "Failed to generate ${ota_key_file}")
-        endif()
-        message(STATUS "Generated wireless flash key at ${ota_key_file}")
-    endif()
-    set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${ota_key_file}")
-    file(READ "${ota_key_file}" WIRELESS_FLASH_KEY)
-    string(STRIP "${WIRELESS_FLASH_KEY}" WIRELESS_FLASH_KEY)
-    if(NOT WIRELESS_FLASH_KEY MATCHES "^[0-9a-fA-F]+$")
-        message(FATAL_ERROR "${ota_key_file} must contain a hex key")
-    endif()
-    set(ota_key_dir "${CMAKE_BINARY_DIR}/wireless_flash")
-    file(CONFIGURE OUTPUT "${ota_key_dir}/WirelessFlashKey.h"
-         CONTENT "#pragma once\n#define WIRELESS_FLASH_KEY \"@WIRELESS_FLASH_KEY@\"\n" @ONLY)
-    target_include_directories(${COMPONENT_LIB} PRIVATE "${ota_key_dir}")
-endif()

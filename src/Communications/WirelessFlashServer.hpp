@@ -6,6 +6,7 @@
 #include <functional>
 #include <string>
 #include <utility>
+#include <vector>
 struct httpd_req;
 
 // Development-only HTTP endpoint that accepts a firmware image pushed from a computer on the same
@@ -29,9 +30,10 @@ public:
 
     using EventCallback = std::function<void(const WirelessFlashEvent &event)>;
 
-    // Uploads must carry an X-Signature header with the HMAC-SHA256 of the image under `key`.
-    WirelessFlashServer(std::string key, EventCallback callback)
-        : key_(std::move(key)), callback_(std::move(callback)) {}
+    // Uploads must carry an X-Signature header with the HMAC-SHA256 of the image under one of
+    // the paired `keys`.
+    WirelessFlashServer(std::vector<std::string> keys, EventCallback callback)
+        : keys_(std::move(keys)), callback_(std::move(callback)) {}
     WirelessFlashServer(const WirelessFlashServer &) = delete;
     auto operator=(const WirelessFlashServer &) -> WirelessFlashServer & = delete;
     ~WirelessFlashServer() { stop(); }
@@ -42,7 +44,7 @@ public:
 
 private:
     void *server_ = nullptr;
-    std::string key_;
+    std::vector<std::string> keys_;
     EventCallback callback_;
     std::atomic<bool> busy_{false};
 

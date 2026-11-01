@@ -17,6 +17,9 @@
 #include "Communications/BackgroundSync.hpp"
 #include "Communications/FileTransfer.hpp"
 #include "Communications/WiFi.hpp"
+#if CONFIG_DEV_WIRELESS_FLASH
+#include "Communications/WirelessFlashManager.hpp"
+#endif
 #include "Inputs/RemoteInput.hpp"
 #include "Misc/Battery.hpp"
 #include "Misc/BootError.hpp"
@@ -227,6 +230,9 @@ extern "C" void app_main(void) { // NOLINT(readability-identifier-naming)
     HEAP_PROFILE_END(usbSerial);
 
     directCommand.begin();
+#if CONFIG_DEV_WIRELESS_FLASH
+    WirelessFlashManager::getInstance().registerCommands(directCommand);
+#endif
     if (usbSerial.isUsbLoggingEnabled()) {
         // Wait a bit so we can get boot logs (mostly for the testers)
         vTaskDelay(pdMS_TO_TICKS(1000));

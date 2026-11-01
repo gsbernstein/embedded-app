@@ -11,7 +11,7 @@ This guide aligns contributors on how to build, test, and submit changes for the
 ## Build, Test, and Development Commands
 - Build firmware: `. ~/esp/esp-idf/export.sh && make build`
 - Flash + monitor: `make flash monitor` (set serial ports automatically). Stop reset-only monitor with `make monitor`.
-- Flash over WiFi (glasses-debug only, after one USB flash): `make ota` wakes the glasses over BLE (needs `pip install bleak`) and pushes an image signed with the gitignored `.ota-key`. Or open Debug > Wireless Flash and run `make ota OTA_HOST=<ip shown>`.
+- Flash over WiFi (glasses-debug only): after one USB flash, `make pair` (USB) authorizes this computer's gitignored `.ota-key`; then `make ota` wakes the glasses over BLE (needs `pip install bleak`) and pushes a signed image. Or open Debug > Wireless Flash and run `make ota OTA_HOST=<ip shown>`.
 - Target profiles: `TARGET=glasses-release make build` (see `sdkconfig.defaults.*`).
 - Simulator: `make sim` (or `sim8`, `sim16`, `sim24`); logs in `logs/`.
 - Tests: `make test` (or focused: `make test-kindle`, `make test-content-sync`).

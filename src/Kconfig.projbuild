@@ -247,10 +247,11 @@ menu "Sol Options"
             depends on USE_WIFI
             default n
             help
-                Lets `make ota` push firmware over WiFi. The glasses start listening when asked
-                over BLE (HMAC challenge, 1 minute idle window) or while Debug > Wireless Flash
-                is open. Images must be signed with the gitignored per-checkout .ota-key, which
-                is generated on first build and baked into the firmware. Development only.
+                Lets `make ota` push firmware over WiFi. Computers are authorized once over USB
+                with `make pair`, which stores their key in NVS (up to 4; forget them under
+                Debug > Forget Paired Computers). The glasses start listening when asked over
+                BLE (HMAC challenge, 1 minute idle window) or while Debug > Wireless Flash is
+                open, and only install images signed with a paired key. Development only.
 
     endmenu
 

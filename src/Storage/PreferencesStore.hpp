@@ -533,6 +533,7 @@ public:
           tutorialsDeleted(*this, "tutorials"),
           bleAdvertisingKey(*this, "ble-adv-key"),
           bleAuthKey(*this, "ble-auth-key"),
+          wirelessFlashKeys(*this, "wflash-keys"),
           blePower(*this, "ble-power"),
           brightnessOffset(*this, "brightness-off"),
           manualBrightnessValue(*this, "man-bright"),
@@ -890,6 +891,8 @@ public:
     PrefsItem<std::string> bleAdvertisingKey;
     // Value that's used to authenticate the mobile app to the glasses
     PrefsItem<std::string> bleAuthKey;
+    // Keys of computers paired over USB for wireless flashing, as "label:hexkey" lines
+    PrefsItem<std::string> wirelessFlashKeys;
     // BLE default power setting stored as esp_power_level_t enum value
     // This is here for debugging and investigation but in John's experiments, this didn't save much
     // battery power. But there might be some tweaking we could do to improve BLE reliability.

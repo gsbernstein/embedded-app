@@ -12,7 +12,7 @@
   - Always run these together in a single command
   - The export.sh sets up the ESP-IDF environment which is required for building
 - Flash to device: `make flash`
-- Flash over WiFi: `make ota` (BLE trigger via `bleak`, image signed with gitignored `.ota-key`), or Debug > Wireless Flash + `make ota OTA_HOST=<ip shown>` (glasses-debug only, `CONFIG_DEV_WIRELESS_FLASH`)
+- Flash over WiFi: `make pair` once over USB, then `make ota` (BLE trigger via `bleak`, image signed with gitignored `.ota-key`), or Debug > Wireless Flash + `make ota OTA_HOST=<ip shown>` (glasses-debug only, `CONFIG_DEV_WIRELESS_FLASH`)
 - Monitor serial logs: `make monitor`
 - Run simulator: `make sim` (or `make sim8`, `make sim16`, `make sim24` for different display modes)
   - No need to run export.sh for simulator
