@@ -7,6 +7,7 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/queue.h>
 #include <freertos/timers.h>
+#include <functional>
 #include <string>
 
 #include "Displays/EinkTypes.hpp"
@@ -123,6 +124,24 @@ public:
                                SolRect altRect = {{0, 0}, {0, 0}}) = 0;
 
     virtual void beginPowerOn() {}
+
+    // MARK: - Stereo
+    // Displays that can show a different image to each eye override these. By default a single
+    // image is shown to both eyes.
+    [[nodiscard]] virtual auto supportsStereo() const -> bool { return false; }
+    // While enabled, each eye has its own frame buffer. Returns whether stereo is now enabled.
+    virtual auto setStereoEnabled(bool enabled) -> bool { return false; }
+    [[nodiscard]] virtual auto stereoEnabled() const -> bool { return false; }
+    // Direct drawing to the given eye's frame buffer. Has no effect unless stereo is enabled.
+    virtual void setDrawEye(ScreenSide eye) {}
+
+    // Calls `draw` once per eye with that eye's frame buffer selected, or once with
+    // ScreenSide::Both when stereo is not enabled.
+    void drawForEachEye(const std::function<void(ScreenSide eye)> &draw);
+
+    // Horizontal shift to apply to content in the given eye's image so that it appears `disparity`
+    // pixels in front of the screen plane (negative values recede behind it). Returns 0 for Both.
+    static auto eyeShift(ScreenSide eye, int disparity) -> int16_t;
 
     // Use `gfxClass` when you need to get direct access to the underlying buffer
     [[nodiscard]] auto gfxClass() const -> Adafruit_GFX * { return gfxClass_; }

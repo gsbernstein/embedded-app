@@ -75,7 +75,85 @@ SDL_Texture *deviceScreen;
 
 float lerp(float a, float b, float t) { return a + t * (b - a); }
 
+#if CONFIG_DISPLAY_EINKET013TT1
+// How the two eyes are shown in the simulator window. Cycle with the 'v' key.
+enum class SimEyeView { Left, Right, Anaglyph, CrossEyed, Count };
+SimEyeView simEyeView = SimEyeView::Left;
+
+auto SimEyeViewName(SimEyeView view) -> const char * {
+    switch (view) {
+    case SimEyeView::Left:
+        return "left eye";
+    case SimEyeView::Right:
+        return "right eye";
+    case SimEyeView::Anaglyph:
+        return "red/cyan anaglyph";
+    case SimEyeView::CrossEyed:
+        return "cross-eyed side-by-side";
+    case SimEyeView::Count:
+        break;
+    }
+    return "?";
+}
+
+auto SimWindowWidth() -> int {
+    int width = myDisplay.gfxClass()->width();
+    return simEyeView == SimEyeView::CrossEyed ? width * 2 : width;
+}
+
+// Draw the simulated e-ink particles. Particle positions are 0 (black) to 255 (white).
+void SimDrawEinkScreen() {
+    int width = CONFIG_DISPLAY_WIDTH;
+    int height = CONFIG_DISPLAY_HEIGHT;
+    uint8_t *left = myDisplay.buffer().get();
+    uint8_t *right = myDisplay.rightBuffer().get();
+    uint16_t brightnessOffset =
+        MapRange(LightingSetting, static_cast<int>(GetMinLightingDutyCycle()),
+                 static_cast<int>(GetMaxLightingDutyCycle()), 60, 0);
+    auto paper = [brightnessOffset](uint8_t position, float white) -> uint8_t {
+        return static_cast<uint8_t>(
+            lerp(40 + brightnessOffset, white - brightnessOffset, position / 255.0));
+    };
+    auto drawEink = [&](int screenX, int y, uint8_t position) {
+        SDL_SetRenderDrawColor(renderer, paper(position, 248), paper(position, 240),
+                               paper(position, 227), 0xFF);
+        SDL_RenderDrawPoint(renderer, screenX, y);
+    };
+
+    for (int y = 0; y < height; y++) {
+        for (int x = 0; x < width; x++) {
+            uint8_t l = left[x + y * width];
+            uint8_t r = right[x + y * width];
+            switch (simEyeView) {
+            case SimEyeView::Left:
+            case SimEyeView::Count:
+                drawEink(x, y, l);
+                break;
+            case SimEyeView::Right:
+                drawEink(x, y, r);
+                break;
+            case SimEyeView::Anaglyph: {
+                // Red filter over the left eye, cyan over the right
+                uint8_t cyan = paper(r, 248);
+                SDL_SetRenderDrawColor(renderer, paper(l, 248), cyan, cyan, 0xFF);
+                SDL_RenderDrawPoint(renderer, x, y);
+                break;
+            }
+            case SimEyeView::CrossEyed:
+                // Right eye image on the left so it can be free-viewed by crossing your eyes
+                drawEink(x, y, r);
+                drawEink(x + width, y, l);
+                break;
+            }
+        }
+    }
+}
+#endif
+
 void SimDrawScreen() {
+#if CONFIG_DISPLAY_EINKET013TT1
+    SimDrawEinkScreen();
+#else
     for (int x = 0; x < myDisplay.gfxClass()->width(); x++) {
         for (int y = 0; y < myDisplay.gfxClass()->height(); y++) {
 #if CONFIG_DISPLAY_SIM_1BIT
@@ -84,7 +162,7 @@ void SimDrawScreen() {
             if (myDisplay.getPixel(x, y)) {
                 SDL_RenderDrawPoint(renderer, x, y);
             }
-#elif CONFIG_DISPLAY_SIM_8BIT || CONFIG_DISPLAY_EINKET013TT1
+#elif CONFIG_DISPLAY_SIM_8BIT
             uint8_t color = myDisplay.buffer()[x + y * myDisplay.gfxClass()->width()];
             float colorF = color / 255.0;
             uint16_t brightnessOffset =
@@ -122,6 +200,7 @@ void SimDrawScreen() {
 #endif
         }
     }
+#endif
 
     if (movieOn_) {
         totalFrames++;
@@ -268,6 +347,18 @@ auto mainLoop() -> bool {
             case 'i':
                 saveBookImages(myDisplay, window, renderer);
                 break;
+#if CONFIG_DISPLAY_EINKET013TT1
+            case 'v':
+                simEyeView = static_cast<SimEyeView>((static_cast<int>(simEyeView) + 1) %
+                                                     static_cast<int>(SimEyeView::Count));
+                log_i("Simulator showing %s", SimEyeViewName(simEyeView));
+                SDL_SetWindowSize(window, SimWindowWidth() * SIM_SCALE,
+                                  (myDisplay.gfxClass()->height() + SIM_LED_DIM) * SIM_SCALE);
+                SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0xFF);
+                SDL_RenderClear(renderer);
+                ledChange = true;
+                break;
+#endif
             }
 
             if (remoteCode != RemoteCommand::NONE) {

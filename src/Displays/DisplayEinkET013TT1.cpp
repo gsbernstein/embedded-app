@@ -89,6 +89,49 @@ void DisplayEinkET013TT1::invertDisplay(bool newInvert) {
     fillScreen(bg);
 }
 
+void DisplayEinkET013TT1::driverUpdate(const EinkET013TT1Waveform &waveform, int32_t vcom,
+                                       const EinkET013TT1Waveform &altWaveform, ScreenSide screen,
+                                       EinkBox box) {
+    driver_.update(waveform, gfxCanvas_.getBuffer(), vcom, altWaveform, screen, box,
+                   rightCanvas_.has_value() ? rightCanvas_->getBuffer() : nullptr);
+}
+
+void DisplayEinkET013TT1::clearFrameBuffer() {
+    gfxCanvas_.fillScreen(bg);
+    if (rightCanvas_.has_value()) {
+        rightCanvas_->fillScreen(bg);
+    }
+}
+
+auto DisplayEinkET013TT1::setStereoEnabled(bool enabled) -> bool {
+    if (enabled == stereoEnabled()) {
+        return enabled;
+    }
+    if (enabled) {
+        rightCanvas_.emplace(CONFIG_DISPLAY_WIDTH, CONFIG_DISPLAY_HEIGHT);
+        if (rightCanvas_->getBuffer() == nullptr) {
+            log_e("Not enough memory for a right eye frame buffer");
+            rightCanvas_.reset();
+            return false;
+        }
+        rightCanvas_->setRotation(gfxCanvas_.getRotation());
+        rightCanvas_->setTextWrap(false);
+        rightCanvas_->setTextColor(fg, bg);
+        rightCanvas_->fillScreen(bg);
+    } else {
+        setDrawEye(ScreenSide::Left);
+        rightCanvas_.reset();
+    }
+    log_i("Stereo %s", enabled ? "enabled" : "disabled");
+    return enabled;
+}
+
+void DisplayEinkET013TT1::setDrawEye(ScreenSide eye) {
+    drawCanvas_ = (eye == ScreenSide::Right && rightCanvas_.has_value()) ? &rightCanvas_.value()
+                                                                         : &gfxCanvas_;
+    gfxClass_ = drawCanvas_;
+}
+
 void DisplayEinkET013TT1::updateDisplay(DisplaySystem::UpdateType updateType, bool clearFrameBuffer,
                                         int vcomNudge, DisplaySystem::UpdateType altUpdateType,
                                         ScreenSide screen, SolRect altRect) {
@@ -106,26 +149,25 @@ void DisplayEinkET013TT1::updateDisplay(DisplaySystem::UpdateType updateType, bo
             // NOLINTBEGIN(bugprone-branch-clone) - keeping these duplicative for symmetry
             if (getInversion()) {
                 if (!fullRefreshNext_) {
-                    driver_.update(FULL_BIG_ORIGINAL_WAVEFORM, gfxCanvas_.getBuffer(), adjustedVcom,
-                                   BC_WAVEFORM_NONE, screen);
+                    driverUpdate(FULL_BIG_ORIGINAL_WAVEFORM, adjustedVcom, BC_WAVEFORM_NONE,
+                                 screen);
                 } else {
-                    driver_.update(FULL_BIG_ORIGINAL_WAVEFORM, gfxCanvas_.getBuffer(), adjustedVcom,
-                                   BC_WAVEFORM_NONE, screen);
+                    driverUpdate(FULL_BIG_ORIGINAL_WAVEFORM, adjustedVcom, BC_WAVEFORM_NONE,
+                                 screen);
                 }
             } else {
                 if (!fullRefreshNext_) {
-                    driver_.update(FULL_BIG_ORIGINAL_WAVEFORM, gfxCanvas_.getBuffer(), adjustedVcom,
-                                   BC_WAVEFORM_NONE, screen);
+                    driverUpdate(FULL_BIG_ORIGINAL_WAVEFORM, adjustedVcom, BC_WAVEFORM_NONE,
+                                 screen);
                 } else {
-                    driver_.update(FULL_BIG_ORIGINAL_WAVEFORM, gfxCanvas_.getBuffer(), adjustedVcom,
-                                   BC_WAVEFORM_NONE, screen);
+                    driverUpdate(FULL_BIG_ORIGINAL_WAVEFORM, adjustedVcom, BC_WAVEFORM_NONE,
+                                 screen);
                 }
             }
             // NOLINTEND(bugprone-branch-clone)
         } else {
             driver_.setBorder(bg == 0x00 ? BORDER_SETTING_BLACK : BORDER_SETTING_WHITE);
-            driver_.update(FULL_REFRESH_WAVEFORM_REGULAR, gfxCanvas_.getBuffer(), adjustedVcom,
-                           BC_WAVEFORM_NONE, screen);
+            driverUpdate(FULL_REFRESH_WAVEFORM_REGULAR, adjustedVcom, BC_WAVEFORM_NONE, screen);
         }
         break;
     case FULL:
@@ -135,24 +177,23 @@ void DisplayEinkET013TT1::updateDisplay(DisplaySystem::UpdateType updateType, bo
             switch (altUpdateType) {
             // right now these are the only two supported
             case FAST:
-                driver_.update(FULL_BIG_ORIGINAL_WAVEFORM, gfxCanvas_.getBuffer(), adjustedVcom,
-                               BC_REGULAR_EINK_10_13C_WAVEFORM_AU4, screen,
-                               {altRect.origin.x, altRect.origin.x + altRect.size.width,
-                                altRect.origin.y, altRect.origin.y + altRect.size.height});
+                driverUpdate(FULL_BIG_ORIGINAL_WAVEFORM, adjustedVcom,
+                             BC_REGULAR_EINK_10_13C_WAVEFORM_AU4, screen,
+                             {altRect.origin.x, altRect.origin.x + altRect.size.width,
+                              altRect.origin.y, altRect.origin.y + altRect.size.height});
                 break;
             case ERASE:
-                driver_.update(FULL_BIG_ORIGINAL_WAVEFORM, gfxCanvas_.getBuffer(), adjustedVcom,
-                               ERASE_WAVEFORM_REGULAR, screen,
-                               {altRect.origin.x, altRect.origin.x + altRect.size.width,
-                                altRect.origin.y, altRect.origin.y + altRect.size.height});
+                driverUpdate(FULL_BIG_ORIGINAL_WAVEFORM, adjustedVcom, ERASE_WAVEFORM_REGULAR,
+                             screen,
+                             {altRect.origin.x, altRect.origin.x + altRect.size.width,
+                              altRect.origin.y, altRect.origin.y + altRect.size.height});
                 break;
             default:
                 log_e("UNSUPPORTED ALT UPDATE TYPE");
                 break;
             }
         } else {
-            driver_.update(FULL_BIG_ORIGINAL_WAVEFORM, gfxCanvas_.getBuffer(), adjustedVcom,
-                           BC_WAVEFORM_NONE, screen);
+            driverUpdate(FULL_BIG_ORIGINAL_WAVEFORM, adjustedVcom, BC_WAVEFORM_NONE, screen);
         }
         break;
     case PARTIAL:
@@ -167,36 +208,35 @@ void DisplayEinkET013TT1::updateDisplay(DisplaySystem::UpdateType updateType, bo
             numPartials_++;
 
             if (getInversion()) {
-                driver_.update(PARTIAL_REFRESH_WAVEFORM_INVERTED, gfxCanvas_.getBuffer(),
-                               adjustedVcom, BC_WAVEFORM_NONE, screen);
+                driverUpdate(PARTIAL_REFRESH_WAVEFORM_INVERTED, adjustedVcom, BC_WAVEFORM_NONE,
+                             screen);
             } else {
                 if (altUpdateType != UNSPECIFIED) {
                     switch (altUpdateType) {
                     // right now these are the only two supported
                     case FAST:
-                        driver_.update(PARTIAL_REFRESH_WAVEFORM_REGULAR, gfxCanvas_.getBuffer(),
-                                       adjustedVcom, BC_REGULAR_EINK_10_13C_WAVEFORM_AU4, screen,
-                                       {altRect.origin.x, altRect.origin.x + altRect.size.width,
-                                        altRect.origin.y, altRect.origin.y + altRect.size.height});
+                        driverUpdate(PARTIAL_REFRESH_WAVEFORM_REGULAR, adjustedVcom,
+                                     BC_REGULAR_EINK_10_13C_WAVEFORM_AU4, screen,
+                                     {altRect.origin.x, altRect.origin.x + altRect.size.width,
+                                      altRect.origin.y, altRect.origin.y + altRect.size.height});
                         break;
                     case ERASE:
-                        driver_.update(PARTIAL_REFRESH_WAVEFORM_REGULAR, gfxCanvas_.getBuffer(),
-                                       adjustedVcom, ERASE_WAVEFORM_REGULAR, screen,
-                                       {altRect.origin.x, altRect.origin.x + altRect.size.width,
-                                        altRect.origin.y, altRect.origin.y + altRect.size.height});
+                        driverUpdate(PARTIAL_REFRESH_WAVEFORM_REGULAR, adjustedVcom,
+                                     ERASE_WAVEFORM_REGULAR, screen,
+                                     {altRect.origin.x, altRect.origin.x + altRect.size.width,
+                                      altRect.origin.y, altRect.origin.y + altRect.size.height});
                         break;
                     default:
                         log_e("UNSUPPORTED ALT UPDATE TYPE");
                         break;
                     }
                 } else {
-                    driver_.update(PARTIAL_REFRESH_WAVEFORM_REGULAR, gfxCanvas_.getBuffer(),
-                                   adjustedVcom, BC_WAVEFORM_NONE, screen);
+                    driverUpdate(PARTIAL_REFRESH_WAVEFORM_REGULAR, adjustedVcom, BC_WAVEFORM_NONE,
+                                 screen);
                 }
             }
         } else {
-            driver_.update(FULL_BIG_ORIGINAL_WAVEFORM, gfxCanvas_.getBuffer(), adjustedVcom,
-                           BC_WAVEFORM_NONE, screen);
+            driverUpdate(FULL_BIG_ORIGINAL_WAVEFORM, adjustedVcom, BC_WAVEFORM_NONE, screen);
             firstPartialTime_ = 0;
             numPartials_ = 0;
             au4Count_ = 0;
@@ -205,15 +245,14 @@ void DisplayEinkET013TT1::updateDisplay(DisplaySystem::UpdateType updateType, bo
     case FAST:
         if (!fullRefreshNext_) {
             if (getInversion()) {
-                driver_.update(BC_INVERTED_EINK_10_13C_WAVEFORM_AU4, gfxCanvas_.getBuffer(),
-                               adjustedVcom, BC_WAVEFORM_NONE, screen);
+                driverUpdate(BC_INVERTED_EINK_10_13C_WAVEFORM_AU4, adjustedVcom, BC_WAVEFORM_NONE,
+                             screen);
             } else {
-                driver_.update(BC_REGULAR_EINK_10_13C_WAVEFORM_AU4, gfxCanvas_.getBuffer(),
-                               adjustedVcom, BC_WAVEFORM_NONE, screen);
+                driverUpdate(BC_REGULAR_EINK_10_13C_WAVEFORM_AU4, adjustedVcom, BC_WAVEFORM_NONE,
+                             screen);
             }
         } else {
-            driver_.update(FULL_BIG_ORIGINAL_WAVEFORM, gfxCanvas_.getBuffer(), adjustedVcom,
-                           BC_WAVEFORM_NONE, screen);
+            driverUpdate(FULL_BIG_ORIGINAL_WAVEFORM, adjustedVcom, BC_WAVEFORM_NONE, screen);
             firstPartialTime_ = 0;
             numPartials_ = 0;
         }
@@ -224,55 +263,48 @@ void DisplayEinkET013TT1::updateDisplay(DisplaySystem::UpdateType updateType, bo
                 switch (altUpdateType) {
                 // right now these are the only two supported
                 case FAST:
-                    driver_.update(ERASE_WAVEFORM_REGULAR, gfxCanvas_.getBuffer(), adjustedVcom,
-                                   BC_REGULAR_EINK_10_13C_WAVEFORM_AU4, screen,
-                                   {altRect.origin.x, altRect.origin.x + altRect.size.width,
-                                    altRect.origin.y, altRect.origin.y + altRect.size.height});
+                    driverUpdate(ERASE_WAVEFORM_REGULAR, adjustedVcom,
+                                 BC_REGULAR_EINK_10_13C_WAVEFORM_AU4, screen,
+                                 {altRect.origin.x, altRect.origin.x + altRect.size.width,
+                                  altRect.origin.y, altRect.origin.y + altRect.size.height});
                     break;
                 case ERASE:
-                    driver_.update(ERASE_WAVEFORM_REGULAR, gfxCanvas_.getBuffer(), adjustedVcom,
-                                   ERASE_WAVEFORM_REGULAR, screen,
-                                   {altRect.origin.x, altRect.origin.x + altRect.size.width,
-                                    altRect.origin.y, altRect.origin.y + altRect.size.height});
+                    driverUpdate(ERASE_WAVEFORM_REGULAR, adjustedVcom, ERASE_WAVEFORM_REGULAR,
+                                 screen,
+                                 {altRect.origin.x, altRect.origin.x + altRect.size.width,
+                                  altRect.origin.y, altRect.origin.y + altRect.size.height});
                     break;
                 default:
                     log_e("UNSUPPORTED ALT UPDATE TYPE");
                     break;
                 }
             } else {
-                driver_.update(ERASE_WAVEFORM_REGULAR, gfxCanvas_.getBuffer(), adjustedVcom,
-                               BC_WAVEFORM_NONE, screen);
+                driverUpdate(ERASE_WAVEFORM_REGULAR, adjustedVcom, BC_WAVEFORM_NONE, screen);
             }
         } else {
-            driver_.update(ERASE_WAVEFORM_INVERTED, gfxCanvas_.getBuffer(), adjustedVcom,
-                           BC_WAVEFORM_NONE, screen);
+            driverUpdate(ERASE_WAVEFORM_INVERTED, adjustedVcom, BC_WAVEFORM_NONE, screen);
         }
         numPartials_++;
         break;
     case FAST_ORIGINAL_AU4:
         if (!fullRefreshNext_) {
             if (getInversion()) {
-                driver_.update(AU4_ORIGINAL, gfxCanvas_.getBuffer(), adjustedVcom - 2000,
-                               BC_WAVEFORM_NONE, screen);
+                driverUpdate(AU4_ORIGINAL, adjustedVcom - 2000, BC_WAVEFORM_NONE, screen);
             } else {
-                driver_.update(AU4_ORIGINAL, gfxCanvas_.getBuffer(), adjustedVcom + 2000,
-                               BC_WAVEFORM_NONE, screen);
+                driverUpdate(AU4_ORIGINAL, adjustedVcom + 2000, BC_WAVEFORM_NONE, screen);
             }
             au4Count_++;
         } else {
-            driver_.update(FULL_BIG_ORIGINAL_WAVEFORM, gfxCanvas_.getBuffer(), adjustedVcom,
-                           BC_WAVEFORM_NONE, screen);
+            driverUpdate(FULL_BIG_ORIGINAL_WAVEFORM, adjustedVcom, BC_WAVEFORM_NONE, screen);
             firstPartialTime_ = 0;
             numPartials_ = 0;
         }
         break;
     case ORIGINAL_PARTIAL:
         if (!fullRefreshNext_) {
-            driver_.update(PARTIAL_REFRESH_ORIGINAL, gfxCanvas_.getBuffer(), 0, BC_WAVEFORM_NONE,
-                           screen);
+            driverUpdate(PARTIAL_REFRESH_ORIGINAL, 0, BC_WAVEFORM_NONE, screen);
         } else {
-            driver_.update(FULL_BIG_ORIGINAL_WAVEFORM, gfxCanvas_.getBuffer(), 0, BC_WAVEFORM_NONE,
-                           screen);
+            driverUpdate(FULL_BIG_ORIGINAL_WAVEFORM, 0, BC_WAVEFORM_NONE, screen);
             firstPartialTime_ = 0;
             numPartials_ = 0;
         }
@@ -280,15 +312,14 @@ void DisplayEinkET013TT1::updateDisplay(DisplaySystem::UpdateType updateType, bo
     case FAST_INDICATOR:
         if (!fullRefreshNext_) {
             if (getInversion()) {
-                driver_.update(BC_INVERTED_EINK_10_13C_WAVEFORM_AU4, gfxCanvas_.getBuffer(),
-                               adjustedVcom - 2000, BC_WAVEFORM_NONE, screen);
+                driverUpdate(BC_INVERTED_EINK_10_13C_WAVEFORM_AU4, adjustedVcom - 2000,
+                             BC_WAVEFORM_NONE, screen);
             } else {
-                driver_.update(BC_REGULAR_EINK_10_13C_WAVEFORM_AU4, gfxCanvas_.getBuffer(),
-                               adjustedVcom + 2000, BC_WAVEFORM_NONE, screen);
+                driverUpdate(BC_REGULAR_EINK_10_13C_WAVEFORM_AU4, adjustedVcom + 2000,
+                             BC_WAVEFORM_NONE, screen);
             }
         } else {
-            driver_.update(FULL_BIG_ORIGINAL_WAVEFORM, gfxCanvas_.getBuffer(), adjustedVcom,
-                           BC_WAVEFORM_NONE, screen);
+            driverUpdate(FULL_BIG_ORIGINAL_WAVEFORM, adjustedVcom, BC_WAVEFORM_NONE, screen);
             firstPartialTime_ = 0;
             numPartials_ = 0;
         }
@@ -297,7 +328,7 @@ void DisplayEinkET013TT1::updateDisplay(DisplaySystem::UpdateType updateType, bo
 
     // Clear buffer afterwards if argument not set to false.
     if (clearFrameBuffer) {
-        fillScreen(bg);
+        this->clearFrameBuffer();
     }
 
     fullRefreshNext_ = false;
@@ -311,9 +342,9 @@ void DisplayEinkET013TT1::updateDisplay(DisplaySystem::UpdateType updateType, bo
 
 void DisplayEinkET013TT1::drawFullscreenBitmapFromFile(RendererStream &stream) {
     // data is packed 1 bit binary
-    uint8_t *buffer = gfxCanvas_.getBuffer();
+    uint8_t *buffer = drawCanvas_->getBuffer();
     assert(buffer);
-    int size = gfxCanvas_.width() * gfxCanvas_.height() / 8;
+    int size = drawCanvas_->width() * drawCanvas_->height() / 8;
 
     if (stream.readBytes(buffer, size) != size) {
         log_e("failed to read pbm bytes");
