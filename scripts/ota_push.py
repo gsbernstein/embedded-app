@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """Wireless flashing for glasses built with CONFIG_DEV_WIRELESS_FLASH.
 
-  pair     Authorize this computer: sends .ota-key (created if missing) over USB serial.
+  pair     Authorize this computer: sends its key (created if missing) over USB serial.
   push     Push a firmware image over WiFi. Without --host, the glasses are found over BLE and
            asked to start listening (needs `bleak`). With --host, the image goes straight to
-           glasses showing Debug > Wireless Flash. Images are signed with .ota-key.
+           glasses showing Debug > Wireless Flash. Images are signed with the key.
   unpair   Remove a paired key (this computer's label by default, or --all).
   paired   List paired computers.
 """
@@ -25,7 +25,11 @@ import time
 CHUNK_SIZE = 16 * 1024
 SOL_SERVICE_UUID = "db65598c-04b1-469f-833f-517f285db256"
 SETTINGS_CHARACTERISTIC_UUID = "611f68af-5ffe-4944-9b8f-ef6773326268"
-DEFAULT_KEY_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".ota-key")
+# One key per computer (matching the default `cli@<hostname>` label), shared by every checkout.
+USER_KEY_FILE = os.path.join(os.path.expanduser("~"), ".config", "solreader", "ota-key")
+DEFAULT_KEY_FILE = os.environ.get("SOLREADER_OTA_KEY", USER_KEY_FILE)
+# Where keys lived before they moved to a per-user location; migrated on first use.
+LEGACY_KEY_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".ota-key")
 
 
 def sign(key, data):
@@ -144,12 +148,22 @@ def push(name, port, image, signature):
     return resp.status, body
 
 
+def write_private_file(path, contents):
+    os.makedirs(os.path.dirname(os.path.abspath(path)), mode=0o700, exist_ok=True)
+    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    with os.fdopen(fd, "w") as f:
+        f.write(contents)
+
+
 def load_key(path, create=False):
+    if not os.path.isfile(path) and path == USER_KEY_FILE and os.path.isfile(LEGACY_KEY_FILE):
+        with open(LEGACY_KEY_FILE) as f:
+            write_private_file(path, f.read())
+        print(f"Moved key from {os.path.normpath(LEGACY_KEY_FILE)} to {path} (old file can be deleted)")
     if not os.path.isfile(path):
         if not create:
             sys.exit(f"Signing key not found: {path} (run `make pair` with the glasses plugged in)")
-        with open(path, "w") as f:
-            f.write(secrets.token_hex(32) + "\n")
+        write_private_file(path, secrets.token_hex(32) + "\n")
         print(f"Created {path}")
     with open(path) as f:
         return f.read().strip().lower()
@@ -226,7 +240,11 @@ def main():
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
-    parser.add_argument("--key", default=DEFAULT_KEY_FILE, help="Key file (default: .ota-key)")
+    parser.add_argument(
+        "--key",
+        default=DEFAULT_KEY_FILE,
+        help="Key file (default: $SOLREADER_OTA_KEY or ~/.config/solreader/ota-key)",
+    )
     sub = parser.add_subparsers(dest="command", required=True)
 
     pair_parser = sub.add_parser("pair", help="Authorize this computer over USB")
