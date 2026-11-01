@@ -316,6 +316,12 @@ protected:
 
     void scheduleSync(SyncReason reason, time_t time);
 
+    // See PreferencesStore::stayAwakeOnComputer. Overheating and depleted states still sleep.
+    auto shouldStayAwakeOnComputer() -> bool;
+    // Lights off but radios and USB up. Closing the temples sleeps; unplugging reboots.
+    void enterComputerDormant();
+    bool computerDormant_ = false;
+
     // Fully power down the device (assuming USB is disconnected and left temple closed)
     // Note: This should be used sparingly as it's unintuitive to the user if you get into
     // this state and USB is connected, since the deep-sleep-forever won't exit until usb is

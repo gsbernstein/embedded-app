@@ -28,6 +28,15 @@ class USBSerial {
 public:
     static auto getInstance() -> USBSerial &;
     USBSerial() = default;
+
+    // True when a USB host (computer) has enumerated us, as opposed to power-only chargers.
+    static auto hostConnected() -> bool {
+#if CONFIG_USE_TINYUSB_SERIAL && !SIMULATOR
+        return tud_mounted();
+#else
+        return false;
+#endif
+    }
     USBSerial(const USBSerial &) = delete;
     void begin();
     void end();
