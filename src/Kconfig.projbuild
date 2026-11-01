@@ -242,6 +242,16 @@ menu "Sol Options"
             bool "Use WiFi"
             default y
 
+        config DEV_WIRELESS_FLASH
+            bool "Enable wireless flashing (development only)"
+            depends on USE_WIFI
+            default n
+            help
+                Adds Debug > Wireless Flash, which connects to WiFi and accepts firmware pushed
+                from a computer on the same network with `make ota OTA_HOST=<ip>`. The endpoint
+                is unauthenticated while that screen is open, so never enable this for release
+                builds.
+
     endmenu
 
     menu "Pin Selection"

@@ -33,6 +33,7 @@ set(components
     esp_pm
     esp_adc
     esp_http_client
+    esp_http_server
     wifi_provisioning
     esp_littlefs
     esp-nimble-cpp

@@ -37,6 +37,9 @@
 #include "UI/ContrastAdjustScreen.hpp"
 #include "UI/CrashReportScreen.hpp"
 #include "UI/DebugAboutScreen.hpp"
+#if CONFIG_DEV_WIRELESS_FLASH
+#include "UI/WirelessFlashScreen.hpp"
+#endif
 #include "UI/DemoScreen.hpp"
 #include "UI/FirmwareUpdateScreen.hpp"
 #include "UI/Fonts.hpp"
@@ -1498,6 +1501,16 @@ void RootUI::setup(LocalStore &localStore, FileSystem &fileSystem,
                     debugAboutScreen->setBackCallback([this]() { this->popScreen(); });
                     this->pushScreen(debugAboutScreen);
                 }));
+
+#if CONFIG_DEV_WIRELESS_FLASH
+                debugSettingsMenu->addMenuItem(
+                    std::make_shared<MenuItemSingleLine>("Wireless Flash", [this]() {
+                        auto wirelessFlashScreen = std::make_shared<WirelessFlashScreen>(display_);
+                        this->pushScreen(wirelessFlashScreen);
+                        wirelessFlashScreen->setBackCallback([this]() { this->popScreen(); });
+                        wirelessFlashScreen->begin();
+                    }));
+#endif
 
                 if (hasLastQuestion) {
                     debugSettingsMenu->addMenuItem(

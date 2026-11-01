@@ -200,6 +200,20 @@ else
 	idf.py $(IDF_PROFILE) flash --port $$(python3 scripts/port_tool.py find_port programming)
 endif
 
+# Push a build over WiFi to glasses showing Debug > Wireless Flash (requires CONFIG_DEV_WIRELESS_FLASH).
+# Usage: make ota OTA_HOST=192.168.1.42  (or export OTA_HOST once per shell)
+.PHONY: ota
+ota: check_ota_host build
+	python3 scripts/ota_push.py $(OTA_HOST) build-$(TARGET)/embedded-app.bin
+
+.PHONY: check_ota_host
+check_ota_host:
+	@if [ -z "$(OTA_HOST)" ]; then \
+		echo "Set OTA_HOST to the address shown on the glasses under Debug > Wireless Flash,"; \
+		echo "e.g. make ota OTA_HOST=192.168.1.42"; \
+		exit 1; \
+	fi
+
 .PHONY: monitor
 monitor: check_idf
 ifneq ($(filter $(TARGET),$(P4_TARGETS)),)
