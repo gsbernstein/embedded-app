@@ -43,6 +43,10 @@ protected:
     void unpairPageTurner(BLECharacteristic *characteristic, const std::string &key);
     void writeWifiSSIDtoCharacteristic(BLECharacteristic *characteristic, const std::string &key);
     void blinkLedAfterConnect(BLECharacteristic *characteristic, const std::string &key);
+#if CONFIG_DEV_WIRELESS_FLASH
+    void writeWirelessFlashNonce(BLECharacteristic *characteristic, const std::string &key);
+    void startWirelessFlash(BLECharacteristic *characteristic, const std::string &signature);
+#endif
 
     class CharacteristicCallbacks : public BLECharacteristicCallbacks {
     public:
@@ -71,6 +75,10 @@ protected:
                     this->enclosed->writePageTurnerBatteryToCharacteristic(characteristic, value);
                 } else if (value == "blink-led") {
                     this->enclosed->blinkLedAfterConnect(characteristic, value);
+#if CONFIG_DEV_WIRELESS_FLASH
+                } else if (value == "wireless-flash-nonce") {
+                    this->enclosed->writeWirelessFlashNonce(characteristic, value);
+#endif
                 } else if (value == "pair") {
                     characteristic->setValue(StringFormat(
                         "pair=%s", enclosed->prefs_->bleAdvertisingKey.get().value_or("").c_str()));
@@ -92,7 +100,14 @@ protected:
                 // Public settings
                 if (settingKey == "blink-led") {
                     this->enclosed->blinkLedAfterConnect(characteristic, value);
-                } else if (settingKey == "auth") {
+                }
+#if CONFIG_DEV_WIRELESS_FLASH
+                // Authenticated by HMAC challenge-response rather than the app's auth key.
+                else if (settingKey == "wireless-flash") {
+                    this->enclosed->startWirelessFlash(characteristic, settingValue);
+                }
+#endif
+                else if (settingKey == "auth") {
                     // If we don't have auth key set, set it
                     if (!enclosed->prefs_->bleAuthKey.get().has_value()) {
                         log_i("Locking auth key to %s", settingValue.c_str());

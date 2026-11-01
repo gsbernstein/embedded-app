@@ -10,6 +10,9 @@
 #include "Misc/Platform.hpp"
 #include "Version.hpp"
 #include "WiFi.hpp"
+#if CONFIG_DEV_WIRELESS_FLASH
+#include "WirelessFlashManager.hpp"
+#endif
 #include "sindarin-debug.h"
 
 #define SETTINGS_CHARACTERISTIC_UUID "611f68af-5ffe-4944-9b8f-ef6773326268"
@@ -131,6 +134,38 @@ void BLESettings::unpairPageTurner(BLECharacteristic *characteristic, const std:
     characteristic->setValue(value);
     characteristic->notify();
 }
+
+#if CONFIG_DEV_WIRELESS_FLASH
+void BLESettings::writeWirelessFlashNonce(BLECharacteristic *characteristic,
+                                          const std::string &key) {
+    auto nonce = WirelessFlashManager::getInstance().createChallenge();
+    characteristic->setValue(StringFormat("%s=%s", key.c_str(), nonce.c_str()));
+    characteristic->notify();
+}
+
+void BLESettings::startWirelessFlash(BLECharacteristic *characteristic,
+                                     const std::string &signature) {
+    static constexpr int IDLE_TIMEOUT_MS = 60 * 1000;
+
+    if (!WirelessFlashManager::getInstance().verifyChallenge(signature)) {
+        log_w("Wireless flash BLE challenge failed");
+        characteristic->setValue("wireless-flash=error:auth");
+        characteristic->notify();
+        return;
+    }
+
+    // Connecting WiFi blocks for seconds, so keep it off the NimBLE host task.
+    DispatchQueue::dispatchOneOff(
+        [characteristic] {
+        std::string error;
+        auto address = WirelessFlashManager::getInstance().start(IDLE_TIMEOUT_MS, &error);
+        auto result = address.empty() ? "error:" + error : address;
+        characteristic->setValue(StringFormat("wireless-flash=%s", result.c_str()));
+        characteristic->notify();
+        },
+        6144, 1, 0, "WFlashStart");
+}
+#endif
 
 void BLESettings::writeWifiSSIDtoCharacteristic(BLECharacteristic *characteristic,
                                                 const std::string &key) {

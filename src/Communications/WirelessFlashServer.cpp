@@ -5,8 +5,10 @@
 #include <StringUtil/StringUtil.hpp>
 #include <Update.h>
 #include <algorithm>
+#include <cctype>
 #include <esp_http_server.h>
 #include <esp_ota_ops.h>
+#include <mbedtls/md.h>
 #include <memory>
 
 #include "Version.hpp"
@@ -16,6 +18,47 @@ namespace {
 constexpr size_t RECV_CHUNK_SIZE = 4096;
 constexpr int MAX_RECV_TIMEOUTS = 3;
 constexpr size_t MD5_HEX_LENGTH = 32;
+constexpr size_t SIGNATURE_HEX_LENGTH = 64;
+
+auto toHex(const uint8_t *bytes, size_t len) -> std::string {
+    static constexpr char DIGITS[] = "0123456789abcdef";
+    std::string hex(len * 2, '0');
+    for (size_t i = 0; i < len; i++) {
+        hex[i * 2] = DIGITS[bytes[i] >> 4];
+        hex[i * 2 + 1] = DIGITS[bytes[i] & 0x0f];
+    }
+    return hex;
+}
+
+class HmacSha256 {
+public:
+    explicit HmacSha256(const std::string &key) {
+        mbedtls_md_init(&ctx_);
+        ok_ = mbedtls_md_setup(&ctx_, mbedtls_md_info_from_type(MBEDTLS_MD_SHA256), 1) == 0 &&
+              mbedtls_md_hmac_starts(&ctx_, reinterpret_cast<const uint8_t *>(key.data()),
+                                     key.size()) == 0;
+    }
+    HmacSha256(const HmacSha256 &) = delete;
+    auto operator=(const HmacSha256 &) -> HmacSha256 & = delete;
+    ~HmacSha256() { mbedtls_md_free(&ctx_); }
+
+    void update(const uint8_t *data, size_t len) {
+        ok_ = ok_ && mbedtls_md_hmac_update(&ctx_, data, len) == 0;
+    }
+
+    // Returns an empty string on failure so it never matches a signature.
+    auto finishHex() -> std::string {
+        uint8_t digest[32];
+        if (!ok_ || mbedtls_md_hmac_finish(&ctx_, digest) != 0) {
+            return "";
+        }
+        return toHex(digest, sizeof(digest));
+    }
+
+private:
+    mbedtls_md_context_t ctx_{};
+    bool ok_ = false;
+};
 
 auto sendStatus(httpd_req_t *req, const char *status, const std::string &body) -> esp_err_t {
     httpd_resp_set_status(req, status);
@@ -23,6 +66,23 @@ auto sendStatus(httpd_req_t *req, const char *status, const std::string &body) -
     return httpd_resp_sendstr(req, body.c_str());
 }
 } // namespace
+
+auto wirelessFlashSign(const std::string &key, const std::string &message) -> std::string {
+    HmacSha256 hmac(key);
+    hmac.update(reinterpret_cast<const uint8_t *>(message.data()), message.size());
+    return hmac.finishHex();
+}
+
+auto wirelessFlashSignatureMatches(const std::string &expected, const std::string &actual) -> bool {
+    if (expected.empty() || expected.size() != actual.size()) {
+        return false;
+    }
+    uint8_t diff = 0;
+    for (size_t i = 0; i < expected.size(); i++) {
+        diff |= static_cast<uint8_t>(expected[i] ^ std::tolower(actual[i]));
+    }
+    return diff == 0;
+}
 
 auto WirelessFlashServer::start(uint16_t port) -> esp_err_t {
     if (server_ != nullptr) {
@@ -107,6 +167,13 @@ auto WirelessFlashServer::receiveFirmware(httpd_req_t *req) -> esp_err_t {
         return sendStatus(req, "500 Internal Server Error", message + "\n");
     };
 
+    char signature[SIGNATURE_HEX_LENGTH + 1] = {};
+    if (httpd_req_get_hdr_value_len(req, "X-Signature") != SIGNATURE_HEX_LENGTH ||
+        httpd_req_get_hdr_value_str(req, "X-Signature", signature, sizeof(signature)) != ESP_OK) {
+        log_w("Rejected wireless flash without a signature");
+        return sendStatus(req, "401 Unauthorized", "Missing X-Signature\n");
+    }
+
     log_i("Receiving firmware over WiFi (%u bytes)", static_cast<unsigned>(total));
     notify(WirelessFlashEvent::State::Receiving, 0);
 
@@ -124,6 +191,7 @@ auto WirelessFlashServer::receiveFirmware(httpd_req_t *req) -> esp_err_t {
         log_w("No X-MD5 header; image integrity will not be verified");
     }
 
+    HmacSha256 hmac(key_);
     auto buffer = std::make_unique<uint8_t[]>(RECV_CHUNK_SIZE);
     size_t received = 0;
     int timeouts = 0;
@@ -142,6 +210,7 @@ auto WirelessFlashServer::receiveFirmware(httpd_req_t *req) -> esp_err_t {
         }
         timeouts = 0;
 
+        hmac.update(buffer.get(), len);
         if (Update.write(buffer.get(), len) != static_cast<size_t>(len)) {
             return fail(StringFormat("Update.write: %s", Update.errorString()));
         }
@@ -152,6 +221,14 @@ auto WirelessFlashServer::receiveFirmware(httpd_req_t *req) -> esp_err_t {
             lastPercentage = percentage;
             notify(WirelessFlashEvent::State::Receiving, percentage);
         }
+    }
+
+    // Update.end() is what switches the boot partition, so the signature must be checked first.
+    if (!wirelessFlashSignatureMatches(hmac.finishHex(), signature)) {
+        log_e("Wireless flash signature mismatch");
+        Update.abort();
+        notify(WirelessFlashEvent::State::Failed, 0, "Bad signature");
+        return sendStatus(req, "403 Forbidden", "Signature mismatch (wrong .ota-key?)\n");
     }
 
     if (!Update.end()) {

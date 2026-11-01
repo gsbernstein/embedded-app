@@ -247,10 +247,10 @@ menu "Sol Options"
             depends on USE_WIFI
             default n
             help
-                Adds Debug > Wireless Flash, which connects to WiFi and accepts firmware pushed
-                from a computer on the same network with `make ota OTA_HOST=<ip>`. The endpoint
-                is unauthenticated while that screen is open, so never enable this for release
-                builds.
+                Lets `make ota` push firmware over WiFi. The glasses start listening when asked
+                over BLE (HMAC challenge, 1 minute idle window) or while Debug > Wireless Flash
+                is open. Images must be signed with the gitignored per-checkout .ota-key, which
+                is generated on first build and baked into the firmware. Development only.
 
     endmenu
 

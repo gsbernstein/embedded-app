@@ -7,9 +7,8 @@
 #if USE_BLE_SERVER
 #include "Communications/BLEManager.hpp"
 #endif
-#include "Communications/WiFi.hpp"
+#include "Communications/WirelessFlashManager.hpp"
 #include "Misc/Dispatch.hpp"
-#include "Misc/PowerManager.hpp"
 #include "Misc/RateLimiter.hpp"
 #include "Version.hpp"
 
@@ -80,8 +79,9 @@ void WirelessFlashScreen::processCommand(RemoteCommand command) {
 
 void WirelessFlashScreen::shutdown() {
     CancelFlag::cancel(cancel_);
-    server_.reset();
-    WiFi::getInstance().disconnectWiFi();
+    auto &manager = WirelessFlashManager::getInstance();
+    manager.setEventCallback(nullptr);
+    manager.stop();
     if (resumeBLE_) {
         resumeBLE_();
         resumeBLE_ = nullptr;
@@ -97,11 +97,6 @@ void WirelessFlashScreen::exit(const std::string &message) {
 }
 
 void WirelessFlashScreen::begin() {
-    if (!WiFi::getInstance().hasWiFiCredentials()) {
-        exit("No WiFi credentials");
-        return;
-    }
-
 #if USE_BLE_SERVER
     // Stop BLE to avoid radio coexistence slowing down the transfer.
     auto bleManager = BLEManager::getInstance();
@@ -113,16 +108,10 @@ void WirelessFlashScreen::begin() {
     setStatus("Connecting WiFi...");
     render(display_);
 
-    if (!WiFi::getInstance().connectWiFiFromSettings()) {
-        exit("WiFi connection failed");
-        return;
-    }
-
     auto cancel = cancel_;
     auto rateLimiter = std::make_shared<RateLimiter>(1, 20, 5);
-    server_ = std::make_unique<WirelessFlashServer>(
-        [this, cancel, rateLimiter](const WirelessFlashEvent &event) {
-        PowerManager::getInstance().feedInactivityTimer();
+    auto &manager = WirelessFlashManager::getInstance();
+    manager.setEventCallback([this, cancel, rateLimiter](const WirelessFlashEvent &event) {
         if (event.state == WirelessFlashEvent::State::Receiving && event.percentage > 0 &&
             event.percentage < 100 && !rateLimiter->shouldExecute(event.percentage)) {
             return;
@@ -134,14 +123,14 @@ void WirelessFlashScreen::begin() {
         });
     });
 
-    if (server_->start() != ESP_OK) {
-        exit("Failed to start server");
+    std::string error;
+    auto address = manager.start(0, &error);
+    if (address.empty()) {
+        exit(error);
         return;
     }
 
-    auto ip = WiFi::getInstance().getLocalIpStr();
-    log_i("Wireless flash ready: make ota OTA_HOST=%s", ip.c_str());
-    addressView_.setText(ip);
+    addressView_.setText(address);
     setStatus(StringFormat("Ready (v%s)", SemanticVersionString()));
     render(display_);
 }
@@ -167,12 +156,6 @@ void WirelessFlashScreen::handleEvent(const WirelessFlashEvent &event) {
         break;
     }
     render(display_);
-
-    if (event.state == WirelessFlashEvent::State::Installed) {
-        // Give the HTTP response time to reach the client before the radio goes down.
-        vTaskDelay(pdMS_TO_TICKS(1000));
-        PowerManager::getInstance().reboot();
-    }
 }
 
 #endif
