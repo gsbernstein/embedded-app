@@ -295,6 +295,10 @@ public:
 #endif
     }
 
+    inline void setItalicFont(FontHandle font, bool italic) override {
+        reinterpret_cast<Font *>(font.ptr)->setItalicFont(italic);
+    }
+
     inline auto drawSingleLineOfText(const char *cstr, int16_t x, int16_t y, bool invert,
                                      FontHandle font) -> int16_t override {
         if (!font.ptr || !cstr) {
