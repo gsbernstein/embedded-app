@@ -120,6 +120,10 @@ TEST_CASE("Test some individual EPub formatting edge cases", "[epub-format]") {
         renderer.renderPage(std::make_shared<EPubPlace>(0, "calibre_spans.xhtml"));
         display->updateDisplay(DisplaySystem::UpdateType::FULL, true);
         ASSERT_VIEW_UNCHANGED(display, "ItalicCalibreSpans");
+
+        renderer.renderPage(std::make_shared<EPubPlace>(0, "nesting.xhtml"));
+        display->updateDisplay(DisplaySystem::UpdateType::FULL, true);
+        ASSERT_VIEW_UNCHANGED(display, "ItalicNestingAndScripts");
     }
 }
 
