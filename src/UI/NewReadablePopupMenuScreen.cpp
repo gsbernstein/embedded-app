@@ -1,5 +1,19 @@
 #include "UI/NewReadablePopupMenuScreen.hpp"
 
+namespace {
+constexpr int MENU_DISPARITY = 1;
+constexpr int SELECTED_DISPARITY = 2;
+} // namespace
+
+NewReadablePopupMenuScreen::~NewReadablePopupMenuScreen() { releaseStereo(); }
+
+void NewReadablePopupMenuScreen::releaseStereo() {
+    if (stereoActive_) {
+        display_.setStereoEnabled(false);
+        stereoActive_ = false;
+    }
+}
+
 void NewReadablePopupMenuScreen::setUpPopupMenu() {
     std::shared_ptr<Place> place = renderer_.getCurrentPlace();
 
@@ -114,6 +128,23 @@ void NewReadablePopupMenuScreen::drawInRect(SolRect rect) {
     footer3TextView_.draw();
 }
 
+void NewReadablePopupMenuScreen::drawForEye(ScreenSide eye, bool fastOnly) {
+    int16_t cardShift = DisplaySystem::eyeShift(eye, MENU_DISPARITY);
+    int16_t selectedShift = DisplaySystem::eyeShift(eye, SELECTED_DISPARITY);
+
+    auto baseFrame = frame();
+    setFrame(baseFrame.offset({cardShift, 0}));
+    menuView_.setSelectedItemShift(selectedShift - cardShift);
+    if (fastOnly) {
+        menuView_.drawFastElements();
+    } else {
+        draw();
+    }
+
+    menuView_.setSelectedItemShift(0);
+    setFrame(baseFrame);
+}
+
 auto NewReadablePopupMenuScreen::layout(LayoutContext &context, SolSize size) -> SolSize {
     auto contentFrame = context.setSublayoutFrame(
         SolRect::fromSize(size), LayoutOptionsSizeToFit | LayoutOptionsAlignCenter,
@@ -171,17 +202,20 @@ auto NewReadablePopupMenuScreen::layout(LayoutContext &context, SolSize size) ->
 }
 
 void NewReadablePopupMenuScreen::render(DisplaySystem &display) {
+    stereoActive_ = display.setStereoEnabled(true);
+
     setFrame(defaultFrameRect());
     layoutIfNeeded();
 
-    draw();
+    display.drawForEachEye([this](ScreenSide eye) { drawForEye(eye); });
 
     if (firstLoad_) {
         firstLoad_ = false;
         display.updateDisplay(DisplaySystem::UpdateType::PARTIAL, true);
-        // Redraw but this time without the text (since updateDsplay will clear the screen)
-        draw();
+        // Redraw but this time without the text (since updateDisplay will clear the screen)
+        display.drawForEachEye([this](ScreenSide eye) { drawForEye(eye); });
     }
-    menuView_.drawFastElements();
+
+    display.drawForEachEye([this](ScreenSide eye) { drawForEye(eye, true); });
     display.updateDisplay(DisplaySystem::UpdateType::FAST_INDICATOR);
-};
+}

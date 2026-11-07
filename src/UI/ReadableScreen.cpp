@@ -549,6 +549,9 @@ ReadableScreen::ReadableScreen(const std::shared_ptr<RendererStream> &stream,
 }
 
 void ReadableScreen::setCurrentScreen(const std::shared_ptr<Screen> &screen) {
+    if (currentScreen_ == popupMenuScreen_ && screen != popupMenuScreen_) {
+        popupMenuScreen_->releaseStereo();
+    }
     if (currentScreen_) {
         currentScreen_->setFirstLoad();
     }

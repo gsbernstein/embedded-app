@@ -16,6 +16,7 @@ public:
     View(const View &other) : layoutContext_(*this), hidden_(other.hidden_) {}
 
     // Getter and setter for the frame
+    [[nodiscard]] auto frame() const -> SolRect { return layoutContext_.frame(); }
     void setFrame(const SolRect &frame) { layoutContext_.setFrame(frame); }
 
     // Virtual method for drawing the contents of the view inside a provided rect. Typically not

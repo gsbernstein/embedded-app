@@ -1405,6 +1405,9 @@ void KindleReadableScreen::cancelReconnectionAttempt() {
 }
 
 void KindleReadableScreen::setCurrentScreen(const std::shared_ptr<Screen> &screen) {
+    if (currentScreen_ == popupMenuScreen_ && screen != popupMenuScreen_) {
+        popupMenuScreen_->releaseStereo();
+    }
     if (currentScreen_) {
         currentScreen_->setFirstLoad();
     }

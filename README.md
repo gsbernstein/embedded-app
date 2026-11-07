@@ -97,6 +97,18 @@ Issues that will be fixed automatically will be fixed by clang-tidy, warnings wi
 
 ## Test code locally with the Simulator
 
+### Stereoscopic in-book menu
+
+On the glasses, the in-book popup sits 1 pixel in front of the book plane. The selected
+item and its indicator sit at 2 pixels of disparity. Closing the popup or opening another
+screen returns to normal, identical images in both eyes. This applies to all popup tabs
+and works in both light and dark mode without inverted selection backgrounds.
+
+In the default simulator, press `v` to cycle between the left eye, right eye,
+red/cyan anaglyph, and cross-eyed side-by-side views.
+Run `make test-build && ./test/CatchTests/build/tests '[stereo]'` for per-eye screenshot
+and lifecycle regression tests.
+
 The simulator compiles in <20s from a clean build, and even less on an incremental build. This makes it fast for us to iterate on anything that doesn't need the physical hardware.
 
 You'll need SDL2, openssl for it to work: `brew install sdl2 openssl` (on Ubuntu `sudo apt install libsdl2-dev libssl-dev`). Then you can run `make sim` to run it (or `make sim8` for the high-res version). After building once, you can also debug with lldb at the command line: `lldb lib/Simulator/build/simulator`.

@@ -3,6 +3,7 @@
 #include "DisplayEinkET013TT1.hpp"
 
 #include <algorithm>
+#include <cstring>
 #include <freertos/task.h>
 
 #include "Communications/USBSerial.hpp"
@@ -117,7 +118,9 @@ auto DisplayEinkET013TT1::setStereoEnabled(bool enabled) -> bool {
         rightCanvas_->setRotation(gfxCanvas_.getRotation());
         rightCanvas_->setTextWrap(false);
         rightCanvas_->setTextColor(fg, bg);
-        rightCanvas_->fillScreen(bg);
+        assert(gfxCanvas_.getBuffer() != nullptr);
+        memcpy(rightCanvas_->getBuffer(), gfxCanvas_.getBuffer(),
+               CONFIG_DISPLAY_WIDTH * CONFIG_DISPLAY_HEIGHT / 8);
     } else {
         setDrawEye(ScreenSide::Left);
         rightCanvas_.reset();
