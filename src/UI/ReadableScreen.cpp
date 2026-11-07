@@ -706,7 +706,11 @@ void ReadableScreen::render(DisplaySystem &display) {
     // the display (`fillScreen(bg);`) after updateDisplay. Then we could simply draw over
     // existing screen contents without rerendering it. But that would be a pretty global
     // change, so we'll leave it for now.
-    bool renderPopupBackground = currentScreen_ == popupMenuScreen_ && renderPopup_;
+    bool renderPopupBackground = currentScreen_ == popupMenuScreen_ && popupMenuScreen_ &&
+                                 (renderPopup_ || popupMenuScreen_->needsBackgroundRefresh());
+    if (renderPopupBackground) {
+        popupMenuScreen_->releaseStereo();
+    }
 
     if (currentScreen_ && !renderPopupBackground) {
         currentScreen_->render(display);
@@ -728,9 +732,12 @@ void ReadableScreen::render(DisplaySystem &display) {
 
     setFrame(defaultFrameRect());
 
-    prefs_.lastReadableId.set(readable_->uuid.c_str());
-    telemetry_.logMetric(TelemetryField::METRIC_READABLE_PLACE, readable_->shortenedUuid.c_str(),
-                         readable_->telemetryPlacemarkMetrics());
+    if (!renderPopupBackground) {
+        prefs_.lastReadableId.set(readable_->uuid.c_str());
+        telemetry_.logMetric(TelemetryField::METRIC_READABLE_PLACE,
+                             readable_->shortenedUuid.c_str(),
+                             readable_->telemetryPlacemarkMetrics());
+    }
 
     // If there is a partial chapter summary, open that instead
     if (CONFIG_SHOW_STOCK_SOL_UI && firstLoad_ && !renderedPartialSummary_ &&
@@ -796,7 +803,10 @@ void ReadableScreen::render(DisplaySystem &display) {
 
     uint8_t darkPicturePercent = 0;
 
-    if (pageSpeed_ == 0) {
+    if (renderPopupBackground) {
+        std::tie(newPlace_, darkPicturePercent) =
+            renderer_.renderPage(readable_->place, speedLinesToSkip_, false, false);
+    } else if (pageSpeed_ == 0) {
         // Regular Reading
         bool retrieveMenuParameters = true;
         do {
@@ -911,7 +921,7 @@ void ReadableScreen::render(DisplaySystem &display) {
         }
     }
 
-    if (pageSpeed_ != 0) {
+    if (pageSpeed_ != 0 && !renderPopupBackground) {
         // Must stop the timer because ChangePeriod starts it.
         xTimerStop(DisplaySystem::animationTimer, 0);
         if (!autoPilotPause_) {
@@ -919,7 +929,7 @@ void ReadableScreen::render(DisplaySystem &display) {
         }
     }
 
-    if (emcMode) {
+    if (emcMode && !renderPopupBackground) {
         // Must stop the timer because ChangePeriod starts it.
         xTimerStop(DisplaySystem::animationTimer, 0);
         // Change page every 30 seconds

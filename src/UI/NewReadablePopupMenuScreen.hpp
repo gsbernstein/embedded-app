@@ -42,6 +42,7 @@ public:
     void drawInRect(SolRect rect) override;
 
     void releaseStereo();
+    [[nodiscard]] auto needsBackgroundRefresh() const -> bool { return firstLoad_; }
 
     void setUpPopupMenu();
 

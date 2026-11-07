@@ -2,6 +2,8 @@
 #include <algorithm>
 #include <array>
 #include <catch_amalgamated.hpp>
+#include <filesystem>
+#include <unistd.h>
 
 #include "DisplayUtil.hpp"
 #include "Storage/PosixFileSystem.hpp"
@@ -27,6 +29,145 @@ TEST_CASE("eyeShift splits disparity between the eyes", "[stereo]") {
               disparity);
         CHECK(DisplaySystem::eyeShift(ScreenSide::Both, disparity) == 0);
     }
+}
+
+TEST_CASE("Global stereo offsets output without changing drawing canvases", "[stereo]") {
+    auto display = createDisplay();
+    bool darkMode = GENERATE(false, true);
+    display->invertDisplay(darkMode);
+    uint8_t foregroundPixel = darkMode ? 255 : 0;
+    auto *canvas = display->gfxClass();
+    canvas->drawPixel(20, 30, display->fg);
+    canvas->drawPixel(0, 30, display->fg);
+    canvas->drawPixel(CONFIG_DISPLAY_WIDTH - 1, 30, display->fg);
+    for (int depth = -DisplaySystem::MAX_STEREO_DISPARITY;
+         depth <= DisplaySystem::MAX_STEREO_DISPARITY; ++depth) {
+        CAPTURE(depth, darkMode);
+        REQUIRE(display->setStereoDisparity(depth));
+        REQUIRE_FALSE(display->stereoEnabled());
+        CHECK(display->stereoDisparity() == depth);
+        for (int repeat = 0; repeat < 2; ++repeat) {
+            display->updateDisplay(DisplaySystem::UpdateType::FULL, false);
+            for (int x = 0; x < CONFIG_DISPLAY_WIDTH; ++x) {
+                auto checkEye = [&](ScreenSide eye, const uint8_t *output) {
+                    int sourceX = x - DisplaySystem::eyeShift(eye, depth);
+                    bool foreground =
+                        sourceX == 0 || sourceX == 20 || sourceX == CONFIG_DISPLAY_WIDTH - 1;
+                    CHECK(output[30 * CONFIG_DISPLAY_WIDTH + x] ==
+                          ((foreground ? display->fg : display->bg) != 0 ? 255 : 0));
+                };
+                checkEye(ScreenSide::Left, display->buffer().get());
+                checkEye(ScreenSide::Right, display->rightBuffer().get());
+            }
+        }
+        CHECK(canvas == display->gfxClass());
+    }
+    REQUIRE(display->setStereoDisparity(2));
+    REQUIRE(display->setStereoEnabled(true));
+    display->setDrawEye(ScreenSide::Right);
+    display->fillRect(20, 30, 1, 1, display->bg);
+    display->fillRect(40, 30, 1, 1, display->fg);
+    display->setDrawEye(ScreenSide::Left);
+    display->updateDisplay(DisplaySystem::UpdateType::FULL, false);
+    CHECK(display->buffer()[30 * CONFIG_DISPLAY_WIDTH + 21] == foregroundPixel);
+    CHECK(display->rightBuffer()[30 * CONFIG_DISPLAY_WIDTH + 19] == (display->bg != 0 ? 255 : 0));
+    CHECK(display->rightBuffer()[30 * CONFIG_DISPLAY_WIDTH + 39] == foregroundPixel);
+    display->setStereoEnabled(false);
+    CHECK(display->stereoDisparity() == 2);
+    REQUIRE(display->setStereoDisparity(0));
+    display->updateDisplay(DisplaySystem::UpdateType::FULL, false);
+    CHECK(display->buffer()[30 * CONFIG_DISPLAY_WIDTH + 20] == foregroundPixel);
+    CHECK(display->rightBuffer()[30 * CONFIG_DISPLAY_WIDTH + 20] == foregroundPixel);
+}
+
+TEST_CASE("Global stereo follows screen rotation", "[stereo]") {
+    auto display = createDisplay();
+    int rotation = GENERATE(0, 1, 2, 3);
+    display->setRotation(rotation);
+    display->fillRect(20, 30, 1, 1, display->fg);
+    REQUIRE(display->setStereoDisparity(2));
+    display->updateDisplay(DisplaySystem::UpdateType::FULL);
+    for (auto eye : {ScreenSide::Left, ScreenSide::Right}) {
+        int x = 20 + DisplaySystem::eyeShift(eye, 2);
+        int y = 30;
+        switch (rotation) {
+        case 1:
+            std::swap(x, y);
+            x = CONFIG_DISPLAY_WIDTH - 1 - x;
+            break;
+        case 2:
+            x = CONFIG_DISPLAY_WIDTH - 1 - x;
+            y = CONFIG_DISPLAY_HEIGHT - 1 - y;
+            break;
+        case 3:
+            std::swap(x, y);
+            y = CONFIG_DISPLAY_HEIGHT - 1 - y;
+            break;
+        default:
+            break;
+        }
+        auto *output =
+            eye == ScreenSide::Left ? display->buffer().get() : display->rightBuffer().get();
+        CHECK(output[y * CONFIG_DISPLAY_WIDTH + x] == display->fg);
+    }
+}
+
+TEST_CASE("Scoped fast indicator updates leave the background alone", "[stereo]") {
+    auto display = createDisplay();
+    int depth = GENERATE(0, -2, 2);
+    REQUIRE(display->setStereoDisparity(depth));
+    display->fillRect(20, 20, 1, 1, display->fg);
+    display->updateDisplay(DisplaySystem::UpdateType::FULL);
+    for (int repeat = 0; repeat < 5; ++repeat) {
+        display->fillRect(100, 100, 10, 10, display->fg);
+        display->updateDisplay(DisplaySystem::UpdateType::FAST_INDICATOR, true, 0,
+                               DisplaySystem::UpdateType::UNSPECIFIED, ScreenSide::Both,
+                               {{90, 90}, {30, 30}});
+        for (auto eye : {ScreenSide::Left, ScreenSide::Right}) {
+            int shift = DisplaySystem::eyeShift(eye, depth);
+            auto *output =
+                eye == ScreenSide::Left ? display->buffer().get() : display->rightBuffer().get();
+            CHECK(output[20 * CONFIG_DISPLAY_WIDTH + 20 + shift] == display->fg);
+            CHECK(output[100 * CONFIG_DISPLAY_WIDTH + 100 + shift] == display->fg);
+        }
+    }
+}
+
+TEST_CASE("Scoped indicator waveforms preserve faded background particles", "[stereo]") {
+    auto display = createDisplay();
+    display->setSkipWaveform(false);
+    bool darkMode = GENERATE(false, true);
+    display->invertDisplay(darkMode);
+    display->fillRect(20, 20, 1, 1, display->fg);
+    display->updateDisplay(DisplaySystem::UpdateType::FULL);
+    display->fillRect(100, 100, 10, 10, display->fg);
+    display->updateDisplay(DisplaySystem::UpdateType::FAST_INDICATOR);
+    auto faded = display->buffer()[20 * CONFIG_DISPLAY_WIDTH + 20];
+    CHECK(faded > 0);
+    CHECK(faded < 255);
+    for (int repeat = 0; repeat < 4; ++repeat) {
+        display->fillRect(100 + repeat, 100, 10, 10, display->fg);
+        display->updateDisplay(DisplaySystem::UpdateType::FAST_INDICATOR, true, 0,
+                               DisplaySystem::UpdateType::UNSPECIFIED, ScreenSide::Both,
+                               {{90, 90}, {30, 30}});
+        CHECK(display->buffer()[20 * CONFIG_DISPLAY_WIDTH + 20] == faded);
+        CHECK(display->rightBuffer()[20 * CONFIG_DISPLAY_WIDTH + 20] == faded);
+    }
+}
+
+TEST_CASE("Stereo depth persists in preferences", "[stereo]") {
+    auto tempPath = (std::filesystem::temp_directory_path() / "stereo-prefs-XXXXXX").string();
+    int fd = mkstemp(tempPath.data());
+    REQUIRE(fd >= 0);
+    REQUIRE(close(fd) == 0);
+    defer { std::filesystem::remove(tempPath); };
+    PreferencesStore prefs;
+    REQUIRE(prefs.begin(tempPath.c_str()));
+    prefs.stereoDisparity.set(-2);
+    PreferencesStore reloaded;
+    REQUIRE(reloaded.begin(tempPath.c_str()));
+    CHECK(reloaded.stereoDisparity.get() == -2);
+    reloaded.stereoDisparity.remove();
 }
 
 TEST_CASE("StereoTestScreen renders a separate image for each eye", "[stereo]") {
@@ -157,6 +298,30 @@ TEST_CASE("MenuView shifts selected item and indicator by selectedItemShift", "[
 }
 
 TEST_CASE("In-book menu preserves the page and restores mono on exit", "[stereo][book-menu]") {
+    class RecordingDisplay : public DisplayEinkET013TT1 {
+    public:
+        int backgroundRefreshes = 0;
+        std::vector<uint8_t> leftBackground;
+        std::vector<uint8_t> rightBackground;
+        SolRect indicatorRect = SolRect::zero();
+
+        void updateDisplay(UpdateType type = UNSPECIFIED, bool clear = true, int vcom = 0,
+                           UpdateType altType = UNSPECIFIED, ScreenSide eye = ScreenSide::Both,
+                           SolRect rect = SolRect::zero()) override {
+            if (type == PARTIAL) {
+                ++backgroundRefreshes;
+                auto size = CONFIG_DISPLAY_WIDTH * CONFIG_DISPLAY_HEIGHT / 8;
+                leftBackground.assign(gfxCanvas_.getBuffer(), gfxCanvas_.getBuffer() + size);
+                auto *right =
+                    rightCanvas_.has_value() ? rightCanvas_->getBuffer() : gfxCanvas_.getBuffer();
+                rightBackground.assign(right, right + size);
+            }
+            if (type == FAST_INDICATOR) {
+                indicatorRect = rect;
+            }
+            DisplayEinkET013TT1::updateDisplay(type, clear, vcom, altType, eye, rect);
+        }
+    };
     class TestReadableScreen : public ReadableScreen {
     public:
         using ReadableScreen::hidePopupMenu;
@@ -164,12 +329,20 @@ TEST_CASE("In-book menu preserves the page and restores mono on exit", "[stereo]
         using ReadableScreen::setCurrentScreen;
         using ReadableScreen::showPopupMenu;
         auto popup() -> std::shared_ptr<NewReadablePopupMenuScreen> { return popupMenuScreen_; }
+        void setAutopilotForTest(int speed, int lines) {
+            pageSpeed_ = speed;
+            speedLinesToSkip_ = lines;
+        }
+        auto skippedLines() const -> int { return speedLinesToSkip_; }
     };
 
     SetImagesFolder("Images");
     MockClock();
     defer { UnMockClock(); };
-    auto display = createDisplay();
+    auto display = std::make_shared<RecordingDisplay>();
+    display->setSkipWaveform(true);
+    display->setSkipSignalling(true);
+    REQUIRE(display->setup());
     bool darkMode = GENERATE(false, true);
     display->invertDisplay(darkMode);
     std::string imagePrefix = darkMode ? "Stereo/BookMenuDark" : "Stereo/BookMenu";
@@ -208,10 +381,35 @@ TEST_CASE("In-book menu preserves the page and restores mono on exit", "[stereo]
     popup->processCommand(RemoteCommand::DOWN);
     screen->render(*display);
     CHECK(popup->frame() == baseFrame);
+    CHECK(display->backgroundRefreshes == 1);
+    CHECK(display->indicatorRect.size.width > 0);
+    CHECK(display->indicatorRect.size.width < CONFIG_DISPLAY_WIDTH);
     ASSERT_STEREO_VIEW_UNCHANGED(display, imagePrefix + "Selected");
     popup->processCommand(RemoteCommand::RIGHT);
     screen->render(*display);
+    CHECK(display->backgroundRefreshes == 2);
     ASSERT_STEREO_VIEW_UNCHANGED(display, imagePrefix + "NextTab");
+
+    for (int tab = 0; tab < 8; ++tab) {
+        popup->processCommand(RemoteCommand::RIGHT);
+        screen->render(*display);
+        CHECK(display->backgroundRefreshes == tab + 3);
+        // The top book margin lies outside every popup page and must be restored in both eyes.
+        for (int x = 0; x < CONFIG_DISPLAY_WIDTH; ++x) {
+            int y = 25;
+            auto index = y * CONFIG_DISPLAY_WIDTH + x;
+            auto mask = 1 << (7 - index % 8);
+            CHECK(((display->leftBackground[index / 8] & mask) != 0) == (page[index] != 0));
+            CHECK(((display->rightBackground[index / 8] & mask) != 0) == (page[index] != 0));
+        }
+    }
+
+    prefs.firstAutopilotRead.set(true);
+    screen->setAutopilotForTest(1200, 4);
+    popup->processCommand(RemoteCommand::RIGHT);
+    screen->render(*display);
+    CHECK(screen->skippedLines() == 4);
+    screen->setAutopilotForTest(0, 0);
 
     screen->hidePopupMenu();
     REQUIRE_FALSE(display->stereoEnabled());

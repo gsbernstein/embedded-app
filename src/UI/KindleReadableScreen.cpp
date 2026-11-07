@@ -369,6 +369,11 @@ void KindleReadableScreen::drawInRect(SolRect rect) {
 void KindleReadableScreen::render(DisplaySystem &display) {
     // If we have a popup menu or other screen, let it handle rendering
     if (currentScreen_) {
+        if (currentScreen_ == popupMenuScreen_ && popupMenuScreen_->needsBackgroundRefresh()) {
+            popupMenuScreen_->releaseStereo();
+            setFrame(defaultFrameRect());
+            draw();
+        }
         log_d("Letting current screen (a popup menu) render KindleReadableScreen, state: %d",
               static_cast<int>(state_));
         currentScreen_->render(display);

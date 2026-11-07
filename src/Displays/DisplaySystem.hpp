@@ -143,6 +143,10 @@ public:
     // pixels in front of the screen plane (negative values recede behind it). Returns 0 for Both.
     static auto eyeShift(ScreenSide eye, int disparity) -> int16_t;
 
+    static constexpr int MAX_STEREO_DISPARITY = 4;
+    virtual auto setStereoDisparity(int disparity) -> bool { return disparity == 0; }
+    [[nodiscard]] virtual auto stereoDisparity() const -> int { return 0; }
+
     // Use `gfxClass` when you need to get direct access to the underlying buffer
     [[nodiscard]] auto gfxClass() const -> Adafruit_GFX * { return gfxClass_; }
 

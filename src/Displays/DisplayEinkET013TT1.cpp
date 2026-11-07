@@ -93,8 +93,71 @@ void DisplayEinkET013TT1::invertDisplay(bool newInvert) {
 void DisplayEinkET013TT1::driverUpdate(const EinkET013TT1Waveform &waveform, int32_t vcom,
                                        const EinkET013TT1Waveform &altWaveform, ScreenSide screen,
                                        EinkBox box) {
-    driver_.update(waveform, gfxCanvas_.getBuffer(), vcom, altWaveform, screen, box,
-                   rightCanvas_.has_value() ? rightCanvas_->getBuffer() : nullptr);
+    const uint8_t *left = gfxCanvas_.getBuffer();
+    const uint8_t *right = rightCanvas_.has_value() ? rightCanvas_->getBuffer() : left;
+    if (stereoDisparity_ != 0) {
+        auto shiftCanvas = [this](EyeCanvas &output, const uint8_t *input, ScreenSide eye) {
+            int16_t dx = eyeShift(eye, stereoDisparity_);
+            int16_t dy = 0;
+            switch (gfxCanvas_.getRotation()) {
+            case 1:
+                std::swap(dx, dy);
+                break;
+            case 2:
+                dx = -dx;
+                break;
+            case 3:
+                dy = -dx;
+                dx = 0;
+                break;
+            default:
+                break;
+            }
+            output.fillScreen(bg);
+            output.drawBitmap(dx, dy, input, CONFIG_DISPLAY_WIDTH, CONFIG_DISPLAY_HEIGHT, 1, 0);
+            return SolPoint{dx, dy};
+        };
+        auto leftShift = shiftCanvas(*shiftedLeftCanvas_, left, ScreenSide::Left);
+        auto rightShift = shiftCanvas(*shiftedRightCanvas_, right, ScreenSide::Right);
+        left = shiftedLeftCanvas_->getBuffer();
+        right = shiftedRightCanvas_->getBuffer();
+        if (box.rightX > box.leftX && box.bottomY > box.topY) {
+            box.leftX += std::min(leftShift.x, rightShift.x);
+            box.rightX += std::max(leftShift.x, rightShift.x);
+            box.topY += std::min(leftShift.y, rightShift.y);
+            box.bottomY += std::max(leftShift.y, rightShift.y);
+        }
+    }
+    driver_.update(waveform, left, vcom, altWaveform, screen, box, right);
+}
+
+auto DisplayEinkET013TT1::setStereoDisparity(int disparity) -> bool {
+    if (disparity < -MAX_STEREO_DISPARITY || disparity > MAX_STEREO_DISPARITY) {
+        log_e("Invalid stereo disparity: %d", disparity);
+        return false;
+    }
+    if (disparity == stereoDisparity_) {
+        return true;
+    }
+    if (disparity != 0 && !shiftedLeftCanvas_.has_value()) {
+        shiftedLeftCanvas_.emplace(CONFIG_DISPLAY_WIDTH, CONFIG_DISPLAY_HEIGHT);
+        shiftedRightCanvas_.emplace(CONFIG_DISPLAY_WIDTH, CONFIG_DISPLAY_HEIGHT);
+        if (shiftedLeftCanvas_->getBuffer() == nullptr ||
+            shiftedRightCanvas_->getBuffer() == nullptr) {
+            log_e("Not enough memory for global stereo frame buffers");
+            shiftedLeftCanvas_.reset();
+            shiftedRightCanvas_.reset();
+            return false;
+        }
+    }
+    if (disparity == 0) {
+        shiftedLeftCanvas_.reset();
+        shiftedRightCanvas_.reset();
+    }
+    stereoDisparity_ = disparity;
+    clearDisplay();
+    log_i("Global stereo disparity: %d pixels", disparity);
+    return true;
 }
 
 void DisplayEinkET013TT1::clearFrameBuffer() {
@@ -314,6 +377,16 @@ void DisplayEinkET013TT1::updateDisplay(DisplaySystem::UpdateType updateType, bo
         break;
     case FAST_INDICATOR:
         if (!fullRefreshNext_) {
+            auto indicatorWaveform = getInversion() ? BC_INVERTED_EINK_10_13C_WAVEFORM_AU4
+                                                    : BC_REGULAR_EINK_10_13C_WAVEFORM_AU4;
+            int indicatorVcom = adjustedVcom + (getInversion() ? -2000 : 2000);
+            if (altRect.size.width > 0 && altRect.size.height > 0) {
+                // NOLINTNEXTLINE(readability-suspicious-call-argument) - only drive inside the box.
+                driverUpdate(BC_WAVEFORM_NONE, indicatorVcom, indicatorWaveform, screen,
+                             {altRect.origin.x, altRect.origin.x + altRect.size.width,
+                              altRect.origin.y, altRect.origin.y + altRect.size.height});
+                break;
+            }
             if (getInversion()) {
                 driverUpdate(BC_INVERTED_EINK_10_13C_WAVEFORM_AU4, adjustedVcom - 2000,
                              BC_WAVEFORM_NONE, screen);

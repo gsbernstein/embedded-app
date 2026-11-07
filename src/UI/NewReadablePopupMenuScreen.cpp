@@ -1,8 +1,10 @@
 #include "UI/NewReadablePopupMenuScreen.hpp"
 
+#include <algorithm>
+#include <cstdlib>
+
 namespace {
 constexpr int MENU_DISPARITY = 1;
-constexpr int SELECTED_DISPARITY = 2;
 } // namespace
 
 NewReadablePopupMenuScreen::~NewReadablePopupMenuScreen() { releaseStereo(); }
@@ -130,18 +132,15 @@ void NewReadablePopupMenuScreen::drawInRect(SolRect rect) {
 
 void NewReadablePopupMenuScreen::drawForEye(ScreenSide eye, bool fastOnly) {
     int16_t cardShift = DisplaySystem::eyeShift(eye, MENU_DISPARITY);
-    int16_t selectedShift = DisplaySystem::eyeShift(eye, SELECTED_DISPARITY);
 
     auto baseFrame = frame();
     setFrame(baseFrame.offset({cardShift, 0}));
-    menuView_.setSelectedItemShift(selectedShift - cardShift);
     if (fastOnly) {
         menuView_.drawFastElements();
     } else {
         draw();
     }
 
-    menuView_.setSelectedItemShift(0);
     setFrame(baseFrame);
 }
 
@@ -209,7 +208,8 @@ void NewReadablePopupMenuScreen::render(DisplaySystem &display) {
 
     display.drawForEachEye([this](ScreenSide eye) { drawForEye(eye); });
 
-    if (firstLoad_) {
+    bool refreshBackground = firstLoad_;
+    if (refreshBackground) {
         firstLoad_ = false;
         display.updateDisplay(DisplaySystem::UpdateType::PARTIAL, true);
         // Redraw but this time without the text (since updateDisplay will clear the screen)
@@ -217,5 +217,14 @@ void NewReadablePopupMenuScreen::render(DisplaySystem &display) {
     }
 
     display.drawForEachEye([this](ScreenSide eye) { drawForEye(eye, true); });
-    display.updateDisplay(DisplaySystem::UpdateType::FAST_INDICATOR);
+    auto updateRect = SolRect::zero();
+    if (!refreshBackground) {
+        updateRect = popupMenuBackground_.screenFrame();
+        auto leftShift = DisplaySystem::eyeShift(ScreenSide::Left, MENU_DISPARITY);
+        auto rightShift = DisplaySystem::eyeShift(ScreenSide::Right, MENU_DISPARITY);
+        updateRect.origin.x += std::min(leftShift, rightShift);
+        updateRect.size.width += std::abs(leftShift - rightShift);
+    }
+    display.updateDisplay(DisplaySystem::UpdateType::FAST_INDICATOR, true, 0,
+                          DisplaySystem::UpdateType::UNSPECIFIED, ScreenSide::Both, updateRect);
 }

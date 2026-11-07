@@ -56,6 +56,8 @@ public:
     auto setStereoEnabled(bool enabled) -> bool override;
     [[nodiscard]] auto stereoEnabled() const -> bool override { return rightCanvas_.has_value(); }
     void setDrawEye(ScreenSide eye) override;
+    auto setStereoDisparity(int disparity) -> bool override;
+    [[nodiscard]] auto stereoDisparity() const -> int override { return stereoDisparity_; }
     void invertDisplay(bool newInvert) override;
 
     // For those moments where you need to expose the driver directly
@@ -110,6 +112,9 @@ protected:
     GFXcanvas1 gfxCanvas_;
     // Frame buffer for the right eye, only allocated while in stereo
     std::optional<EyeCanvas> rightCanvas_;
+    std::optional<EyeCanvas> shiftedLeftCanvas_;
+    std::optional<EyeCanvas> shiftedRightCanvas_;
+    int stereoDisparity_ = 0;
     // The canvas currently being drawn to (gfxClass_ points at it as well)
     GFXcanvas1 *drawCanvas_ = &gfxCanvas_;
     EinkET013TT1 driver_;

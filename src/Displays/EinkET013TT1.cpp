@@ -424,7 +424,7 @@ void EinkET013TT1::updateInternal(const EinkET013TT1Waveform &waveform, const ui
             }
 
             // 0 on the gates is lower left, but we want to do everything based on upper left
-            uint8_t y = CONFIG_DISPLAY_WIDTH - gate % CONFIG_DISPLAY_WIDTH;
+            uint8_t y = CONFIG_DISPLAY_WIDTH - 1 - gate % CONFIG_DISPLAY_WIDTH;
             uint8_t xStart = (gate / CONFIG_DISPLAY_WIDTH) * CONFIG_DISPLAY_WIDTH / 2;
 
             const uint8_t *leftNew = &(leftBuffer[bufferIndex]);

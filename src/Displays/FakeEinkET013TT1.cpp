@@ -69,6 +69,10 @@ void EinkET013TT1::update(const EinkET013TT1Waveform &waveform, const uint8_t *b
             }
             for (int x = 0; x < CONFIG_DISPLAY_WIDTH; x++) {
                 for (int y = 0; y < CONFIG_DISPLAY_HEIGHT; y++) {
+                    const auto &pixelWaveform = box.contains(x, y) ? altWaveform : waveform;
+                    if (pixelWaveform.frameCount == 0) {
+                        continue;
+                    }
                     auto pixel = getPixel(eye.newBuffer, x, y);
                     eye.particles[y * CONFIG_DISPLAY_WIDTH + x] = pixel * 255;
                 }
@@ -125,7 +129,9 @@ void EinkET013TT1::update(const EinkET013TT1Waveform &waveform, const uint8_t *b
 
             // This doesn't account for processing time above, but probably real CPUs are fast
             // enough it doesn't matter?
-            Delay(1000 / framerate_);
+            if (!skipSignalling_) {
+                Delay(1000 / framerate_);
+            }
         }
 
         // Move new buffers to be previous buffers

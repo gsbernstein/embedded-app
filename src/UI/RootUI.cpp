@@ -177,6 +177,11 @@ void RootUI::showTemporaryMessage(const std::string &msg, const std::function<vo
 void RootUI::setup(LocalStore &localStore, FileSystem &fileSystem,
                    LightingController &lightingController) {
 
+    int disparity = prefs_.stereoDisparity.get().value_or(0);
+    if (!display_.setStereoDisparity(disparity)) {
+        showTemporaryMessage("Could not apply the saved stereo depth.");
+    }
+
     auto lastMagReading = power_.getLastMagReading();
 
     HEAP_PROFILE_START(rootUILogBootData);
@@ -1232,6 +1237,34 @@ void RootUI::setup(LocalStore &localStore, FileSystem &fileSystem,
                 }));
 #endif
 
+            if (display_.supportsStereo()) {
+                systemSettingsMenu->addMenuItem(
+                    std::make_shared<MenuItemSingleLine>("Stereo Depth", [this]() {
+                    auto stereoMenu =
+                        std::make_shared<GenericSettingsMenuScreen>(display_, "System");
+                    stereoMenu->setBackCallback([this]() { this->popScreen(); });
+                    for (int depth = -DisplaySystem::MAX_STEREO_DISPARITY;
+                         depth <= DisplaySystem::MAX_STEREO_DISPARITY; ++depth) {
+                        std::string title = depth == 0
+                                                ? "0 px (off)"
+                                                : StringFormat("%+d px (%s)", depth,
+                                                               depth > 0 ? "forward" : "back");
+                        stereoMenu->addMenuItem(
+                            std::make_shared<MenuItemCheckable>(title, [this, depth]() {
+                            if (!display_.setStereoDisparity(depth)) {
+                                showTemporaryMessage("Could not change stereo depth.");
+                                return;
+                            }
+                            prefs_.stereoDisparity.set(depth);
+                            setNeedsRerender();
+                        }, [this, depth]() { return display_.stereoDisparity() == depth; }));
+                    }
+                    stereoMenu->setSelectedIndex(display_.stereoDisparity() +
+                                                 DisplaySystem::MAX_STEREO_DISPARITY);
+                    pushScreen(stereoMenu);
+                }));
+            }
+
             systemSettingsMenu->addMenuItem(
                 std::make_shared<MenuItemSingleLine>("Legal & Regulatory", [this]() {
                     auto legalScreen = std::make_shared<LegalScreen>(display_, prefs_, power_);
@@ -1481,6 +1514,14 @@ void RootUI::setup(LocalStore &localStore, FileSystem &fileSystem,
 
                 debugSettingsMenu->setBackCallback([this]() { this->popScreen(); });
 
+                debugSettingsMenu->addMenuItem(
+                    std::make_shared<MenuItemSingleLine>("Stereo Test", [this]() {
+                    auto stereoTestScreen = std::make_shared<StereoTestScreen>(display_);
+                    display_.clearDisplay();
+                    this->pushScreen(stereoTestScreen);
+                    stereoTestScreen->setBackCallback([this]() { this->popScreen(false); });
+                }));
+
 #if CONFIG_USE_TURN_TOUCH_REMOTE
                 debugSettingsMenu->addMenuItem(
                     std::make_shared<MenuItemSingleLine>("Unpair PageTurner", [this]() {
@@ -1601,14 +1642,6 @@ void RootUI::setup(LocalStore &localStore, FileSystem &fileSystem,
                         this->pushScreen(opticsTestScreen);
                         opticsTestScreen->setBackCallback([this]() { this->popScreen(false); });
                     }));
-
-                debugSettingsMenu->addMenuItem(std::make_shared<MenuItemSingleLine>("Stereo Test",
-                                                                                    [this]() {
-                    auto stereoTestScreen = std::make_shared<StereoTestScreen>(display_);
-                    display_.clearDisplay();
-                    this->pushScreen(stereoTestScreen);
-                    stereoTestScreen->setBackCallback([this]() { this->popScreen(false); });
-                }));
 
                 SHOW_HEAP();
 

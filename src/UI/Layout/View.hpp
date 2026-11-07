@@ -17,6 +17,7 @@ public:
 
     // Getter and setter for the frame
     [[nodiscard]] auto frame() const -> SolRect { return layoutContext_.frame(); }
+    [[nodiscard]] auto screenFrame() const -> SolRect { return layoutContext_.screenFrame(); }
     void setFrame(const SolRect &frame) { layoutContext_.setFrame(frame); }
 
     // Virtual method for drawing the contents of the view inside a provided rect. Typically not

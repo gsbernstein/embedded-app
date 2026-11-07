@@ -99,10 +99,24 @@ Issues that will be fixed automatically will be fixed by clang-tidy, warnings wi
 
 ### Stereoscopic in-book menu
 
-On the glasses, the in-book popup sits 1 pixel in front of the book plane. The selected
-item and its indicator sit at 2 pixels of disparity. Closing the popup or opening another
-screen returns to normal, identical images in both eyes. This applies to all popup tabs
+On the glasses, the entire in-book popup sits 1 pixel in front of the book plane.
+Selected items stay at the same depth to avoid ghosting from moving text. The book background
+is restored before each popup page is faded, and selection updates only drive the popup area.
+Closing the popup or opening another screen removes the popup's extra depth. This applies to all popup tabs
 and works in both light and dark mode without inverted selection backgrounds.
+
+System → Stereo Depth adds a persistent offset to the entire interface, including reading.
+Choose −4 to +4 pixels; positive values move forward, negative values move back, and 0 is off
+(the default). Popup and demo depth is added to this global offset. Shifted edge pixels are
+clipped and exposed edges use the current background color. Stereo Test is the first Debug item.
+
+Stereo does not add an animation timer or keep the panels powered between updates.
+The driver retains one extra 8 KiB previous-image buffer even when stereo is off; a stereo
+screen allocates an additional 8 KiB drawing buffer only while active. A nonzero global
+offset allocates two 8 KiB output buffers, released when set to zero, and shifts images only
+at display updates. Differing half-lines require separate per-eye SPI transfers rather than
+one broadcast, so active stereo adds update-time CPU/SPI work. The waveform count is unchanged;
+exact battery impact requires measuring current on the glasses.
 
 In the default simulator, press `v` to cycle between the left eye, right eye,
 red/cyan anaglyph, and cross-eyed side-by-side views.
