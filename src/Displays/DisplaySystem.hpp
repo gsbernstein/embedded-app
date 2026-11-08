@@ -143,7 +143,7 @@ public:
     // pixels in front of the screen plane (negative values recede behind it). Returns 0 for Both.
     static auto eyeShift(ScreenSide eye, int disparity) -> int16_t;
 
-    static constexpr int MAX_STEREO_DISPARITY = 4;
+    static constexpr int MAX_STEREO_DISPARITY = 16;
     virtual auto setStereoDisparity(int disparity) -> bool { return disparity == 0; }
     [[nodiscard]] virtual auto stereoDisparity() const -> int { return 0; }
 

@@ -106,7 +106,7 @@ Closing the popup or opening another screen removes the popup's extra depth. Thi
 and works in both light and dark mode without inverted selection backgrounds.
 
 System → Stereo Depth adds a persistent offset to the entire interface, including reading.
-Choose −4 to +4 pixels; positive values move forward, negative values move back, and 0 is off
+Choose −16 to +16 pixels; positive values move forward, negative values move back, and 0 is off
 (the default). Popup and demo depth is added to this global offset. Shifted edge pixels are
 clipped and exposed edges use the current background color. Stereo Test is the first Debug item.
 
