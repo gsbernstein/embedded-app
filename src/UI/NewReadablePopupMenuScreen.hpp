@@ -42,7 +42,9 @@ public:
     void drawInRect(SolRect rect) override;
 
     void releaseStereo();
-    [[nodiscard]] auto needsBackgroundRefresh() const -> bool { return firstLoad_; }
+    [[nodiscard]] auto needsBackgroundRefresh() const -> bool { return true; }
+    void addSystemTab(const std::function<void(const std::shared_ptr<Screen> &)> &showScreen,
+                      const std::function<void()> &backToText);
 
     void setUpPopupMenu();
 
@@ -63,6 +65,7 @@ protected:
     void drawForEye(ScreenSide eye, bool fastOnly = false);
 
     bool stereoActive_ = false;
+    int menuDepth_ = 1;
     DisplaySystem &display_;
     PreferencesStore &prefs_;
     std::shared_ptr<Readable> readable_;

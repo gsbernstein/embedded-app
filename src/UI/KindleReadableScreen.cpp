@@ -241,6 +241,9 @@ KindleReadableScreen::KindleReadableScreen(DisplaySystem &display,
 
     popupMenuScreen_->addTab("Popup", popupNavigationFactory, 8);
     popupMenuScreen_->addTab("Style", popupStyleFactory, 8);
+    popupMenuScreen_->addSystemTab(
+        [this](const std::shared_ptr<Screen> &screen) { setCurrentScreen(screen); },
+        [this]() { setCurrentScreen(nullptr); });
     popupMenuScreen_->populateMenuView();
 }
 
@@ -431,6 +434,13 @@ void KindleReadableScreen::processCommand(RemoteCommand command) {
         break;
     case RemoteCommand::BACK:
     case RemoteCommand::UP:
+        if (command == RemoteCommand::UP && prefs_.altPageAdvance.get().value_or(0) != 0 &&
+            (state_ == State::DISPLAY_CONTENT || state_ == State::DISPLAY_PARTIAL_CONTENT)) {
+            navigateNext();
+            break;
+        }
+        showPopupMenu();
+        break;
     case RemoteCommand::DOWN:
         showPopupMenu();
         break;

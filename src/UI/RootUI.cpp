@@ -1238,29 +1238,11 @@ void RootUI::setup(LocalStore &localStore, FileSystem &fileSystem,
 #endif
 
             if (display_.supportsStereo()) {
-                systemSettingsMenu->addMenuItem(
-                    std::make_shared<MenuItemSingleLine>("Stereo Depth", [this]() {
+                systemSettingsMenu->addMenuItem(std::make_shared<MenuItemSingleLine>("Stereo Depth",
+                                                                                     [this]() {
                     auto stereoMenu =
-                        std::make_shared<GenericSettingsMenuScreen>(display_, "System");
+                        GenericSettingsMenuScreen::stereoDepthMenu(display_, prefs_, "System");
                     stereoMenu->setBackCallback([this]() { this->popScreen(); });
-                    for (int depth = -DisplaySystem::MAX_STEREO_DISPARITY;
-                         depth <= DisplaySystem::MAX_STEREO_DISPARITY; ++depth) {
-                        std::string title = depth == 0
-                                                ? "0 px (off)"
-                                                : StringFormat("%+d px (%s)", depth,
-                                                               depth > 0 ? "forward" : "back");
-                        stereoMenu->addMenuItem(
-                            std::make_shared<MenuItemCheckable>(title, [this, depth]() {
-                            if (!display_.setStereoDisparity(depth)) {
-                                showTemporaryMessage("Could not change stereo depth.");
-                                return;
-                            }
-                            prefs_.stereoDisparity.set(depth);
-                            setNeedsRerender();
-                        }, [this, depth]() { return display_.stereoDisparity() == depth; }));
-                    }
-                    stereoMenu->setSelectedIndex(display_.stereoDisparity() +
-                                                 DisplaySystem::MAX_STEREO_DISPARITY);
                     pushScreen(stereoMenu);
                 }));
             }

@@ -496,11 +496,34 @@ ReadableScreen::ReadableScreen(const std::shared_ptr<RendererStream> &stream,
         display, prefs, fileSystem, readable, lightingController, renderer_, telemetry_, localStore,
         stream_);
 
-    popupMenuScreen_->addTab("Popup", popupNavigationFactory, 8);
-
-    popupMenuScreen_->addTab("Context", popupContextFactory, 8);
+    popupMenuScreen_->addTab(
+        "Popup",
+        [popupNavigationFactory, popupContextFactory]() {
+        auto navigation = popupNavigationFactory();
+        auto context = popupContextFactory();
+        auto back = navigation->back();
+        navigation->pop_back();
+        auto insertAt = navigation->begin() + 2;
+        for (const auto &item : *context) {
+            if (item->id() == "Bookmark" || item->id() == "History") {
+                insertAt = navigation->insert(insertAt, item) + 1;
+            }
+        }
+        for (const auto &item : *context) {
+            if (item->id() != "Back to Text" && item->id() != "Bookmark" &&
+                item->id() != "History") {
+                navigation->push_back(item);
+            }
+        }
+        navigation->push_back(back);
+        return navigation;
+        },
+        8);
 
     popupMenuScreen_->addTab("Style", popupStyleFactory, 8);
+    popupMenuScreen_->addSystemTab(
+        [this](const std::shared_ptr<Screen> &screen) { setCurrentScreen(screen); },
+        [this]() { setCurrentScreen(nullptr); });
 
     popupMenuScreen_->populateMenuView();
 
@@ -681,8 +704,9 @@ void ReadableScreen::turnPage() {
         showPopupMenu();
 
         // See the layout in popupNavigationFactory to ensure this is still the right setting.
-        // Selects Delete/Archive, which shifts up a row when Autopilot is hidden.
-        popupMenuScreen_->setTabWithName("Popup", CONFIG_SHOW_STOCK_SOL_UI ? 3 : 2);
+        // Bookmark and History precede Delete/Archive; hiding Autopilot shifts it up a row.
+        popupMenuScreen_->setTabWithName("Popup", CONFIG_SHOW_STOCK_SOL_UI ? 5 : 4);
+        popupMenuScreen_->setNeedsLayout();
     } else {
         readable_->placePrev = readable_->place;
         readable_->place = newPlace_;
@@ -698,14 +722,7 @@ auto ReadableScreen::checkAtEnd() -> bool { return renderer_.atEndOfFile(); }
 
 void ReadableScreen::render(DisplaySystem &display) {
 
-    // Rendering the popup is a special case. We first re-draw the text onto the background
-    // (since it would have been cleared at the end of the last updateDisplay), then we render
-    // the popup over it, then we draw that as a partial refresh. Then we only render the popup
-    // (no text) and update again as AU4. That causes the text to be slightly faded out, but the
-    // popup menu to be very clear. NOTE: We might consider in the future, not always clearing
-    // the display (`fillScreen(bg);`) after updateDisplay. Then we could simply draw over
-    // existing screen contents without rerendering it. But that would be a pretty global
-    // change, so we'll leave it for now.
+    // Restore the book before composing the popup, without advancing reading state.
     bool renderPopupBackground = currentScreen_ == popupMenuScreen_ && popupMenuScreen_ &&
                                  (renderPopup_ || popupMenuScreen_->needsBackgroundRefresh());
     if (renderPopupBackground) {
@@ -1083,6 +1100,13 @@ void ReadableScreen::processCommand(RemoteCommand command) {
         if (currentScreen_ && currentScreen_->needsRerender()) {
             setNeedsRerender();
         }
+        return;
+    }
+
+    if (command == RemoteCommand::UP && prefs_.altPageAdvance.get().value_or(0) != 0) {
+        lastArrowPress_ = REMOTE_RIGHT;
+        turnPage();
+        setNeedsRerender();
         return;
     }
 

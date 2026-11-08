@@ -3,9 +3,46 @@
 #include <algorithm>
 #include <cstdlib>
 
-namespace {
-constexpr int MENU_DISPARITY = 1;
-} // namespace
+#include "UI/Menu/GenericSettingsMenuScreen.hpp"
+#include "UI/Menu/MenuItemCheckable.hpp"
+#include "UI/Menu/MenuItemSingleLine.hpp"
+
+void NewReadablePopupMenuScreen::addSystemTab(
+    const std::function<void(const std::shared_ptr<Screen> &)> &showScreen,
+    const std::function<void()> &backToText) {
+    addTab(
+        "System",
+        [this, showScreen, backToText]() {
+        auto items = std::make_shared<MenuItemVector>();
+        for (bool menuDepth : {true, false}) {
+            items->push_back(
+                std::make_shared<MenuItemSingleLine>(menuDepth ? "Menu Depth" : "Global Depth",
+                                                     [this, showScreen, backToText, menuDepth]() {
+                auto menu = GenericSettingsMenuScreen::stereoDepthMenu(display_, prefs_,
+                                                                       "Back to Text", menuDepth);
+                menu->setBackCallback(backToText);
+                showScreen(menu);
+                }));
+        }
+        items->push_back(std::make_shared<MenuItemCheckable>(
+            "Alt Page Advance",
+            [this]() {
+            prefs_.altPageAdvance.set(prefs_.altPageAdvance.get().value_or(0) == 0 ? 1 : 0);
+            setNeedsRerender();
+            },
+            [this]() { return prefs_.altPageAdvance.get().value_or(0) != 0; }));
+        items->push_back(std::make_shared<MenuItemCheckable>(
+            "Fast Transitions",
+            [this]() {
+            prefs_.fastTransitions.set(!prefs_.fastTransitions.get().value_or(false));
+            setNeedsRerender();
+            },
+            [this]() { return prefs_.fastTransitions.get().value_or(false); }));
+        items->push_back(std::make_shared<MenuItemSingleLine>("Back to Text", backToText));
+        return items;
+        },
+        8);
+}
 
 NewReadablePopupMenuScreen::~NewReadablePopupMenuScreen() { releaseStereo(); }
 
@@ -94,7 +131,8 @@ void NewReadablePopupMenuScreen::setUpPopupMenu() {
         // If fallback is suppressed and no explicit pages, don't show anything
     }
 
-    if (showPageIndicators_) {
+    bool showFooter = getCurrentTabTitle() != "Style" && getCurrentTabTitle() != "System";
+    if (showFooter && showPageIndicators_) {
         if (!chapterPagesRemainingString.empty()) {
             footer1TextView_.setText(chapterPagesRemainingString);
         }
@@ -104,7 +142,7 @@ void NewReadablePopupMenuScreen::setUpPopupMenu() {
     }
 
     SolClock &theClock = SolClock::getInstance();
-    if (theClock.isValidTime()) {
+    if (showFooter && theClock.isValidTime()) {
         auto timeString = theClock.getTimeString();
         footer3TextView_.setText(timeString);
     }
@@ -131,7 +169,7 @@ void NewReadablePopupMenuScreen::drawInRect(SolRect rect) {
 }
 
 void NewReadablePopupMenuScreen::drawForEye(ScreenSide eye, bool fastOnly) {
-    int16_t cardShift = DisplaySystem::eyeShift(eye, MENU_DISPARITY);
+    int16_t cardShift = DisplaySystem::eyeShift(eye, menuDepth_);
 
     auto baseFrame = frame();
     setFrame(baseFrame.offset({cardShift, 0}));
@@ -186,11 +224,10 @@ auto NewReadablePopupMenuScreen::layout(LayoutContext &context, SolSize size) ->
                 y += footer3Rect.size.height;
             }
 
-            // We are hardcoding a width here because we have 3 different tabs and each has a
-            // differnt width so doing it dynamically would make the bounding box width jump around
-            // when you go left and right bewteen tabs. And the y+1 is to give just a bit more space
-            // in the bottom for weighting visually.
-            return {size.width * 5 / 9 - 18, y + 1};
+            // Keep widths stable within each tab, with more room for System setting labels.
+            int width = getCurrentTabTitle() == "System" ? size.width * 3 / 4 - 18
+                                                         : size.width * 5 / 9 - 18;
+            return {width, y + 1};
         });
 
     auto foregroundFrame = context.setViewFrame(popupMenuForeground_, contentFrame.inset(-5, -10));
@@ -201,7 +238,14 @@ auto NewReadablePopupMenuScreen::layout(LayoutContext &context, SolSize size) ->
 }
 
 void NewReadablePopupMenuScreen::render(DisplaySystem &display) {
-    stereoActive_ = display.setStereoEnabled(true);
+    auto oldTime = footer3TextView_.getText();
+    setUpPopupMenu();
+    if (oldTime != footer3TextView_.getText()) {
+        firstLoad_ = true;
+    }
+    menuDepth_ =
+        std::clamp(prefs_.menuDisparity.get().value_or(1), 0, DisplaySystem::MAX_MENU_DISPARITY);
+    stereoActive_ = menuDepth_ != 0 && display.setStereoEnabled(true);
 
     setFrame(defaultFrameRect());
     layoutIfNeeded();
@@ -211,17 +255,21 @@ void NewReadablePopupMenuScreen::render(DisplaySystem &display) {
     bool refreshBackground = firstLoad_;
     if (refreshBackground) {
         firstLoad_ = false;
-        display.updateDisplay(DisplaySystem::UpdateType::PARTIAL, true);
+        display.updateDisplay(menuDepth_ != 0 ? DisplaySystem::UpdateType::FULL
+                                              : DisplaySystem::UpdateType::PARTIAL,
+                              menuDepth_ == 0);
         // Redraw but this time without the text (since updateDisplay will clear the screen)
-        display.drawForEachEye([this](ScreenSide eye) { drawForEye(eye); });
+        if (menuDepth_ == 0) {
+            display.drawForEachEye([this](ScreenSide eye) { drawForEye(eye); });
+        }
     }
 
     display.drawForEachEye([this](ScreenSide eye) { drawForEye(eye, true); });
     auto updateRect = SolRect::zero();
-    if (!refreshBackground) {
+    if (!refreshBackground || menuDepth_ != 0) {
         updateRect = popupMenuBackground_.screenFrame();
-        auto leftShift = DisplaySystem::eyeShift(ScreenSide::Left, MENU_DISPARITY);
-        auto rightShift = DisplaySystem::eyeShift(ScreenSide::Right, MENU_DISPARITY);
+        auto leftShift = DisplaySystem::eyeShift(ScreenSide::Left, menuDepth_);
+        auto rightShift = DisplaySystem::eyeShift(ScreenSide::Right, menuDepth_);
         updateRect.origin.x += std::min(leftShift, rightShift);
         updateRect.size.width += std::abs(leftShift - rightShift);
     }

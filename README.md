@@ -99,16 +99,24 @@ Issues that will be fixed automatically will be fixed by clang-tidy, warnings wi
 
 ### Stereoscopic in-book menu
 
-On the glasses, the entire in-book popup sits 1 pixel in front of the book plane.
-Selected items stay at the same depth to avoid ghosting from moving text. The book background
-is restored before each popup page is faded, and selection updates only drive the popup area.
+On the glasses, the entire in-book popup defaults to 1 pixel in front of the book plane.
+Selected items stay at the same depth to avoid ghosting from moving text. When menu depth is
+enabled, the book remains unfaded; selection updates only drive the popup area.
 Closing the popup or opening another screen removes the popup's extra depth. This applies to all popup tabs
 and works in both light and dark mode without inverted selection backgrounds.
 
 System → Stereo Depth adds a persistent offset to the entire interface, including reading.
-Choose −16 to +16 pixels; positive values move forward, negative values move back, and 0 is off
+Choose −64 to +64 pixels in steps of four; positive values move forward, negative values move back, and 0 is off
 (the default). Popup and demo depth is added to this global offset. Shifted edge pixels are
 clipped and exposed edges use the current background color. Stereo Test is the first Debug item.
+
+The in-book Popup tab includes Bookmark and History. Style and System omit the page/time footer.
+System offers Menu Depth (0–4 pixels, default 1), Global Depth, and Fast Transitions.
+Alt Page Advance (off by default) makes Up advance the reading page instead of opening
+the popup, including Kindle reading. Down/Back still open the menu, and Up inside menus
+still moves the selection normally.
+Depth selections apply immediately. The clock updates on existing menu redraws without a timer.
+Setting Menu Depth to zero restores the faded-background presentation.
 
 Stereo does not add an animation timer or keep the panels powered between updates.
 The driver retains one extra 8 KiB previous-image buffer even when stereo is off; a stereo

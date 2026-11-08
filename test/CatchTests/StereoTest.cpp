@@ -18,8 +18,10 @@
 #undef private
 
 #include "UI/ReadableScreen.hpp"
+#include "UI/Menu/GenericSettingsMenuScreen.hpp"
 
 extern Telemetry telemetry;
+extern int simulatorTestMinutes;
 
 TEST_CASE("eyeShift splits disparity between the eyes", "[stereo]") {
     for (int disparity = -5; disparity <= 5; disparity++) {
@@ -29,6 +31,30 @@ TEST_CASE("eyeShift splits disparity between the eyes", "[stereo]") {
               disparity);
         CHECK(DisplaySystem::eyeShift(ScreenSide::Both, disparity) == 0);
     }
+}
+
+TEST_CASE("Stereo depth selection applies and rerenders immediately", "[stereo]") {
+    auto display = createDisplay();
+    PreferencesStore prefs;
+    REQUIRE(prefs.begin(""));
+    auto menu = GenericSettingsMenuScreen::stereoDepthMenu(*display, prefs, "System");
+    menu->render(*display);
+    menu->clearNeedsRerender();
+    menu->setSelectedIndex(DisplaySystem::MAX_STEREO_DISPARITY /
+                               DisplaySystem::STEREO_DISPARITY_STEP + 1);
+    menu->render(*display);
+    menu->clearNeedsRerender();
+    menu->processCommand(RemoteCommand::ENTER);
+    CHECK(display->stereoDisparity() == 4);
+    CHECK(menu->needsRerender());
+    menu->render(*display);
+    CHECK(prefs.stereoDisparity.get() == 4);
+    prefs.stereoDisparity.remove();
+    auto menuDepth = GenericSettingsMenuScreen::stereoDepthMenu(*display, prefs, "System", true);
+    menuDepth->setSelectedIndex(4);
+    menuDepth->processCommand(RemoteCommand::ENTER);
+    CHECK(prefs.menuDisparity.get() == 4);
+    prefs.menuDisparity.remove();
 }
 
 TEST_CASE("Global stereo offsets output without changing drawing canvases", "[stereo]") {
@@ -308,7 +334,7 @@ TEST_CASE("In-book menu preserves the page and restores mono on exit", "[stereo]
         void updateDisplay(UpdateType type = UNSPECIFIED, bool clear = true, int vcom = 0,
                            UpdateType altType = UNSPECIFIED, ScreenSide eye = ScreenSide::Both,
                            SolRect rect = SolRect::zero()) override {
-            if (type == PARTIAL) {
+            if (type == FULL && stereoEnabled()) {
                 ++backgroundRefreshes;
                 auto size = CONFIG_DISPLAY_WIDTH * CONFIG_DISPLAY_HEIGHT / 8;
                 leftBackground.assign(gfxCanvas_.getBuffer(), gfxCanvas_.getBuffer() + size);
@@ -329,6 +355,7 @@ TEST_CASE("In-book menu preserves the page and restores mono on exit", "[stereo]
         using ReadableScreen::setCurrentScreen;
         using ReadableScreen::showPopupMenu;
         auto popup() -> std::shared_ptr<NewReadablePopupMenuScreen> { return popupMenuScreen_; }
+        auto popupOpen() const -> bool { return currentScreen_ == popupMenuScreen_; }
         void setAutopilotForTest(int speed, int lines) {
             pageSpeed_ = speed;
             speedLinesToSkip_ = lines;
@@ -340,7 +367,7 @@ TEST_CASE("In-book menu preserves the page and restores mono on exit", "[stereo]
     MockClock();
     defer { UnMockClock(); };
     auto display = std::make_shared<RecordingDisplay>();
-    display->setSkipWaveform(true);
+    display->setSkipWaveform(false);
     display->setSkipSignalling(true);
     REQUIRE(display->setup());
     bool darkMode = GENERATE(false, true);
@@ -352,6 +379,8 @@ TEST_CASE("In-book menu preserves the page and restores mono on exit", "[stereo]
     prefs.firstRead.set(true);
     prefs.autoPilotSpeed.set(0);
     prefs.noShowPartialChapterSummary.set(true);
+    prefs.menuDisparity.set(1);
+    prefs.altPageAdvance.set(0);
     PosixFileSystem fileSystem("./test/CatchTests/TestData");
     // Use the app's persistent telemetry instance: callbacks can run when a later test starts
     // FreeRTOS, after this synchronous rendering fixture has been destroyed.
@@ -389,11 +418,22 @@ TEST_CASE("In-book menu preserves the page and restores mono on exit", "[stereo]
     screen->render(*display);
     CHECK(display->backgroundRefreshes == 2);
     ASSERT_STEREO_VIEW_UNCHANGED(display, imagePrefix + "NextTab");
+    CHECK(popup->getCurrentTabTitle() == "Style");
+    popup->processCommand(RemoteCommand::RIGHT);
+    screen->render(*display);
+    CHECK(popup->getCurrentTabTitle() == "System");
+    ASSERT_STEREO_VIEW_UNCHANGED(display, imagePrefix + "System");
+    popup->processCommand(RemoteCommand::RIGHT);
+    screen->render(*display);
+    CHECK(popup->getCurrentTabTitle() == "Popup");
+    CHECK(popup->isMenuIDInTab("Popup", "Bookmark"));
+    CHECK(popup->isMenuIDInTab("Popup", "History"));
 
+    int refreshes = display->backgroundRefreshes;
     for (int tab = 0; tab < 8; ++tab) {
         popup->processCommand(RemoteCommand::RIGHT);
         screen->render(*display);
-        CHECK(display->backgroundRefreshes == tab + 3);
+        CHECK(display->backgroundRefreshes == tab + refreshes + 1);
         // The top book margin lies outside every popup page and must be restored in both eyes.
         for (int x = 0; x < CONFIG_DISPLAY_WIDTH; ++x) {
             int y = 25;
@@ -401,6 +441,8 @@ TEST_CASE("In-book menu preserves the page and restores mono on exit", "[stereo]
             auto mask = 1 << (7 - index % 8);
             CHECK(((display->leftBackground[index / 8] & mask) != 0) == (page[index] != 0));
             CHECK(((display->rightBackground[index / 8] & mask) != 0) == (page[index] != 0));
+            CHECK(display->buffer()[index] == page[index]);
+            CHECK(display->rightBuffer()[index] == page[index]);
         }
     }
 
@@ -411,11 +453,48 @@ TEST_CASE("In-book menu preserves the page and restores mono on exit", "[stereo]
     CHECK(screen->skippedLines() == 4);
     screen->setAutopilotForTest(0, 0);
 
+    popup->setTabWithName("Popup");
+    simulatorTestMinutes = 22;
+    screen->render(*display);
+    ASSERT_STEREO_VIEW_UNCHANGED(display, imagePrefix + "Clock");
+    simulatorTestMinutes = 21;
+
+    for (int depth = 0; depth <= DisplaySystem::MAX_MENU_DISPARITY; ++depth) {
+        prefs.menuDisparity.set(depth);
+        screen->hidePopupMenu();
+        screen->showPopupMenu();
+        screen->render(*display);
+        CHECK(display->stereoEnabled() == (depth != 0));
+        popup->processCommand(RemoteCommand::DOWN);
+        screen->render(*display);
+        CHECK(display->stereoEnabled() == (depth != 0));
+    }
+    prefs.menuDisparity.set(1);
+
     screen->hidePopupMenu();
     REQUIRE_FALSE(display->stereoEnabled());
     screen->render(*display);
     CHECK(std::equal(page.begin(), page.end(), display->buffer().get()));
     CHECK(std::equal(page.begin(), page.end(), display->rightBuffer().get()));
+
+    prefs.cesMode.set(false);
+    screen->processCommand(RemoteCommand::UP);
+    CHECK(screen->popupOpen());
+    screen->hidePopupMenu();
+    prefs.altPageAdvance.set(1);
+    auto oldOffset = readable->place->getOffset();
+    screen->processCommand(RemoteCommand::UP);
+    CHECK_FALSE(screen->popupOpen());
+    CHECK(readable->place->getOffset() != oldOffset);
+    screen->render(*display);
+    screen->processCommand(RemoteCommand::DOWN);
+    CHECK(screen->popupOpen());
+    screen->render(*display);
+    screen->processCommand(RemoteCommand::UP);
+    CHECK(screen->popupOpen());
+    screen->hidePopupMenu();
+    prefs.altPageAdvance.set(0);
+    prefs.cesMode.set(true);
 
     screen->showPopupMenu();
     screen->render(*display);
