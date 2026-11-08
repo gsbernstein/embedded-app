@@ -2,6 +2,45 @@
 
 #include <Renderer/Renderer.hpp>
 
+#include "UI/Menu/MenuItemCheckable.hpp"
+#include "UI/RootUI.hpp"
+
+auto GenericSettingsMenuScreen::stereoDepthMenu(DisplaySystem &display, PreferencesStore &prefs,
+                                                const std::string &backTitle, bool menuDepth)
+    -> std::shared_ptr<GenericSettingsMenuScreen> {
+    auto menu = std::make_shared<GenericSettingsMenuScreen>(display, backTitle);
+    std::weak_ptr<GenericSettingsMenuScreen> weakMenu = menu;
+    int minDepth = menuDepth ? 0 : -DisplaySystem::MAX_STEREO_DISPARITY;
+    int maxDepth =
+        menuDepth ? DisplaySystem::MAX_MENU_DISPARITY : DisplaySystem::MAX_STEREO_DISPARITY;
+    int step = menuDepth ? 1 : DisplaySystem::STEREO_DISPARITY_STEP;
+    for (int depth = minDepth; depth <= maxDepth; depth += step) {
+        auto title = depth == 0
+                         ? std::string("0 px (off)")
+                         : StringFormat("%+d px (%s)", depth, depth > 0 ? "forward" : "back");
+        menu->addMenuItem(std::make_shared<MenuItemCheckable>(
+            title,
+            [&display, &prefs, weakMenu, menuDepth, depth]() {
+            if (!menuDepth && !display.setStereoDisparity(depth)) {
+                RootUI::getInstance().showTemporaryMessage("Could not change stereo depth.");
+                return;
+            }
+            (menuDepth ? prefs.menuDisparity : prefs.stereoDisparity).set(depth);
+            if (auto screen = weakMenu.lock()) {
+                screen->setFirstLoad();
+                screen->setNeedsRerender();
+            }
+            },
+            [&display, &prefs, menuDepth, depth]() {
+            return (menuDepth ? prefs.menuDisparity.get().value_or(1)
+                              : display.stereoDisparity()) == depth;
+        }));
+    }
+    int depth = menuDepth ? prefs.menuDisparity.get().value_or(1) : display.stereoDisparity();
+    menu->setSelectedIndex((std::clamp(depth, minDepth, maxDepth) - minDepth) / step);
+    return menu;
+}
+
 GenericSettingsMenuScreen::GenericSettingsMenuScreen(DisplaySystem &display,
                                                      const std::string &backTitle)
     : EinkView(display), menuView_(display), backLabelView_(display, backTitle) {

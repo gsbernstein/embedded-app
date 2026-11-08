@@ -187,8 +187,44 @@ void MenuView::drawInRect(SolRect rect) {
     size_t endIndex = std::min(startIndex + itemsPerPage, menuItemViews_.size());
 
     for (size_t i = startIndex; i < endIndex; ++i) {
-        menuItemViews_[i]->draw();
+        if (i == selectedIndex_ && selectedItemShift_ != 0) {
+            auto origFrame = menuItemViews_[i]->frame();
+            menuItemViews_[i]->setFrame(origFrame.offset({selectedItemShift_, 0}));
+            menuItemViews_[i]->draw();
+            menuItemViews_[i]->setFrame(origFrame);
+        } else {
+            menuItemViews_[i]->draw();
+        }
     }
 
     pagingIndicatorView_.draw();
+}
+
+void MenuView::drawFastElements() {
+    indicatorView_.fillColor = display_.fg;
+    indicatorView_.strokeColor = display_.fg;
+    if (indicatorType_ != IndicatorType::None) {
+        if (selectedItemShift_ != 0) {
+            auto origFrame = indicatorView_.frame();
+            indicatorView_.setFrame(origFrame.offset({selectedItemShift_, 0}));
+            indicatorView_.draw();
+            indicatorView_.setFrame(origFrame);
+        } else {
+            indicatorView_.draw();
+        }
+    }
+
+    size_t startIndex = currentPage_ * itemsPerPage;
+    size_t endIndex = std::min(startIndex + itemsPerPage, menuItemViews_.size());
+
+    for (size_t i = startIndex; i < endIndex; ++i) {
+        if (i == selectedIndex_ && selectedItemShift_ != 0) {
+            auto origFrame = menuItemViews_[i]->frame();
+            menuItemViews_[i]->setFrame(origFrame.offset({selectedItemShift_, 0}));
+            menuItemViews_[i]->drawFastOnlyElements();
+            menuItemViews_[i]->setFrame(origFrame);
+        } else {
+            menuItemViews_[i]->drawFastOnlyElements();
+        }
+    }
 }

@@ -49,7 +49,7 @@ public:
         setNeedsLayout();
         setFrame(defaultFrameRect().inset(-5));
 
-        draw();
+        display.drawForEachEye([this](ScreenSide) { draw(); });
         display.updateDisplay();
     }
 

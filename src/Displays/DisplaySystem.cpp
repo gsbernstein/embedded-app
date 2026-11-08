@@ -288,3 +288,29 @@ void DisplaySystem::clearScreen() {
     fillScreen(bg);
     updateDisplay();
 }
+
+void DisplaySystem::drawForEachEye(const std::function<void(ScreenSide eye)> &draw) {
+    if (!stereoEnabled()) {
+        draw(ScreenSide::Both);
+        return;
+    }
+    for (auto eye : {ScreenSide::Left, ScreenSide::Right}) {
+        setDrawEye(eye);
+        draw(eye);
+    }
+    setDrawEye(ScreenSide::Left);
+}
+
+auto DisplaySystem::eyeShift(ScreenSide eye, int disparity) -> int16_t {
+    // Crossed disparity (left eye's image to the right of the right eye's) appears in front of the
+    // screen. Odd disparities put the extra pixel in the left eye.
+    switch (eye) {
+    case ScreenSide::Left:
+        return static_cast<int16_t>(disparity - disparity / 2);
+    case ScreenSide::Right:
+        return static_cast<int16_t>(-(disparity / 2));
+    case ScreenSide::Both:
+        return 0;
+    }
+    return 0;
+}

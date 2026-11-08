@@ -3,6 +3,7 @@
 #include "Displays/DisplaySystem.hpp"
 #include "Inputs/RemoteInput.hpp"
 #include "Misc/Platform.hpp"
+#include "Storage/PreferencesStore.hpp"
 #include "UI/Components/ArrowLabelView.hpp"
 #include "UI/Components/EinkView.hpp"
 #include "UI/Components/SingleLineTextView.hpp"
@@ -12,6 +13,9 @@
 class GenericSettingsMenuScreen : public Screen, public EinkView {
 public:
     GenericSettingsMenuScreen(DisplaySystem &display, const std::string &backTitle);
+    static auto stereoDepthMenu(DisplaySystem &display, PreferencesStore &prefs,
+                                const std::string &backTitle, bool menuDepth = false)
+        -> std::shared_ptr<GenericSettingsMenuScreen>;
 
     auto setSelectedIndex(size_t index) -> bool;
 

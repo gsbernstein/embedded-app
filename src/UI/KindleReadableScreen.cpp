@@ -241,6 +241,9 @@ KindleReadableScreen::KindleReadableScreen(DisplaySystem &display,
 
     popupMenuScreen_->addTab("Popup", popupNavigationFactory, 8);
     popupMenuScreen_->addTab("Style", popupStyleFactory, 8);
+    popupMenuScreen_->addSystemTab(
+        [this](const std::shared_ptr<Screen> &screen) { setCurrentScreen(screen); },
+        [this]() { setCurrentScreen(nullptr); });
     popupMenuScreen_->populateMenuView();
 }
 
@@ -369,6 +372,16 @@ void KindleReadableScreen::drawInRect(SolRect rect) {
 void KindleReadableScreen::render(DisplaySystem &display) {
     // If we have a popup menu or other screen, let it handle rendering
     if (currentScreen_) {
+        if (currentScreen_ == popupMenuScreen_ && firstLoad_) {
+            popupMenuScreen_->setFirstLoad();
+        }
+        if (currentScreen_ == popupMenuScreen_ && popupMenuScreen_->needsBackgroundRefresh()) {
+            popupMenuScreen_->releaseStereo();
+            display.clearFrameBuffer();
+            setFrame(defaultFrameRect());
+            draw();
+            firstLoad_ = false;
+        }
         log_d("Letting current screen (a popup menu) render KindleReadableScreen, state: %d",
               static_cast<int>(state_));
         currentScreen_->render(display);
@@ -426,6 +439,13 @@ void KindleReadableScreen::processCommand(RemoteCommand command) {
         break;
     case RemoteCommand::BACK:
     case RemoteCommand::UP:
+        if (command == RemoteCommand::UP && prefs_.altPageAdvance.get().value_or(0) != 0 &&
+            (state_ == State::DISPLAY_CONTENT || state_ == State::DISPLAY_PARTIAL_CONTENT)) {
+            navigateNext();
+            break;
+        }
+        showPopupMenu();
+        break;
     case RemoteCommand::DOWN:
         showPopupMenu();
         break;
@@ -1405,6 +1425,10 @@ void KindleReadableScreen::cancelReconnectionAttempt() {
 }
 
 void KindleReadableScreen::setCurrentScreen(const std::shared_ptr<Screen> &screen) {
+    if (currentScreen_ == popupMenuScreen_ && screen != popupMenuScreen_) {
+        popupMenuScreen_->releaseStereo();
+        display_.clearFrameBuffer();
+    }
     if (currentScreen_) {
         currentScreen_->setFirstLoad();
     }

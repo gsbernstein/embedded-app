@@ -35,11 +35,16 @@ public:
         menuView_.indicatorPadding = 5;
         menuView_.setIndicatorType(MenuView::IndicatorType::Dot);
     };
-    ~NewReadablePopupMenuScreen() override = default;
+    ~NewReadablePopupMenuScreen() override;
 
     void render(DisplaySystem &display) override;
     auto layout(LayoutContext &context, SolSize size) -> SolSize override;
     void drawInRect(SolRect rect) override;
+
+    void releaseStereo();
+    [[nodiscard]] auto needsBackgroundRefresh() -> bool;
+    void addSystemTab(const std::function<void(const std::shared_ptr<Screen> &)> &showScreen,
+                      const std::function<void()> &backToText);
 
     void setUpPopupMenu();
 
@@ -57,6 +62,11 @@ public:
     void setSuppressFallbackPageNumbers(bool suppress) { suppressFallbackPageNumbers_ = suppress; }
 
 protected:
+    void drawForEye(ScreenSide eye, bool fastOnly = false);
+
+    bool stereoActive_ = false;
+    int menuDepth_ = 1;
+    SolRect previousPopupRect_ = SolRect::zero();
     DisplaySystem &display_;
     PreferencesStore &prefs_;
     std::shared_ptr<Readable> readable_;

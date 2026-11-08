@@ -1,5 +1,73 @@
 #include "UI/NewReadablePopupMenuScreen.hpp"
 
+#include <algorithm>
+#include <cstdlib>
+
+#include "UI/Menu/GenericSettingsMenuScreen.hpp"
+#include "UI/Menu/MenuItemCheckable.hpp"
+#include "UI/Menu/MenuItemSingleLine.hpp"
+
+void NewReadablePopupMenuScreen::addSystemTab(
+    const std::function<void(const std::shared_ptr<Screen> &)> &showScreen,
+    const std::function<void()> &backToText) {
+    addTab(
+        "System",
+        [this, showScreen, backToText]() {
+        auto items = std::make_shared<MenuItemVector>();
+        for (bool menuDepth : {true, false}) {
+            items->push_back(
+                std::make_shared<MenuItemSingleLine>(menuDepth ? "Menu Depth" : "Global Depth",
+                                                     [this, showScreen, backToText, menuDepth]() {
+                auto menu = GenericSettingsMenuScreen::stereoDepthMenu(display_, prefs_,
+                                                                       "Back to Text", menuDepth);
+                menu->setBackCallback(backToText);
+                showScreen(menu);
+                }));
+        }
+        items->push_back(std::make_shared<MenuItemCheckable>(
+            "Alt Page Advance",
+            [this]() {
+            prefs_.altPageAdvance.set(prefs_.altPageAdvance.get().value_or(0) == 0 ? 1 : 0);
+            setNeedsRerender();
+            },
+            [this]() { return prefs_.altPageAdvance.get().value_or(0) != 0; }));
+        items->push_back(std::make_shared<MenuItemCheckable>(
+            "Fast Transitions",
+            [this]() {
+            prefs_.fastTransitions.set(!prefs_.fastTransitions.get().value_or(false));
+            setNeedsRerender();
+            },
+            [this]() { return prefs_.fastTransitions.get().value_or(false); }));
+        items->push_back(std::make_shared<MenuItemSingleLine>("Back to Text", backToText));
+        return items;
+        },
+        8);
+}
+
+NewReadablePopupMenuScreen::~NewReadablePopupMenuScreen() { releaseStereo(); }
+
+void NewReadablePopupMenuScreen::releaseStereo() {
+    if (stereoActive_) {
+        display_.setStereoEnabled(false);
+        stereoActive_ = false;
+    }
+    setFirstLoad();
+}
+
+auto NewReadablePopupMenuScreen::needsBackgroundRefresh() -> bool {
+    auto oldFooter1 = footer1TextView_.getText();
+    auto oldFooter2 = footer2TextView_.getText();
+    auto oldFooter3 = footer3TextView_.getText();
+    setUpPopupMenu();
+    auto depth =
+        std::clamp(prefs_.menuDisparity.get().value_or(1), 0, DisplaySystem::MAX_MENU_DISPARITY);
+    if (oldFooter1 != footer1TextView_.getText() || oldFooter2 != footer2TextView_.getText() ||
+        oldFooter3 != footer3TextView_.getText() || menuDepth_ != depth) {
+        setFirstLoad();
+    }
+    return firstLoad_;
+}
+
 void NewReadablePopupMenuScreen::setUpPopupMenu() {
     std::shared_ptr<Place> place = renderer_.getCurrentPlace();
 
@@ -78,7 +146,8 @@ void NewReadablePopupMenuScreen::setUpPopupMenu() {
         // If fallback is suppressed and no explicit pages, don't show anything
     }
 
-    if (showPageIndicators_) {
+    bool showFooter = getCurrentTabTitle() != "Style" && getCurrentTabTitle() != "System";
+    if (showFooter && showPageIndicators_) {
         if (!chapterPagesRemainingString.empty()) {
             footer1TextView_.setText(chapterPagesRemainingString);
         }
@@ -88,7 +157,7 @@ void NewReadablePopupMenuScreen::setUpPopupMenu() {
     }
 
     SolClock &theClock = SolClock::getInstance();
-    if (theClock.isValidTime()) {
+    if (showFooter && theClock.isValidTime()) {
         auto timeString = theClock.getTimeString();
         footer3TextView_.setText(timeString);
     }
@@ -112,6 +181,20 @@ void NewReadablePopupMenuScreen::drawInRect(SolRect rect) {
     footer1TextView_.draw();
     footer2TextView_.draw();
     footer3TextView_.draw();
+}
+
+void NewReadablePopupMenuScreen::drawForEye(ScreenSide eye, bool fastOnly) {
+    int16_t cardShift = DisplaySystem::eyeShift(eye, menuDepth_);
+
+    auto baseFrame = frame();
+    setFrame(baseFrame.offset({cardShift, 0}));
+    if (fastOnly) {
+        menuView_.drawFastElements();
+    } else {
+        draw();
+    }
+
+    setFrame(baseFrame);
 }
 
 auto NewReadablePopupMenuScreen::layout(LayoutContext &context, SolSize size) -> SolSize {
@@ -156,11 +239,10 @@ auto NewReadablePopupMenuScreen::layout(LayoutContext &context, SolSize size) ->
                 y += footer3Rect.size.height;
             }
 
-            // We are hardcoding a width here because we have 3 different tabs and each has a
-            // differnt width so doing it dynamically would make the bounding box width jump around
-            // when you go left and right bewteen tabs. And the y+1 is to give just a bit more space
-            // in the bottom for weighting visually.
-            return {size.width * 5 / 9 - 18, y + 1};
+            // Keep widths stable within each tab, with more room for System setting labels.
+            int width = getCurrentTabTitle() == "System" ? size.width * 3 / 4 - 18
+                                                         : size.width * 5 / 9 - 18;
+            return {width, y + 1};
         });
 
     auto foregroundFrame = context.setViewFrame(popupMenuForeground_, contentFrame.inset(-5, -10));
@@ -171,17 +253,51 @@ auto NewReadablePopupMenuScreen::layout(LayoutContext &context, SolSize size) ->
 }
 
 void NewReadablePopupMenuScreen::render(DisplaySystem &display) {
+    bool refreshBackground = needsBackgroundRefresh();
+    int previousDepth = menuDepth_;
+    menuDepth_ =
+        std::clamp(prefs_.menuDisparity.get().value_or(1), 0, DisplaySystem::MAX_MENU_DISPARITY);
+    if (previousDepth == 0 && menuDepth_ != 0) {
+        display.clearDisplay();
+    }
+    stereoActive_ = menuDepth_ != 0 && display.setStereoEnabled(true);
+
     setFrame(defaultFrameRect());
     layoutIfNeeded();
 
-    draw();
+    auto updateRect = popupMenuBackground_.screenFrame();
+    auto leftShift = DisplaySystem::eyeShift(ScreenSide::Left, menuDepth_);
+    auto rightShift = DisplaySystem::eyeShift(ScreenSide::Right, menuDepth_);
+    updateRect.origin.x += std::min(leftShift, rightShift);
+    updateRect.size.width += std::abs(leftShift - rightShift);
 
-    if (firstLoad_) {
+    display.drawForEachEye([this](ScreenSide eye) { drawForEye(eye); });
+
+    if (refreshBackground) {
         firstLoad_ = false;
-        display.updateDisplay(DisplaySystem::UpdateType::PARTIAL, true);
-        // Redraw but this time without the text (since updateDsplay will clear the screen)
-        draw();
+        auto refreshRect = updateRect;
+        if (previousPopupRect_.size.width > 0 && previousPopupRect_.size.height > 0) {
+            int left = std::min(refreshRect.origin.x, previousPopupRect_.origin.x);
+            int top = std::min(refreshRect.origin.y, previousPopupRect_.origin.y);
+            int right = std::max(refreshRect.right(), previousPopupRect_.right());
+            int bottom = std::max(refreshRect.bottom(), previousPopupRect_.bottom());
+            refreshRect = {{left, top}, {right - left, bottom - top}};
+        }
+        display.updateDisplay(menuDepth_ != 0 ? DisplaySystem::UpdateType::FULL
+                                              : DisplaySystem::UpdateType::PARTIAL,
+                              menuDepth_ == 0, 0, DisplaySystem::UpdateType::UNSPECIFIED,
+                              ScreenSide::Both, menuDepth_ != 0 ? refreshRect : SolRect::zero());
+        // Redraw but this time without the text (since updateDisplay will clear the screen)
+        if (menuDepth_ == 0) {
+            display.drawForEachEye([this](ScreenSide eye) { drawForEye(eye); });
+        }
     }
-    menuView_.drawFastElements();
-    display.updateDisplay(DisplaySystem::UpdateType::FAST_INDICATOR);
-};
+
+    display.drawForEachEye([this](ScreenSide eye) { drawForEye(eye, true); });
+    previousPopupRect_ = updateRect;
+    if (refreshBackground && menuDepth_ == 0) {
+        updateRect = SolRect::zero();
+    }
+    display.updateDisplay(DisplaySystem::UpdateType::FAST_INDICATOR, false, 0,
+                          DisplaySystem::UpdateType::UNSPECIFIED, ScreenSide::Both, updateRect);
+}

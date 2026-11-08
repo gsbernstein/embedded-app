@@ -40,7 +40,6 @@
 #include "UI/DemoScreen.hpp"
 #include "UI/FirmwareUpdateScreen.hpp"
 #include "UI/Fonts.hpp"
-#include "UI/KindleReadableScreen.hpp"
 #include "UI/LayoutTestScreen.hpp"
 #include "UI/LegalScreen.hpp"
 #include "UI/LightingAdjustScreen.hpp"
@@ -57,7 +56,6 @@
 #include "UI/Menu/MenuItemArticle.hpp"
 #include "UI/Menu/MenuItemBook.hpp"
 #include "UI/Menu/MenuItemCheckable.hpp"
-#include "UI/Menu/MenuItemKindleBookView.hpp"
 #include "UI/Menu/MenuItemMultiLine.hpp"
 #include "UI/Menu/MenuItemSingleLine.hpp"
 #include "UI/Menu/ReadingSettingsMenuScreen.hpp"
@@ -68,6 +66,7 @@
 #include "UI/ReadableScreen.hpp"
 #include "UI/ReleaseNotesScreen.hpp"
 #include "UI/ResizeBoxScreen.hpp"
+#include "UI/StereoTestScreen.hpp"
 #include "UI/TestAlignmentScreen.hpp"
 #include "UI/TutorialScreen.hpp"
 #include "UI/WiFiScanScreen.hpp"
@@ -105,7 +104,7 @@ void RootUI::pushScreen(const std::shared_ptr<Screen> &screen, bool deferRender)
     }
 }
 
-void RootUI::popScreen(bool clearDisplay) {
+void RootUI::popScreen(bool clearDisplay, bool refreshRestoredScreen) {
     if (clearDisplay) {
         display_.clearDisplay();
     }
@@ -113,6 +112,10 @@ void RootUI::popScreen(bool clearDisplay) {
         screenStack_.pop();
     } else {
         log_e("Trying to pop screen with no screen to pop");
+    }
+    if (refreshRestoredScreen && !screenStack_.empty()) {
+        currentScreen()->setFirstLoad();
+        currentScreen()->setNeedsRerender();
     }
     // If this was called from `loop()` then we'll rerender automatically at the end of the loop.
     // Otherwise, we should rerender now.
@@ -157,13 +160,14 @@ void RootUI::clearNeedsRerender() {
 
 void RootUI::showTemporaryMessage(const std::string &msg, const std::function<void()> &cleanupFunc,
                                   int duration) {
+    bool restoreStereoScreen = display_.stereoEnabled();
     auto msgPopup = std::make_shared<MsgPopup>(display_, msg);
     // NOLINTNEXTLINE(clang-analyzer-cplusplus.NewDeleteLeaks)
-    msgPopup->setBackCallback([this, cleanupFunc]() {
+    msgPopup->setBackCallback([this, cleanupFunc, restoreStereoScreen]() {
         // We do this because we want to ensure that the cleanup function is called after the screen
         // is popped. A little unintuitive, but it's what the interface needs (see
         // popAndSetIndexOrDone -- if we did that first, there'd be an extra pop).
-        popScreen();
+        popScreen(true, restoreStereoScreen);
         cleanupFunc();
     });
     pushScreen(msgPopup);
@@ -175,6 +179,9 @@ void RootUI::showTemporaryMessage(const std::string &msg, const std::function<vo
 // NOLINTNEXTLINE(readability-function-size): It's big, I know
 void RootUI::setup(LocalStore &localStore, FileSystem &fileSystem,
                    LightingController &lightingController) {
+
+    int disparity = prefs_.stereoDisparity.get().value_or(0);
+    bool savedDepthApplied = display_.setStereoDisparity(disparity);
 
     auto lastMagReading = power_.getLastMagReading();
 
@@ -683,8 +690,7 @@ void RootUI::setup(LocalStore &localStore, FileSystem &fileSystem,
     };
 
     auto articlesMenuFactory = [this, &localStore, handleReadableScreenCreation,
-                                makeReleaseNotesMenuItem, makeContentSyncMenuItem,
-                                createTutorialScreen, noArticles]() -> MenuItemSharedPtrVector {
+                                makeReleaseNotesMenuItem]() -> MenuItemSharedPtrVector {
         auto &articles = localStore.articles();
         auto menuItems = std::make_shared<MenuItemVector>();
 
@@ -704,90 +710,6 @@ void RootUI::setup(LocalStore &localStore, FileSystem &fileSystem,
                 handleReadableScreenCreation(article);
                 },
                 archived));
-        }
-
-        if (CONFIG_SHOW_STOCK_SOL_UI && noArticles) {
-            menuItems->emplace_back(makeContentSyncMenuItem("Sync Content"));
-        }
-
-        if (CONFIG_SHOW_STOCK_SOL_UI &&
-            !(prefs_.tutorialsDeleted.get().value_or(0) & TUTORIAL_SCREEN_ARTICLES)) {
-            menuItems->emplace_back(std::make_shared<MenuItemSingleLine>(
-                "\ue000 Articles Tutorial", [this, createTutorialScreen]() {
-                    SpiramString message = SpiRamStringFormat(
-                        "Welcome to the Articles menu. This tab "
-                        "shows you the articles currently synced to your Sol "
-                        "Reader. To add more articles, "
-                        "simply connect your Pocket account in the Sol app "
-                        "or forward newsletters "
-                        "from your inbox to add@solreader.com.\n\n"
-                        "Did you know "
-                        "you can change the sort order of your articles? "
-                        "Simply go to Settings -> Content Management -> Article Sort Order."
-                        "\n\n\nPress \ue000 (center) to "
-                        "continue.\n");
-                    auto tutorialScreen = createTutorialScreen(message, TUTORIAL_SCREEN_ARTICLES);
-                    this->pushScreen(tutorialScreen);
-                }));
-        }
-
-        return menuItems;
-    };
-
-    auto kindleMenuFactory = [this, &localStore, &fileSystem, &lightingController,
-                              createTutorialScreen,
-                              makeReleaseNotesMenuItem]() -> MenuItemSharedPtrVector {
-        auto &kindle = localStore.kindle();
-        auto menuItems = std::make_shared<MenuItemVector>();
-
-        if (this->prefs_.firmwareLoaded.get().has_value()) {
-            Firmware firmware;
-            auto upgradeAvailable = localStore.getPendingFirmwareUpdate(firmware);
-            if (upgradeAvailable) {
-                menuItems->emplace_back(makeReleaseNotesMenuItem(firmware));
-            }
-        }
-
-        for (const auto &book : kindle) {
-            // Using shortened ID as the key for archive status
-            bool archived = prefs_.readableArchivedChanged.get(book.shortenedUuid.c_str());
-            menuItems->emplace_back(std::make_shared<MenuItemKindleBook>(
-                book,
-                [this, book, &fileSystem, &lightingController, &localStore]() {
-                // Create a new KindleReadableScreen for the selected book
-                auto kindleReadableScreen = std::make_shared<KindleReadableScreen>(
-                    display_, std::make_shared<KindleBook>(book), prefs_, telemetry_, fileSystem,
-                    lightingController, localStore,
-                    FontFromPrefs(prefs_.font.get().value_or(PREFS_SOL_SMALL)));
-
-                // Push the screen and set up back callback
-                this->pushScreen(kindleReadableScreen);
-                kindleReadableScreen->setBackCallback([this]() {
-                    this->popScreen();
-                    std::static_pointer_cast<MainMenuScreen>(currentScreen())
-                        ->regenerateCurrentTab();
-                });
-                kindleReadableScreen->begin();
-                },
-                archived));
-        }
-
-        bool noKindleContent = kindle.empty();
-        if (noKindleContent &&
-            !(prefs_.tutorialsDeleted.get().value_or(0) & TUTORIAL_SCREEN_KINDLE)) {
-            menuItems->emplace_back(
-                std::make_shared<MenuItemSingleLine>("\ue000 Connect your Kindle",
-                                                     [this, createTutorialScreen]() {
-                SpiramString message = SpiRamStringFormat(
-                    "To add your Kindle books, connect your Amazon Kindle account in the Sol app."
-                    "\n\n"
-                    "After connecting your Kindle account, your books will appear here for easy "
-                    "reading."
-                    "\n\n"
-                    " Press \ue000 (center) to continue.");
-                auto tutorialScreen = createTutorialScreen(message, TUTORIAL_SCREEN_KINDLE);
-                this->pushScreen(tutorialScreen);
-                }));
         }
 
         return menuItems;
@@ -1231,6 +1153,16 @@ void RootUI::setup(LocalStore &localStore, FileSystem &fileSystem,
                 }));
 #endif
 
+            if (display_.supportsStereo()) {
+                systemSettingsMenu->addMenuItem(std::make_shared<MenuItemSingleLine>("Stereo Depth",
+                                                                                     [this]() {
+                    auto stereoMenu =
+                        GenericSettingsMenuScreen::stereoDepthMenu(display_, prefs_, "System");
+                    stereoMenu->setBackCallback([this]() { this->popScreen(true, true); });
+                    pushScreen(stereoMenu);
+                }));
+            }
+
             systemSettingsMenu->addMenuItem(
                 std::make_shared<MenuItemSingleLine>("Legal & Regulatory", [this]() {
                     auto legalScreen = std::make_shared<LegalScreen>(display_, prefs_, power_);
@@ -1479,6 +1411,14 @@ void RootUI::setup(LocalStore &localStore, FileSystem &fileSystem,
                     std::make_shared<GenericSettingsMenuScreen>(display_, "Main Menu");
 
                 debugSettingsMenu->setBackCallback([this]() { this->popScreen(); });
+
+                debugSettingsMenu->addMenuItem(std::make_shared<MenuItemSingleLine>("Stereo Test",
+                                                                                    [this]() {
+                    auto stereoTestScreen = std::make_shared<StereoTestScreen>(display_);
+                    display_.clearDisplay();
+                    this->pushScreen(stereoTestScreen);
+                    stereoTestScreen->setBackCallback([this]() { this->popScreen(false, true); });
+                }));
 
 #if CONFIG_USE_TURN_TOUCH_REMOTE
                 debugSettingsMenu->addMenuItem(
@@ -1882,12 +1822,7 @@ void RootUI::setup(LocalStore &localStore, FileSystem &fileSystem,
     if (!booksMenuFactory()->empty()) {
         newMainMenu->addTab("Books", booksMenuFactory, 4);
     }
-    if (CONFIG_SHOW_STOCK_SOL_UI && !kindleMenuFactory()->empty()) {
-        newMainMenu->addTab("Kindle", kindleMenuFactory, 4);
-    }
-    // Without the stock UI, only show Articles when some are already on the device
-    if (CONFIG_SHOW_STOCK_SOL_UI ? !articlesMenuFactory()->empty()
-                                 : !localStore.articles().empty()) {
+    if (!localStore.articles().empty()) {
         newMainMenu->addTab("Articles", articlesMenuFactory, 4);
     }
 
@@ -2076,6 +2011,13 @@ void RootUI::setup(LocalStore &localStore, FileSystem &fileSystem,
         newMainMenu->setTabWithName("Settings");
     }
 
+    if (!savedDepthApplied) {
+        showTemporaryMessage("Could not apply the saved stereo depth.", [this]() {
+            currentScreen()->setFirstLoad();
+            currentScreen()->setNeedsRerender();
+            renderIfNeeded();
+        });
+    }
     renderIfNeeded();
     SHOW_HEAP();
 }

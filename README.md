@@ -97,6 +97,57 @@ Issues that will be fixed automatically will be fixed by clang-tidy, warnings wi
 
 ## Test code locally with the Simulator
 
+### Stereoscopic in-book menu
+
+On the glasses, the entire in-book popup defaults to 1 pixel in front of the book plane.
+Selected items stay at the same depth to avoid ghosting from moving text. When menu depth is
+enabled, the book remains unfaded; selection updates only drive the popup area.
+Closing the popup or opening another screen removes the popup's extra depth. This applies to all popup tabs
+and works in both light and dark mode without inverted selection backgrounds.
+
+System → Stereo Depth adds a persistent offset to the entire interface, including reading.
+Choose −64 to +64 pixels in steps of four; positive values move forward, negative values move back, and 0 is off
+(the default). Popup and demo depth is added to this global offset. Shifted edge pixels are
+clipped and exposed edges use the current background color. Stereo Test is the first Debug item.
+
+The in-book Popup tab includes History; Bookmark is hidden for now.
+Style and System omit the page/time footer.
+The trimmed glasses menus are also used by the simulator and tests; there is no legacy-menu
+build switch. Kindle, Ask AI, summaries, Report Page, and article tutorial/sync prompts
+remain absent from these menus. Autopilot remains available in Reading Style.
+System offers Menu Depth (0–4 pixels, default 1), Global Depth, and Fast Transitions.
+Alt Page Advance (off by default) makes Up advance the reading page instead of opening
+the popup, including Kindle reading. Down/Back still open the menu, and Up inside menus
+still moves the selection normally.
+Depth selections apply immediately. The clock updates on existing menu redraws without a timer.
+Setting Menu Depth to zero restores the faded-background presentation.
+Scoped popup updates follow screen rotation and preserve both pixels and display history outside
+their exact per-eye bounds, including with global depth enabled. Selection-only redraws reuse the
+popup canvas; tab, page, footer, and depth changes restore the book background.
+Raised-menu tab/page refreshes drive only the combined old and new popup footprints,
+not the whole book page. Required screen clears still take precedence.
+Temporary messages and power-status bitmaps render in both eyes.
+Dismissed messages restore the reader's book background. Saved-depth failures are shown
+above the completed startup screen stack rather than being hidden by it.
+
+Stereo does not add an animation timer or keep the panels powered between updates.
+The driver retains one extra 8 KiB previous-image buffer even when stereo is off; a stereo
+screen allocates an additional 8 KiB drawing buffer only while active. A nonzero global
+offset allocates two 8 KiB output buffers, released when set to zero, and shifts images only
+at display updates. Differing half-lines require separate per-eye SPI transfers rather than
+one broadcast, so active stereo adds update-time CPU/SPI work. The waveform count is unchanged;
+exact battery impact requires measuring current on the glasses.
+
+The device USB command `MEMORY` reports internal RAM and PSRAM totals, free space,
+low-water marks, largest free blocks, and the actual allocated drawing-buffer sizes
+in each memory pool. Drawing-buffer totals exclude the driver's static previous-image buffers.
+
+In the default simulator, press `v` to cycle between the left eye, right eye,
+red/cyan anaglyph, and cross-eyed side-by-side views.
+The cross-eyed view widens the window while preserving the scale of each eye image.
+Run `make test-build && ./test/CatchTests/build/tests '[stereo]'` for per-eye screenshot
+and lifecycle regression tests.
+
 The simulator compiles in <20s from a clean build, and even less on an incremental build. This makes it fast for us to iterate on anything that doesn't need the physical hardware.
 
 You'll need SDL2, openssl for it to work: `brew install sdl2 openssl` (on Ubuntu `sudo apt install libsdl2-dev libssl-dev`). Then you can run `make sim` to run it (or `make sim8` for the high-res version). After building once, you can also debug with lldb at the command line: `lldb lib/Simulator/build/simulator`.

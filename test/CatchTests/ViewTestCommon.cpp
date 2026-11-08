@@ -25,6 +25,8 @@
 #include "Displays/FakeEinkET013TT1.hpp"
 #include "Misc/Dispatch.hpp"
 #include "Storage/PosixFileSystem.hpp"
+#include "UI/KindleReadableScreen.hpp"
+#include "UI/RootUI.hpp"
 #include "sindarin-debug.h"
 
 // TESTS_ACCEPT_CHANGES=1|true|yes|on (default: off)
@@ -56,6 +58,25 @@ extern "C" void app_main(void); // NOLINT(readability-identifier-naming)
 std::shared_ptr<std::thread> SchedulerThread;
 extern PosixFileSystem fileSystem;
 extern DisplayEinkET013TT1 myDisplay;
+extern LocalStore localStore;
+extern Telemetry telemetry;
+extern LightingController lightingController;
+
+void OpenKindleBookForTest(bool lastBook) {
+    REQUIRE_FALSE(localStore.kindle().empty());
+    auto book = std::make_shared<KindleBook>(lastBook ? localStore.kindle().back()
+                                                      : localStore.kindle().front());
+    DispatchGetUiQueue()->dispatchFromISR([book]() {
+        auto &root = RootUI::getInstance();
+        auto screen =
+            std::make_shared<KindleReadableScreen>(myDisplay, book, prefs, telemetry, fileSystem,
+                                                   lightingController, localStore, &fontFace0);
+        screen->setBackCallback([&root]() { root.popScreen(true, true); });
+        root.pushScreen(screen, true);
+        root.renderIfNeeded();
+        screen->begin();
+    });
+}
 
 std::string directory;
 std::string testRunPrefix = "Images/TestRun/";
@@ -227,7 +248,8 @@ static auto RepoRelative(const std::string &absolutePath) -> std::string {
 }
 
 // TODO: How do we use the test name also for the key
-auto CheckViewUnchanged(DisplayEinkET013TT1 &display, std::string key) -> ViewTestResult {
+auto CheckViewUnchanged(DisplayEinkET013TT1 &display, std::string key, ScreenSide eye)
+    -> ViewTestResult {
     log_i("Checking view unchanged for %s", key.c_str());
     auto directory = GetDirectory();
     ViewTestResult result = {
@@ -247,12 +269,15 @@ auto CheckViewUnchanged(DisplayEinkET013TT1 &display, std::string key) -> ViewTe
         xQueueReceiveFromISR(display.renderQueue(), &out, nullptr);
     };
 
+    uint8_t *pixels =
+        eye == ScreenSide::Right ? display.rightBuffer().get() : display.buffer().get();
+
     log_i("Saving image to %s (width=%d, height=%d)",
           RepoRelative(result.renderedImagePath).c_str(), CONFIG_DISPLAY_WIDTH,
           CONFIG_DISPLAY_HEIGHT);
 
     if (!stbi_write_png(result.renderedImagePath.c_str(), CONFIG_DISPLAY_WIDTH,
-                        CONFIG_DISPLAY_HEIGHT, 1, display.buffer().get(), 0)) {
+                        CONFIG_DISPLAY_HEIGHT, 1, pixels, 0)) {
         log_e("Unable to save rendered image to %s",
               RepoRelative(result.renderedImagePath).c_str());
     }
@@ -289,8 +314,8 @@ auto CheckViewUnchanged(DisplayEinkET013TT1 &display, std::string key) -> ViewTe
     for (int x = 0; x < width; x++) {
         for (int y = 0; y < height; y++) {
             int index = (y * width) + x;
-            diffData[index] = abs(data[index] - display.buffer()[index]);
-            if (data[index] != display.buffer()[index]) {
+            diffData[index] = abs(data[index] - pixels[index]);
+            if (data[index] != pixels[index]) {
                 result.passed = false;
             }
         }
@@ -327,9 +352,9 @@ auto CheckViewUnchanged(DisplayEinkET013TT1 &display, std::string key) -> ViewTe
     return result;
 }
 
-auto CheckViewUnchanged(std::shared_ptr<DisplayEinkET013TT1> display, std::string key)
-    -> ViewTestResult {
-    return CheckViewUnchanged(*display, key);
+auto CheckViewUnchanged(std::shared_ptr<DisplayEinkET013TT1> display, std::string key,
+                        ScreenSide eye) -> ViewTestResult {
+    return CheckViewUnchanged(*display, key, eye);
 }
 
 auto GetRootDisplay() -> DisplayEinkET013TT1 & { return myDisplay; }
