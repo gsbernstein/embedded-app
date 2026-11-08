@@ -118,6 +118,10 @@ at display updates. Differing half-lines require separate per-eye SPI transfers 
 one broadcast, so active stereo adds update-time CPU/SPI work. The waveform count is unchanged;
 exact battery impact requires measuring current on the glasses.
 
+The device USB command `MEMORY` reports internal RAM and PSRAM totals, free space,
+low-water marks, largest free blocks, and the actual allocated drawing-buffer sizes
+in each memory pool. Drawing-buffer totals exclude the driver's static previous-image buffers.
+
 In the default simulator, press `v` to cycle between the left eye, right eye,
 red/cyan anaglyph, and cross-eyed side-by-side views.
 Run `make test-build && ./test/CatchTests/build/tests '[stereo]'` for per-eye screenshot

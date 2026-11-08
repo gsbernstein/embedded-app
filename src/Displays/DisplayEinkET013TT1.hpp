@@ -58,6 +58,9 @@ public:
     void setDrawEye(ScreenSide eye) override;
     auto setStereoDisparity(int disparity) -> bool override;
     [[nodiscard]] auto stereoDisparity() const -> int override { return stereoDisparity_; }
+#if !SIMULATOR
+    [[nodiscard]] auto frameBufferMemoryReport() const -> std::string;
+#endif
     void invertDisplay(bool newInvert) override;
 
     // For those moments where you need to expose the driver directly

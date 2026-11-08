@@ -5,6 +5,10 @@
 #include <algorithm>
 #include <cstring>
 #include <freertos/task.h>
+#if !SIMULATOR
+#include <esp_heap_caps.h>
+#include <esp_memory_utils.h>
+#endif
 
 #include "Communications/USBSerial.hpp"
 #include "Displays/CustomWaveforms.hpp"
@@ -159,6 +163,32 @@ auto DisplayEinkET013TT1::setStereoDisparity(int disparity) -> bool {
     log_i("Global stereo disparity: %d pixels", disparity);
     return true;
 }
+
+#if !SIMULATOR
+auto DisplayEinkET013TT1::frameBufferMemoryReport() const -> std::string {
+    size_t internal = 0;
+    size_t external = 0;
+    auto countBuffer = [&](const uint8_t *buffer) {
+        size_t size = heap_caps_get_allocated_size(const_cast<uint8_t *>(buffer));
+        if (esp_ptr_external_ram(buffer)) {
+            external += size;
+        } else {
+            internal += size;
+        }
+    };
+    countBuffer(gfxCanvas_.getBuffer());
+    if (rightCanvas_) {
+        countBuffer(rightCanvas_->getBuffer());
+    }
+    if (shiftedLeftCanvas_) {
+        countBuffer(shiftedLeftCanvas_->getBuffer());
+        countBuffer(shiftedRightCanvas_->getBuffer());
+    }
+    return StringFormat("DRAW_BUFFERS_INTERNAL,%zu;DRAW_BUFFERS_PSRAM,%zu;STEREO_DEPTH,%d;"
+                        "STEREO_CANVAS,%d",
+                        internal, external, stereoDisparity_, stereoEnabled());
+}
+#endif
 
 void DisplayEinkET013TT1::clearFrameBuffer() {
     gfxCanvas_.fillScreen(bg);
