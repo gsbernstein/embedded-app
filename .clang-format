@@ -17,7 +17,7 @@ IncludeCategories:
   - Regex: ".*"
     Priority: 2
 AllowShortIfStatementsOnASingleLine: WithoutElse
-BreakTemplateDeclarations: Yes
+AlwaysBreakTemplateDeclarations: true
 
 # Don't allow the indentation of a lambda to be affected by the length
 # of the line it's declared on.
