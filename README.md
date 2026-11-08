@@ -121,6 +121,8 @@ the popup, including Kindle reading. Down/Back still open the menu, and Up insid
 still moves the selection normally.
 Depth selections apply immediately. The clock updates on existing menu redraws without a timer.
 Setting Menu Depth to zero restores the faded-background presentation.
+Scoped popup updates follow screen rotation and preserve both pixels and display history outside
+their exact bounds. Temporary messages render in both eyes and restore the underlying menu on exit.
 
 Stereo does not add an animation timer or keep the panels powered between updates.
 The driver retains one extra 8 KiB previous-image buffer even when stereo is off; a stereo

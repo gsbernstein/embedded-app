@@ -104,7 +104,7 @@ void RootUI::pushScreen(const std::shared_ptr<Screen> &screen, bool deferRender)
     }
 }
 
-void RootUI::popScreen(bool clearDisplay) {
+void RootUI::popScreen(bool clearDisplay, bool refreshRestoredScreen) {
     if (clearDisplay) {
         display_.clearDisplay();
     }
@@ -112,6 +112,10 @@ void RootUI::popScreen(bool clearDisplay) {
         screenStack_.pop();
     } else {
         log_e("Trying to pop screen with no screen to pop");
+    }
+    if (refreshRestoredScreen && !screenStack_.empty()) {
+        currentScreen()->setFirstLoad();
+        currentScreen()->setNeedsRerender();
     }
     // If this was called from `loop()` then we'll rerender automatically at the end of the loop.
     // Otherwise, we should rerender now.
@@ -156,13 +160,14 @@ void RootUI::clearNeedsRerender() {
 
 void RootUI::showTemporaryMessage(const std::string &msg, const std::function<void()> &cleanupFunc,
                                   int duration) {
+    bool restoreStereoScreen = display_.stereoEnabled();
     auto msgPopup = std::make_shared<MsgPopup>(display_, msg);
     // NOLINTNEXTLINE(clang-analyzer-cplusplus.NewDeleteLeaks)
-    msgPopup->setBackCallback([this, cleanupFunc]() {
+    msgPopup->setBackCallback([this, cleanupFunc, restoreStereoScreen]() {
         // We do this because we want to ensure that the cleanup function is called after the screen
         // is popped. A little unintuitive, but it's what the interface needs (see
         // popAndSetIndexOrDone -- if we did that first, there'd be an extra pop).
-        popScreen();
+        popScreen(true, restoreStereoScreen);
         cleanupFunc();
     });
     pushScreen(msgPopup);
@@ -1155,7 +1160,7 @@ void RootUI::setup(LocalStore &localStore, FileSystem &fileSystem,
                                                                                      [this]() {
                     auto stereoMenu =
                         GenericSettingsMenuScreen::stereoDepthMenu(display_, prefs_, "System");
-                    stereoMenu->setBackCallback([this]() { this->popScreen(); });
+                    stereoMenu->setBackCallback([this]() { this->popScreen(true, true); });
                     pushScreen(stereoMenu);
                 }));
             }
@@ -1409,12 +1414,12 @@ void RootUI::setup(LocalStore &localStore, FileSystem &fileSystem,
 
                 debugSettingsMenu->setBackCallback([this]() { this->popScreen(); });
 
-                debugSettingsMenu->addMenuItem(
-                    std::make_shared<MenuItemSingleLine>("Stereo Test", [this]() {
+                debugSettingsMenu->addMenuItem(std::make_shared<MenuItemSingleLine>("Stereo Test",
+                                                                                    [this]() {
                     auto stereoTestScreen = std::make_shared<StereoTestScreen>(display_);
                     display_.clearDisplay();
                     this->pushScreen(stereoTestScreen);
-                    stereoTestScreen->setBackCallback([this]() { this->popScreen(false); });
+                    stereoTestScreen->setBackCallback([this]() { this->popScreen(false, true); });
                 }));
 
 #if CONFIG_USE_TURN_TOUCH_REMOTE

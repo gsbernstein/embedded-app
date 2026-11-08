@@ -7,6 +7,7 @@
 #include <cstring>
 #include <stdio.h>
 
+#include "EinkUpdate.hpp"
 #include "Misc/Platform.hpp"
 #include "sindarin-debug.h"
 
@@ -133,12 +134,11 @@ void EinkET013TT1::update(const EinkET013TT1Waveform &waveform, const uint8_t *b
                 Delay(1000 / framerate_);
             }
         }
-
-        // Move new buffers to be previous buffers
-        for (auto &eye : eyes) {
-            if ((screen & eye.side) != 0) {
-                memcpy(eye.previousBuffer, eye.newBuffer, BUFFER_SIZE);
-            }
+    }
+    for (auto &eye : eyes) {
+        if ((screen & eye.side) != 0) {
+            eink::updateBufferHistory(eye.previousBuffer, eye.newBuffer, waveform, altWaveform,
+                                      box);
         }
     }
 }

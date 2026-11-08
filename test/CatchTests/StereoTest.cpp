@@ -6,6 +6,7 @@
 #include <unistd.h>
 
 #include "DisplayUtil.hpp"
+#include "Displays/EinkUpdate.hpp"
 #include "Storage/PosixFileSystem.hpp"
 #include "UI/StereoTestScreen.hpp"
 #include "ViewTestCommon.hpp"
@@ -17,12 +18,164 @@
 #undef protected
 #undef private
 
-#include "UI/ReadableScreen.hpp"
 #include "UI/Menu/GenericSettingsMenuScreen.hpp"
+#include "UI/MsgPopup.hpp"
+#include "UI/ReadableScreen.hpp"
+#include "UI/RootUI.hpp"
 
 extern Telemetry telemetry;
 extern int simulatorTestMinutes;
+extern int FakeEinkET013TT1ParticleMovement;
+extern PowerManager powerManager;
 
+TEST_CASE("Scoped scanline source settings mask individual boundary pixels", "[stereo]") {
+    const Frame regular{NOCHG, WHITE, BLACK, NOCHG};
+    const Frame alternate{BLACK, BLACK, WHITE, WHITE};
+    std::array<uint8_t, 256> lut{}, altLut{};
+    regular.makeLUT(&lut);
+    alternate.makeLUT(&altLut);
+    std::array<uint8_t, CONFIG_DISPLAY_WIDTH / 16> old{}, next{};
+    std::array<uint8_t, CONFIG_DISPLAY_WIDTH / 8> source{};
+    for (size_t i = 0; i < old.size(); ++i) {
+        old[i] = static_cast<uint8_t>(i * 17);
+        next[i] = static_cast<uint8_t>(~old[i]);
+    }
+    for (int left = 88; left < 96; ++left) {
+        for (int right = 120; right < 136; ++right) {
+            EinkBox box{left, right, 20, 22};
+            for (int y : {19, 20, 21, 22}) {
+                for (int xStart : {0, CONFIG_DISPLAY_WIDTH / 2}) {
+                    eink::fillSourceData(source.data(), next.data(), old.data(), lut, altLut, box,
+                                         xStart, y);
+                    for (int x = 0; x < CONFIG_DISPLAY_WIDTH / 2; ++x) {
+                        int oldPixel = (old[x / 8] >> (7 - x % 8)) & 1;
+                        int newPixel = (next[x / 8] >> (7 - x % 8)) & 1;
+                        auto expected = (box.contains(x + xStart, y) ? alternate : regular)
+                                            .getSetting(oldPixel, newPixel);
+                        CHECK(((source[x / 4] >> (6 - 2 * (x % 4))) & 3) == expected);
+                    }
+                }
+            }
+        }
+    }
+    std::array<uint8_t, CONFIG_DISPLAY_WIDTH * CONFIG_DISPLAY_HEIGHT / 8> history{}, submitted{};
+    history.fill(0x55);
+    submitted.fill(0xAA);
+    for (bool inside : {false, true}) {
+        auto previous = history;
+        EinkBox box{90, 123, 20, 22};
+        eink::updateBufferHistory(previous.data(), submitted.data(),
+                                  inside ? BC_WAVEFORM_NONE : BC_REGULAR_EINK_10_13C_WAVEFORM_AU4,
+                                  inside ? BC_REGULAR_EINK_10_13C_WAVEFORM_AU4 : BC_WAVEFORM_NONE,
+                                  box);
+        for (int y = 0; y < CONFIG_DISPLAY_HEIGHT; ++y) {
+            for (int x = 0; x < CONFIG_DISPLAY_WIDTH; ++x) {
+                int index = (y * CONFIG_DISPLAY_WIDTH + x) / 8;
+                int mask = 0x80 >> (x % 8);
+                auto expected = box.contains(x, y) == inside ? submitted[index] : history[index];
+                CHECK((previous[index] & mask) == (expected & mask));
+            }
+        }
+    }
+}
+
+TEST_CASE("Scoped no-op updates retain history for a subsequent erase", "[stereo]") {
+    auto display = createDisplay();
+    bool skipWaveform = GENERATE(false, true);
+    display->setSkipWaveform(skipWaveform);
+    REQUIRE(display->setStereoEnabled(true));
+    display->drawForEachEye([&](ScreenSide eye) {
+        display->fillRect(eye == ScreenSide::Left ? 20 : 30, 20, 1, 1, display->fg);
+    });
+    display->updateDisplay(DisplaySystem::UpdateType::FULL);
+    display->fillRect(100, 100, 1, 1, display->fg);
+    display->updateDisplay(DisplaySystem::UpdateType::FAST_INDICATOR, true, 0,
+                           DisplaySystem::UpdateType::UNSPECIFIED, ScreenSide::Both,
+                           {{90, 90}, {33, 30}});
+    CHECK(display->buffer()[20 * CONFIG_DISPLAY_WIDTH + 20] == 0);
+    CHECK(display->rightBuffer()[20 * CONFIG_DISPLAY_WIDTH + 30] == 0);
+    display->updateDisplay(DisplaySystem::UpdateType::FAST_INDICATOR);
+    CHECK(display->buffer()[20 * CONFIG_DISPLAY_WIDTH + 20] ==
+          (skipWaveform ? 255 : 3 * FakeEinkET013TT1ParticleMovement));
+    CHECK(display->rightBuffer()[20 * CONFIG_DISPLAY_WIDTH + 30] ==
+          (skipWaveform ? 255 : 3 * FakeEinkET013TT1ParticleMovement));
+}
+
+TEST_CASE("Root overlays draw in both eyes and restore clean parent screens", "[stereo]") {
+    auto display = createDisplay();
+    PreferencesStore prefs;
+    REQUIRE(prefs.begin(""));
+    RootUI root(*display, prefs, powerManager, telemetry, nullptr);
+    auto menu = std::make_shared<GenericSettingsMenuScreen>(*display, "Back");
+    menu->addMenuItem(std::make_shared<MenuItemSingleLine>("Parent", []() {}));
+    root.pushScreen(menu, true);
+    root.loop(RemoteCommand::NONE);
+    CHECK_FALSE(menu->needsRerender());
+    REQUIRE(display->setStereoEnabled(true));
+    display->drawForEachEye([&](ScreenSide) { display->fillScreen(display->bg); });
+    root.showTemporaryMessage(
+        "No history saved", []() {}, 0);
+    auto message = root.getCurrentScreen();
+    CHECK(std::equal(display->buffer().get(),
+                     display->buffer().get() + CONFIG_DISPLAY_WIDTH * CONFIG_DISPLAY_HEIGHT,
+                     display->rightBuffer().get()));
+    message->back();
+    CHECK(root.getCurrentScreen() == menu);
+    CHECK_FALSE(menu->needsRerender());
+    for (bool clear : {false, true}) {
+        auto child = std::make_shared<GenericSettingsMenuScreen>(*display, "Child");
+        child->addMenuItem(std::make_shared<MenuItemSingleLine>("Child", []() {}));
+        root.pushScreen(child, true);
+        root.loop(RemoteCommand::NONE);
+        auto childPixels = std::vector<uint8_t>(display->buffer().get(),
+                                                display->buffer().get() +
+                                                    CONFIG_DISPLAY_WIDTH * CONFIG_DISPLAY_HEIGHT);
+        root.popScreen(clear, true);
+        CHECK(root.getCurrentScreen() == menu);
+        CHECK_FALSE(std::equal(childPixels.begin(), childPixels.end(), display->buffer().get()));
+    }
+}
+
+TEST_CASE("Scoped selection bounds follow rotation and global depth", "[stereo]") {
+    auto display = createDisplay();
+    int rotation = GENERATE(0, 1, 2, 3);
+    int depth = GENERATE(0, 4, -4);
+    display->setSkipWaveform(false);
+    display->setRotation(rotation);
+    REQUIRE(display->setStereoDisparity(depth));
+    display->fillRect(20, 30, 1, 1, display->fg);
+    display->updateDisplay(DisplaySystem::UpdateType::FULL);
+    display->fillRect(91, 60, 31, 7, display->fg);
+    display->updateDisplay(DisplaySystem::UpdateType::FAST_INDICATOR, true, 0,
+                           DisplaySystem::UpdateType::UNSPECIFIED, ScreenSide::Both,
+                           {{90, 59}, {33, 9}});
+    for (auto eye : {ScreenSide::Left, ScreenSide::Right}) {
+        auto *output =
+            eye == ScreenSide::Left ? display->buffer().get() : display->rightBuffer().get();
+        for (auto point : {SolPoint{20, 30}, SolPoint{91, 60}, SolPoint{121, 66}}) {
+            int x = point.x + DisplaySystem::eyeShift(eye, depth);
+            int y = point.y;
+            switch (rotation) {
+            case 1:
+                std::swap(x, y);
+                x = CONFIG_DISPLAY_WIDTH - 1 - x;
+                break;
+            case 2:
+                x = CONFIG_DISPLAY_WIDTH - 1 - x;
+                y = CONFIG_DISPLAY_HEIGHT - 1 - y;
+                break;
+            case 3:
+                std::swap(x, y);
+                y = CONFIG_DISPLAY_HEIGHT - 1 - y;
+                break;
+            default:
+                break;
+            }
+            CHECK(output[y * CONFIG_DISPLAY_WIDTH + x] ==
+                  (point.x == 20 ? 0 : 255 - 3 * FakeEinkET013TT1ParticleMovement));
+        }
+    }
+}
 TEST_CASE("eyeShift splits disparity between the eyes", "[stereo]") {
     for (int disparity = -5; disparity <= 5; disparity++) {
         CAPTURE(disparity);
@@ -40,8 +193,8 @@ TEST_CASE("Stereo depth selection applies and rerenders immediately", "[stereo]"
     auto menu = GenericSettingsMenuScreen::stereoDepthMenu(*display, prefs, "System");
     menu->render(*display);
     menu->clearNeedsRerender();
-    menu->setSelectedIndex(DisplaySystem::MAX_STEREO_DISPARITY /
-                               DisplaySystem::STEREO_DISPARITY_STEP + 1);
+    menu->setSelectedIndex(
+        DisplaySystem::MAX_STEREO_DISPARITY / DisplaySystem::STEREO_DISPARITY_STEP + 1);
     menu->render(*display);
     menu->clearNeedsRerender();
     menu->processCommand(RemoteCommand::ENTER);
@@ -474,6 +627,58 @@ TEST_CASE("In-book menu preserves the page and restores mono on exit", "[stereo]
         CHECK(display->stereoEnabled() == (depth != 0));
     }
     prefs.menuDisparity.set(1);
+
+    for (int rotation = 0; rotation < 4; ++rotation) {
+        popup->releaseStereo();
+        display->setRotation(rotation);
+        popup->setTabWithName("Popup");
+        screen->render(*display);
+        std::vector<uint8_t> leftBefore(display->buffer().get(),
+                                        display->buffer().get() +
+                                            CONFIG_DISPLAY_WIDTH * CONFIG_DISPLAY_HEIGHT);
+        std::vector<uint8_t> rightBefore(display->rightBuffer().get(),
+                                         display->rightBuffer().get() +
+                                             CONFIG_DISPLAY_WIDTH * CONFIG_DISPLAY_HEIGHT);
+        popup->processCommand(RemoteCommand::DOWN);
+        screen->render(*display);
+        auto rect = display->indicatorRect;
+        int changes = 0;
+        for (int y = 0; y < CONFIG_DISPLAY_HEIGHT; ++y) {
+            for (int x = 0; x < CONFIG_DISPLAY_WIDTH; ++x) {
+                int logicalX = x;
+                int logicalY = y;
+                switch (rotation) {
+                case 1:
+                    logicalX = y;
+                    logicalY = CONFIG_DISPLAY_WIDTH - 1 - x;
+                    break;
+                case 2:
+                    logicalX = CONFIG_DISPLAY_WIDTH - 1 - x;
+                    logicalY = CONFIG_DISPLAY_HEIGHT - 1 - y;
+                    break;
+                case 3:
+                    logicalX = CONFIG_DISPLAY_HEIGHT - 1 - y;
+                    logicalY = x;
+                    break;
+                default:
+                    break;
+                }
+                bool inside = logicalX >= rect.origin.x && logicalX < rect.right() &&
+                              logicalY >= rect.origin.y && logicalY < rect.bottom();
+                auto index = y * CONFIG_DISPLAY_WIDTH + x;
+                if (!inside) {
+                    CHECK(display->buffer()[index] == leftBefore[index]);
+                    CHECK(display->rightBuffer()[index] == rightBefore[index]);
+                } else {
+                    changes += display->buffer()[index] != leftBefore[index];
+                    changes += display->rightBuffer()[index] != rightBefore[index];
+                }
+            }
+        }
+        CHECK(changes > 0);
+    }
+    popup->releaseStereo();
+    display->setRotation(0);
 
     screen->hidePopupMenu();
     REQUIRE_FALSE(display->stereoEnabled());

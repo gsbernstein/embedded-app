@@ -99,6 +99,24 @@ void DisplayEinkET013TT1::driverUpdate(const EinkET013TT1Waveform &waveform, int
                                        EinkBox box) {
     const uint8_t *left = gfxCanvas_.getBuffer();
     const uint8_t *right = rightCanvas_.has_value() ? rightCanvas_->getBuffer() : left;
+    if (box.rightX > box.leftX && box.bottomY > box.topY) {
+        switch (gfxCanvas_.getRotation()) {
+        case 1:
+            box = {CONFIG_DISPLAY_WIDTH - box.bottomY, CONFIG_DISPLAY_WIDTH - box.topY, box.leftX,
+                   box.rightX};
+            break;
+        case 2:
+            box = {CONFIG_DISPLAY_WIDTH - box.rightX, CONFIG_DISPLAY_WIDTH - box.leftX,
+                   CONFIG_DISPLAY_HEIGHT - box.bottomY, CONFIG_DISPLAY_HEIGHT - box.topY};
+            break;
+        case 3:
+            box = {box.topY, box.bottomY, CONFIG_DISPLAY_HEIGHT - box.rightX,
+                   CONFIG_DISPLAY_HEIGHT - box.leftX};
+            break;
+        default:
+            break;
+        }
+    }
     if (stereoDisparity_ != 0) {
         auto shiftCanvas = [this](EyeCanvas &output, const uint8_t *input, ScreenSide eye) {
             int16_t dx = eyeShift(eye, stereoDisparity_);

@@ -8,6 +8,7 @@
 #include <esp_err.h>
 #include <soc/gpio_struct.h>
 
+#include "EinkUpdate.hpp"
 #include "sindarin-debug.h"
 
 // esp_clk methods are deprecated in IDF 5+
@@ -306,29 +307,6 @@ inline void setScanLineGate(uint8_t *scanLine, int16_t gate) {
     *reinterpret_cast<uint32_t *>(&(scanLine[44])) = GateBlockH(gb);
 }
 
-// Fill the source data of a scanline with the pixel settings for transitioning from `oldBuffer` to
-// `newBuffer`, which both point at the start of a half-line.
-// This takes 4-16us at 240MHz
-inline void fillScanLineSource(uint8_t *scanLine, const uint8_t *newBuffer,
-                               const uint8_t *oldBuffer, const std::array<uint8_t, 256> &lut,
-                               const std::array<uint8_t, 256> &altLut, const EinkBox &box,
-                               uint8_t xStart, uint8_t y) {
-    uint8_t *sourceData = &(scanLine[10]);
-    for (uint16_t pixel = 0; pixel < CONFIG_DISPLAY_WIDTH / 2; pixel += 8) {
-        uint8_t x = pixel + xStart;
-        const auto &lutToUse = box.contains(x, y) ? altLut : lut;
-
-        uint8_t index = pixel / 8;
-        uint8_t oldPixels1 = (oldBuffer[index] >> 4) & 0xF;
-        uint8_t newPixels1 = (newBuffer[index] >> 4) & 0xF;
-        uint8_t oldPixels2 = oldBuffer[index] & 0xF;
-        uint8_t newPixels2 = newBuffer[index] & 0xF;
-
-        sourceData[pixel / 4] = lutToUse[oldPixels1 << 4 | newPixels1];
-        sourceData[(pixel + 4) / 4] = lutToUse[oldPixels2 << 4 | newPixels2];
-    }
-}
-
 } // namespace
 
 void EinkET013TT1::updateInternal(const EinkET013TT1Waveform &waveform, const uint8_t *leftBuffer,
@@ -445,11 +423,13 @@ void EinkET013TT1::updateInternal(const EinkET013TT1Waveform &waveform, const ui
             uint8_t *rightScanLine = txBuffers_[1];
             if (driveLeft || shared) {
                 setScanLineGate(leftScanLine, gate);
-                fillScanLineSource(leftScanLine, leftNew, leftOld, lut, altLut, box, xStart, y);
+                eink::fillSourceData(&leftScanLine[10], leftNew, leftOld, lut, altLut, box, xStart,
+                                     y);
             }
             if (driveRight && !shared) {
                 setScanLineGate(rightScanLine, gate);
-                fillScanLineSource(rightScanLine, rightNew, rightOld, lut, altLut, box, xStart, y);
+                eink::fillSourceData(&rightScanLine[10], rightNew, rightOld, lut, altLut, box,
+                                     xStart, y);
             }
 
             // Send the scan line(s)!
@@ -514,11 +494,11 @@ void EinkET013TT1::updateInternal(const EinkET013TT1Waveform &waveform, const ui
 #endif
 
     float timeNs = PROFILE_CALCULATE_NS(sendFrames);
-    int totalScanlines = (EinkET013TT1_GATE_COUNT + 1) * waveform.frameCount;
+    int totalScanlines = (EinkET013TT1_GATE_COUNT + 1) * maxFrames;
     log_d("Sent %d frames in %.2fms (%.2fms/frame, %.2fus/gate, %d/%d overruns, %d/%d busyWaits)",
-          waveform.frameCount, timeNs / 1000000, timeNs / waveform.frameCount / 1000000,
-          timeNs / waveform.frameCount / (EinkET013TT1_GATE_COUNT + 1) / 1000, timerOverruns_,
-          totalScanlines, busyWaits_, totalScanlines);
+          maxFrames, timeNs / 1000000, timeNs / maxFrames / 1000000,
+          timeNs / maxFrames / (EinkET013TT1_GATE_COUNT + 1) / 1000, timerOverruns_, totalScanlines,
+          busyWaits_, totalScanlines);
     if (timerOverruns_ > 0) {
         log_w("%d timer overruns happened! %.2fus maxFrame", timerOverruns_,
               CYCLES_TO_US(maxFrameCycles_));
@@ -526,10 +506,10 @@ void EinkET013TT1::updateInternal(const EinkET013TT1Waveform &waveform, const ui
 
     // Move new buffers to be previous buffers
     if ((screen & ScreenSide::Left) != 0) {
-        memcpy(previousBuffers_[0], leftBuffer, BUFFER_SIZE);
+        eink::updateBufferHistory(previousBuffers_[0], leftBuffer, waveform, altWaveform, box);
     }
     if ((screen & ScreenSide::Right) != 0) {
-        memcpy(previousBuffers_[1], rightBuffer, BUFFER_SIZE);
+        eink::updateBufferHistory(previousBuffers_[1], rightBuffer, waveform, altWaveform, box);
     }
     previousBorder_ = border_;
 }
