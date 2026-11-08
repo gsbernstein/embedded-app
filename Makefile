@@ -255,5 +255,6 @@ clang-format: check_idf
 program-mode:
 	python3 scripts/port_tool.py find_port programming
 
-unpair-remote:
-	esptool.py erase_region 0x9000 0x5000
+.PHONY: unpair-remote
+unpair-remote: check_idf
+	$(IDF_ENV) esptool.py erase_region 0x9000 0x5000

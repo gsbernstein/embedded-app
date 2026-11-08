@@ -30,7 +30,12 @@ make build flash monitor
 
 This loads ESP-IDF, builds the latest firmware, flashes it to the device, and opens a serial monitor. IDF-dependent Make targets load the environment automatically using `IDF_PATH` if set, otherwise `~/esp/esp-idf`. Run `make build` to build only or `make clang-tidy` to lint and format. The VS Code tasks use these same commands. Simulator and test targets do not load ESP-IDF.
 
-ESP-IDF must already be installed and accessible; Make does not bypass sandbox restrictions. To use `idf.py` directly, source `$IDF_PATH/export.sh` manually first.
+ESP-IDF must already be installed and accessible; Make does not bypass sandbox restrictions.
+To use `idf.py` directly, load the same environment manually first:
+
+```sh
+. "${IDF_PATH:-$HOME/esp/esp-idf}/export.sh"
+```
 
 See also the official [esp-idf installation instructions](https://docs.espressif.com/projects/esp-idf/en/latest/esp32s3/get-started/index.html) for more details.
 
