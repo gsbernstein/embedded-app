@@ -254,20 +254,39 @@ auto NewReadablePopupMenuScreen::layout(LayoutContext &context, SolSize size) ->
 
 void NewReadablePopupMenuScreen::render(DisplaySystem &display) {
     bool refreshBackground = needsBackgroundRefresh();
+    int previousDepth = menuDepth_;
     menuDepth_ =
         std::clamp(prefs_.menuDisparity.get().value_or(1), 0, DisplaySystem::MAX_MENU_DISPARITY);
+    if (previousDepth == 0 && menuDepth_ != 0) {
+        display.clearDisplay();
+    }
     stereoActive_ = menuDepth_ != 0 && display.setStereoEnabled(true);
 
     setFrame(defaultFrameRect());
     layoutIfNeeded();
 
+    auto updateRect = popupMenuBackground_.screenFrame();
+    auto leftShift = DisplaySystem::eyeShift(ScreenSide::Left, menuDepth_);
+    auto rightShift = DisplaySystem::eyeShift(ScreenSide::Right, menuDepth_);
+    updateRect.origin.x += std::min(leftShift, rightShift);
+    updateRect.size.width += std::abs(leftShift - rightShift);
+
     display.drawForEachEye([this](ScreenSide eye) { drawForEye(eye); });
 
     if (refreshBackground) {
         firstLoad_ = false;
+        auto refreshRect = updateRect;
+        if (previousPopupRect_.size.width > 0 && previousPopupRect_.size.height > 0) {
+            int left = std::min(refreshRect.origin.x, previousPopupRect_.origin.x);
+            int top = std::min(refreshRect.origin.y, previousPopupRect_.origin.y);
+            int right = std::max(refreshRect.right(), previousPopupRect_.right());
+            int bottom = std::max(refreshRect.bottom(), previousPopupRect_.bottom());
+            refreshRect = {{left, top}, {right - left, bottom - top}};
+        }
         display.updateDisplay(menuDepth_ != 0 ? DisplaySystem::UpdateType::FULL
                                               : DisplaySystem::UpdateType::PARTIAL,
-                              menuDepth_ == 0);
+                              menuDepth_ == 0, 0, DisplaySystem::UpdateType::UNSPECIFIED,
+                              ScreenSide::Both, menuDepth_ != 0 ? refreshRect : SolRect::zero());
         // Redraw but this time without the text (since updateDisplay will clear the screen)
         if (menuDepth_ == 0) {
             display.drawForEachEye([this](ScreenSide eye) { drawForEye(eye); });
@@ -275,13 +294,9 @@ void NewReadablePopupMenuScreen::render(DisplaySystem &display) {
     }
 
     display.drawForEachEye([this](ScreenSide eye) { drawForEye(eye, true); });
-    auto updateRect = SolRect::zero();
-    if (!refreshBackground || menuDepth_ != 0) {
-        updateRect = popupMenuBackground_.screenFrame();
-        auto leftShift = DisplaySystem::eyeShift(ScreenSide::Left, menuDepth_);
-        auto rightShift = DisplaySystem::eyeShift(ScreenSide::Right, menuDepth_);
-        updateRect.origin.x += std::min(leftShift, rightShift);
-        updateRect.size.width += std::abs(leftShift - rightShift);
+    previousPopupRect_ = updateRect;
+    if (refreshBackground && menuDepth_ == 0) {
+        updateRect = SolRect::zero();
     }
     display.updateDisplay(DisplaySystem::UpdateType::FAST_INDICATOR, false, 0,
                           DisplaySystem::UpdateType::UNSPECIFIED, ScreenSide::Both, updateRect);

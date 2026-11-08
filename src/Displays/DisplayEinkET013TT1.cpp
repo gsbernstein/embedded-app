@@ -292,6 +292,12 @@ void DisplayEinkET013TT1::updateDisplay(DisplaySystem::UpdateType updateType, bo
     case FULL:
         firstPartialTime_ = 0;
         numPartials_ = 0;
+        if (!fullRefreshNext_ && altRect.size.width > 0 && altRect.size.height > 0 &&
+            altUpdateType == UNSPECIFIED) {
+            driverUpdate(BC_WAVEFORM_NONE, adjustedVcom, FULL_BIG_ORIGINAL_WAVEFORM, screen,
+                         {altRect.origin.x, altRect.right(), altRect.origin.y, altRect.bottom()});
+            break;
+        }
         if (altUpdateType != UNSPECIFIED) {
             switch (altUpdateType) {
             // right now these are the only two supported

@@ -578,6 +578,10 @@ void ReadableScreen::render(DisplaySystem &display) {
     bool renderPopupBackground = currentScreen_ == popupMenuScreen_ && popupMenuScreen_ &&
                                  (renderPopup_ || popupMenuScreen_->needsBackgroundRefresh());
     if (renderPopupBackground) {
+        if (popupBackgroundSkippedLines_ != speedLinesToSkip_) {
+            display.clearDisplay();
+        }
+        popupBackgroundSkippedLines_ = speedLinesToSkip_;
         popupMenuScreen_->releaseStereo();
         display.clearFrameBuffer();
     }

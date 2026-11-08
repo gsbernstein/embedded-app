@@ -105,6 +105,7 @@ protected:
 
     // Must reset this to 0 on each page turn.
     unsigned int speedLinesToSkip_ = 0;
+    unsigned int popupBackgroundSkippedLines_ = 0;
     unsigned long nextInterval_ = 0;
     // How many ms we should take to read the page
     int pageSpeed_ = 10000;

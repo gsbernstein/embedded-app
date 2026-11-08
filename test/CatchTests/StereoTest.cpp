@@ -105,6 +105,30 @@ TEST_CASE("Scoped no-op updates retain history for a subsequent erase", "[stereo
           (skipWaveform ? 255 : 3 * FakeEinkET013TT1ParticleMovement));
 }
 
+TEST_CASE("Scoped full refresh leaves outside pixels physically undriven", "[stereo]") {
+    auto display = createDisplay();
+    display->setSkipWaveform(false);
+    display->updateDisplay(DisplaySystem::UpdateType::FULL);
+    display->fillRect(20, 20, 1, 1, display->fg);
+    display->updateDisplay(DisplaySystem::UpdateType::FAST_INDICATOR, false);
+    constexpr int index = 20 * CONFIG_DISPLAY_WIDTH + 20;
+    auto before = display->buffer()[index];
+    REQUIRE(before > 0);
+    REQUIRE(before < 255);
+    display->fillRect(100, 100, 1, 1, display->fg);
+    display->updateDisplay(DisplaySystem::UpdateType::FULL, false, 0,
+                           DisplaySystem::UpdateType::UNSPECIFIED, ScreenSide::Both,
+                           {{90, 90}, {30, 30}});
+    CHECK(display->buffer()[index] == before);
+    CHECK(display->rightBuffer()[index] == before);
+    CHECK(display->buffer()[100 * CONFIG_DISPLAY_WIDTH + 100] == 0);
+    display->clearDisplay();
+    display->updateDisplay(DisplaySystem::UpdateType::FULL, false, 0,
+                           DisplaySystem::UpdateType::UNSPECIFIED, ScreenSide::Both,
+                           {{90, 90}, {30, 30}});
+    CHECK(display->buffer()[index] == 0);
+}
+
 TEST_CASE("Global depth scopes each eye independently without erasing background", "[stereo]") {
     auto display = createDisplay();
     int rotation = GENERATE(0, 1, 2, 3);
@@ -569,6 +593,7 @@ TEST_CASE("In-book menu preserves the page and restores mono on exit", "[stereo]
         std::vector<uint8_t> leftBackground;
         std::vector<uint8_t> rightBackground;
         SolRect indicatorRect = SolRect::zero();
+        SolRect popupRefreshRect = SolRect::zero();
 
         void clearFrameBuffer() override {
             ++canvasClears;
@@ -586,6 +611,7 @@ TEST_CASE("In-book menu preserves the page and restores mono on exit", "[stereo]
                            UpdateType altType = UNSPECIFIED, ScreenSide eye = ScreenSide::Both,
                            SolRect rect = SolRect::zero()) override {
             if (type == FULL && stereoEnabled()) {
+                popupRefreshRect = rect;
                 ++backgroundRefreshes;
                 auto size = CONFIG_DISPLAY_WIDTH * CONFIG_DISPLAY_HEIGHT / 8;
                 leftBackground.assign(gfxCanvas_.getBuffer(), gfxCanvas_.getBuffer() + size);
@@ -677,8 +703,26 @@ TEST_CASE("In-book menu preserves the page and restores mono on exit", "[stereo]
         CHECK_FALSE(popup->needsBackgroundRefresh());
     }
     popup->processCommand(RemoteCommand::RIGHT);
+    std::vector<uint8_t> leftBeforeTab(display->buffer().get(),
+                                       display->buffer().get() + pixelCount);
+    std::vector<uint8_t> rightBeforeTab(display->rightBuffer().get(),
+                                        display->rightBuffer().get() + pixelCount);
     screen->render(*display);
     CHECK(display->backgroundRefreshes == 2);
+    auto refreshRect = display->popupRefreshRect;
+    REQUIRE(refreshRect.size.width > 0);
+    REQUIRE(refreshRect.size.width < CONFIG_DISPLAY_WIDTH);
+    REQUIRE(refreshRect.size.height < CONFIG_DISPLAY_HEIGHT);
+    for (int y = 0; y < CONFIG_DISPLAY_HEIGHT; ++y) {
+        for (int x = 0; x < CONFIG_DISPLAY_WIDTH; ++x) {
+            if (x < refreshRect.origin.x || x >= refreshRect.right() || y < refreshRect.origin.y ||
+                y >= refreshRect.bottom()) {
+                auto index = y * CONFIG_DISPLAY_WIDTH + x;
+                CHECK(display->buffer()[index] == leftBeforeTab[index]);
+                CHECK(display->rightBuffer()[index] == rightBeforeTab[index]);
+            }
+        }
+    }
     ASSERT_STEREO_VIEW_UNCHANGED(display, imagePrefix + "NextTab");
     CHECK(popup->getCurrentTabTitle() == "Style");
     popup->processCommand(RemoteCommand::RIGHT);
@@ -831,8 +875,8 @@ TEST_CASE("In-book menu preserves the page and restores mono on exit", "[stereo]
         []() {
         auto items = std::make_shared<MenuItemVector>();
         for (int i = 0; i < 12; ++i) {
-            items->push_back(            std::make_shared<MenuItemSingleLine>("Paging item " + std::to_string(i),
-                                                 []() {}));
+            items->push_back(
+                std::make_shared<MenuItemSingleLine>("Paging item " + std::to_string(i), []() {}));
         }
         return items;
         },

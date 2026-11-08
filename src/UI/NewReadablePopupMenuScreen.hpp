@@ -66,6 +66,7 @@ protected:
 
     bool stereoActive_ = false;
     int menuDepth_ = 1;
+    SolRect previousPopupRect_ = SolRect::zero();
     DisplaySystem &display_;
     PreferencesStore &prefs_;
     std::shared_ptr<Readable> readable_;

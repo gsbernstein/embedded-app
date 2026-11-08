@@ -124,6 +124,8 @@ Setting Menu Depth to zero restores the faded-background presentation.
 Scoped popup updates follow screen rotation and preserve both pixels and display history outside
 their exact per-eye bounds, including with global depth enabled. Selection-only redraws reuse the
 popup canvas; tab, page, footer, and depth changes restore the book background.
+Raised-menu tab/page refreshes drive only the combined old and new popup footprints,
+not the whole book page. Required screen clears still take precedence.
 Temporary messages and power-status bitmaps render in both eyes.
 
 Stereo does not add an animation timer or keep the panels powered between updates.
