@@ -40,7 +40,8 @@ auto EinkET013TT1::getPixel(const uint8_t *buffer, int x, int y) -> uint8_t {
 
 void EinkET013TT1::update(const EinkET013TT1Waveform &waveform, const uint8_t *buffer,
                           int32_t overrideVcom, const EinkET013TT1Waveform &altWaveform,
-                          ScreenSide screen, EinkBox box, const uint8_t *rightBuffer) {
+                          ScreenSide screen, EinkBox box, const uint8_t *rightBuffer,
+                          std::optional<EinkBox> rightBox) {
     if (rightBuffer == nullptr) {
         rightBuffer = buffer;
     }
@@ -50,10 +51,12 @@ void EinkET013TT1::update(const EinkET013TT1Waveform &waveform, const uint8_t *b
         const uint8_t *newBuffer;
         uint8_t *previousBuffer;
         uint8_t *particles;
+        EinkBox box;
     };
     std::array<Eye, 2> eyes = {{
-        {ScreenSide::Left, buffer, previousBuffers_[0], particlePositions_.get()},
-        {ScreenSide::Right, rightBuffer, previousBuffers_[1], rightParticlePositions_.get()},
+        {ScreenSide::Left, buffer, previousBuffers_[0], particlePositions_.get(), box},
+        {ScreenSide::Right, rightBuffer, previousBuffers_[1], rightParticlePositions_.get(),
+         rightBox.value_or(box)},
     }};
 
     if (skipWaveform_) {
@@ -70,7 +73,7 @@ void EinkET013TT1::update(const EinkET013TT1Waveform &waveform, const uint8_t *b
             }
             for (int x = 0; x < CONFIG_DISPLAY_WIDTH; x++) {
                 for (int y = 0; y < CONFIG_DISPLAY_HEIGHT; y++) {
-                    const auto &pixelWaveform = box.contains(x, y) ? altWaveform : waveform;
+                    const auto &pixelWaveform = eye.box.contains(x, y) ? altWaveform : waveform;
                     if (pixelWaveform.frameCount == 0) {
                         continue;
                     }
@@ -103,7 +106,7 @@ void EinkET013TT1::update(const EinkET013TT1Waveform &waveform, const uint8_t *b
                     for (int y = 0; y < CONFIG_DISPLAY_HEIGHT; y++) {
                         auto pixel = getPixel(eye.newBuffer, x, y);
                         auto previousPixel = getPixel(eye.previousBuffer, x, y);
-                        uint8_t setting = box.contains(x, y)
+                        uint8_t setting = eye.box.contains(x, y)
                                               ? altFrame.getSetting(previousPixel, pixel)
                                               : frame.getSetting(previousPixel, pixel);
                         auto position = eye.particles[y * CONFIG_DISPLAY_WIDTH + x];
@@ -138,7 +141,7 @@ void EinkET013TT1::update(const EinkET013TT1Waveform &waveform, const uint8_t *b
     for (auto &eye : eyes) {
         if ((screen & eye.side) != 0) {
             eink::updateBufferHistory(eye.previousBuffer, eye.newBuffer, waveform, altWaveform,
-                                      box);
+                                      eye.box);
         }
     }
 }

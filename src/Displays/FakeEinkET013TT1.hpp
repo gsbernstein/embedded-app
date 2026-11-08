@@ -6,6 +6,7 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/queue.h>
 #include <memory>
+#include <optional>
 #include <string>
 
 #include "CustomWaveforms.hpp"
@@ -49,12 +50,13 @@ public:
     void clear(const EinkET013TT1Waveform &waveform);
 
     // `buffer` is shown to both eyes unless `rightBuffer` is provided, in which case `buffer` goes
-    // to the left eye and `rightBuffer` to the right eye.
+    // to the left eye and `rightBuffer` to the right eye. rightBox defaults to the left box.
     void update(const EinkET013TT1Waveform &waveform, const uint8_t *buffer,
                 int32_t overrideVcom = INT32_MAX,
                 const EinkET013TT1Waveform &altWaveform = BC_WAVEFORM_NONE,
                 ScreenSide screen = ScreenSide::Both, EinkBox box = EinkBox::zero(),
-                const uint8_t *rightBuffer = nullptr);
+                const uint8_t *rightBuffer = nullptr,
+                std::optional<EinkBox> rightBox = std::nullopt);
 
     auto readTemperature(ScreenSide screen) -> int16_t;
 

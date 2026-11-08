@@ -312,7 +312,7 @@ inline void setScanLineGate(uint8_t *scanLine, int16_t gate) {
 void EinkET013TT1::updateInternal(const EinkET013TT1Waveform &waveform, const uint8_t *leftBuffer,
                                   const uint8_t *rightBuffer, int32_t overrideVcom,
                                   const EinkET013TT1Waveform &altWaveform, ScreenSide screen,
-                                  EinkBox box) {
+                                  EinkBox box, EinkBox rightBox) {
     if (overrideVcom != INT32_MAX && overrideVcom != vcomInMV_) {
         uint8_t newVcomRegisterValue = VcomMVToRegisterValue(overrideVcom);
         log_d("Overriding VCOM from %" PRIi32 " (0x%02X) to %" PRIi32 " (0x%02X)", vcomInMV_,
@@ -415,7 +415,9 @@ void EinkET013TT1::updateInternal(const EinkET013TT1Waveform &waveform, const ui
             bool driveLeft = (screen & ScreenSide::Left) != 0;
             bool driveRight = (screen & ScreenSide::Right) != 0;
             bool shared =
-                driveLeft && driveRight &&
+                driveLeft && driveRight && box.leftX == rightBox.leftX &&
+                box.rightX == rightBox.rightX && box.topY == rightBox.topY &&
+                box.bottomY == rightBox.bottomY &&
                 (leftNew == rightNew || memcmp(leftNew, rightNew, HALF_LINE_BYTES) == 0) &&
                 memcmp(leftOld, rightOld, HALF_LINE_BYTES) == 0;
 
@@ -428,8 +430,12 @@ void EinkET013TT1::updateInternal(const EinkET013TT1Waveform &waveform, const ui
             }
             if (driveRight && !shared) {
                 setScanLineGate(rightScanLine, gate);
-                eink::fillSourceData(&rightScanLine[10], rightNew, rightOld, lut, altLut, box,
+                eink::fillSourceData(&rightScanLine[10], rightNew, rightOld, lut, altLut, rightBox,
                                      xStart, y);
+                if (driveLeft &&
+                    memcmp(&leftScanLine[10], &rightScanLine[10], CONFIG_DISPLAY_WIDTH / 8) == 0) {
+                    shared = true;
+                }
             }
 
             // Send the scan line(s)!
@@ -509,29 +515,32 @@ void EinkET013TT1::updateInternal(const EinkET013TT1Waveform &waveform, const ui
         eink::updateBufferHistory(previousBuffers_[0], leftBuffer, waveform, altWaveform, box);
     }
     if ((screen & ScreenSide::Right) != 0) {
-        eink::updateBufferHistory(previousBuffers_[1], rightBuffer, waveform, altWaveform, box);
+        eink::updateBufferHistory(previousBuffers_[1], rightBuffer, waveform, altWaveform,
+                                  rightBox);
     }
     previousBorder_ = border_;
 }
 
 void EinkET013TT1::update(const EinkET013TT1Waveform &waveform, const uint8_t *buffer,
                           int32_t overrideVcom, const EinkET013TT1Waveform &altWaveform,
-                          ScreenSide screen, EinkBox box, const uint8_t *rightBuffer) {
+                          ScreenSide screen, EinkBox box, const uint8_t *rightBuffer,
+                          std::optional<EinkBox> rightBox) {
     if (rightBuffer == nullptr) {
         rightBuffer = buffer;
     }
     // Create a notification group to wait for the update to finish
     auto group = xEventGroupCreate();
 
-    einkQueue_->dispatch(
-        [this, waveform, buffer, rightBuffer, overrideVcom, group, altWaveform, screen, box]() {
+    einkQueue_->dispatch([this, waveform, buffer, rightBuffer, overrideVcom, group, altWaveform,
+                          screen, box, rightBox]() {
         if (!poweredOn_) {
             // This shouldn't happen, we should have been powering on the screen early in the render
             // pipeline before update is called
             log_w("Screen not powered on at update time. Powering on.");
             powerOnInternal();
         }
-        updateInternal(waveform, buffer, rightBuffer, overrideVcom, altWaveform, screen, box);
+        updateInternal(waveform, buffer, rightBuffer, overrideVcom, altWaveform, screen, box,
+                       rightBox.value_or(box));
 
         // Release the lock
         xEventGroupSetBits(group, 1);

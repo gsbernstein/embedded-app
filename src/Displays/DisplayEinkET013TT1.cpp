@@ -117,6 +117,7 @@ void DisplayEinkET013TT1::driverUpdate(const EinkET013TT1Waveform &waveform, int
             break;
         }
     }
+    auto rightBox = box;
     if (stereoDisparity_ != 0) {
         auto shiftCanvas = [this](EyeCanvas &output, const uint8_t *input, ScreenSide eye) {
             int16_t dx = eyeShift(eye, stereoDisparity_);
@@ -144,13 +145,17 @@ void DisplayEinkET013TT1::driverUpdate(const EinkET013TT1Waveform &waveform, int
         left = shiftedLeftCanvas_->getBuffer();
         right = shiftedRightCanvas_->getBuffer();
         if (box.rightX > box.leftX && box.bottomY > box.topY) {
-            box.leftX += std::min(leftShift.x, rightShift.x);
-            box.rightX += std::max(leftShift.x, rightShift.x);
-            box.topY += std::min(leftShift.y, rightShift.y);
-            box.bottomY += std::max(leftShift.y, rightShift.y);
+            box.leftX += leftShift.x;
+            box.rightX += leftShift.x;
+            box.topY += leftShift.y;
+            box.bottomY += leftShift.y;
+            rightBox.leftX += rightShift.x;
+            rightBox.rightX += rightShift.x;
+            rightBox.topY += rightShift.y;
+            rightBox.bottomY += rightShift.y;
         }
     }
-    driver_.update(waveform, left, vcom, altWaveform, screen, box, right);
+    driver_.update(waveform, left, vcom, altWaveform, screen, box, right, rightBox);
 }
 
 auto DisplayEinkET013TT1::setStereoDisparity(int disparity) -> bool {

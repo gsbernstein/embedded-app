@@ -372,8 +372,13 @@ void KindleReadableScreen::drawInRect(SolRect rect) {
 void KindleReadableScreen::render(DisplaySystem &display) {
     // If we have a popup menu or other screen, let it handle rendering
     if (currentScreen_) {
+        if (currentScreen_ == popupMenuScreen_ && firstLoad_) {
+            popupMenuScreen_->setFirstLoad();
+            firstLoad_ = false;
+        }
         if (currentScreen_ == popupMenuScreen_ && popupMenuScreen_->needsBackgroundRefresh()) {
             popupMenuScreen_->releaseStereo();
+            display.clearFrameBuffer();
             setFrame(defaultFrameRect());
             draw();
         }
@@ -1422,6 +1427,7 @@ void KindleReadableScreen::cancelReconnectionAttempt() {
 void KindleReadableScreen::setCurrentScreen(const std::shared_ptr<Screen> &screen) {
     if (currentScreen_ == popupMenuScreen_ && screen != popupMenuScreen_) {
         popupMenuScreen_->releaseStereo();
+        display_.clearFrameBuffer();
     }
     if (currentScreen_) {
         currentScreen_->setFirstLoad();

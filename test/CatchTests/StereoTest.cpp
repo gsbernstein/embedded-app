@@ -7,6 +7,7 @@
 
 #include "DisplayUtil.hpp"
 #include "Displays/EinkUpdate.hpp"
+#include "Misc/PowerManager.hpp"
 #include "Storage/PosixFileSystem.hpp"
 #include "UI/StereoTestScreen.hpp"
 #include "ViewTestCommon.hpp"
@@ -18,8 +19,11 @@
 #undef protected
 #undef private
 
+#include "UI/ChargingScreen.hpp"
 #include "UI/Menu/GenericSettingsMenuScreen.hpp"
 #include "UI/MsgPopup.hpp"
+#include "UI/OverTempScreen.hpp"
+#include "UI/PowerDepletedScreen.hpp"
 #include "UI/ReadableScreen.hpp"
 #include "UI/RootUI.hpp"
 
@@ -99,6 +103,86 @@ TEST_CASE("Scoped no-op updates retain history for a subsequent erase", "[stereo
           (skipWaveform ? 255 : 3 * FakeEinkET013TT1ParticleMovement));
     CHECK(display->rightBuffer()[20 * CONFIG_DISPLAY_WIDTH + 30] ==
           (skipWaveform ? 255 : 3 * FakeEinkET013TT1ParticleMovement));
+}
+
+TEST_CASE("Global depth scopes each eye independently without erasing background", "[stereo]") {
+    auto display = createDisplay();
+    int rotation = GENERATE(0, 1, 2, 3);
+    int depth = GENERATE(-64, 64);
+    bool skipWaveform = GENERATE(false, true);
+    display->setSkipWaveform(skipWaveform);
+    display->setRotation(rotation);
+    REQUIRE(display->setStereoDisparity(depth));
+    for (int x : {70, 140}) {
+        display->fillRect(x, 60, 1, 1, display->fg);
+    }
+    display->updateDisplay(DisplaySystem::UpdateType::FULL);
+    constexpr int pixels = CONFIG_DISPLAY_WIDTH * CONFIG_DISPLAY_HEIGHT;
+    std::vector<uint8_t> leftBefore(display->buffer().get(), display->buffer().get() + pixels);
+    std::vector<uint8_t> rightBefore(display->rightBuffer().get(),
+                                     display->rightBuffer().get() + pixels);
+    display->fillRect(100, 60, 1, 1, display->fg);
+    display->updateDisplay(DisplaySystem::UpdateType::FAST_INDICATOR, true, 0,
+                           DisplaySystem::UpdateType::UNSPECIFIED, ScreenSide::Both,
+                           {{90, 59}, {30, 3}});
+    for (auto eye : {ScreenSide::Left, ScreenSide::Right}) {
+        auto *output =
+            eye == ScreenSide::Left ? display->buffer().get() : display->rightBuffer().get();
+        const auto &before = eye == ScreenSide::Left ? leftBefore : rightBefore;
+        int changes = 0;
+        for (int y = 0; y < CONFIG_DISPLAY_HEIGHT; ++y) {
+            for (int x = 0; x < CONFIG_DISPLAY_WIDTH; ++x) {
+                int logicalX = x;
+                int logicalY = y;
+                switch (rotation) {
+                case 1:
+                    logicalX = y;
+                    logicalY = CONFIG_DISPLAY_WIDTH - 1 - x;
+                    break;
+                case 2:
+                    logicalX = CONFIG_DISPLAY_WIDTH - 1 - x;
+                    logicalY = CONFIG_DISPLAY_HEIGHT - 1 - y;
+                    break;
+                case 3:
+                    logicalX = CONFIG_DISPLAY_HEIGHT - 1 - y;
+                    logicalY = x;
+                    break;
+                default:
+                    break;
+                }
+                logicalX -= DisplaySystem::eyeShift(eye, depth);
+                int index = y * CONFIG_DISPLAY_WIDTH + x;
+                if (logicalX < 90 || logicalX >= 120 || logicalY < 59 || logicalY >= 62) {
+                    CHECK(output[index] == before[index]);
+                } else {
+                    changes += output[index] != before[index];
+                }
+            }
+        }
+        CHECK(changes > 0);
+    }
+}
+
+TEST_CASE("Power status bitmaps render identically into both stereo eyes", "[stereo]") {
+    auto display = createDisplay();
+    PreferencesStore prefs;
+    REQUIRE(prefs.begin(""));
+    std::array<std::shared_ptr<Screen>, 3> screens{std::make_shared<ChargingScreen>(prefs),
+                                                   std::make_shared<OverTempScreen>(),
+                                                   std::make_shared<PowerDepletedScreen>()};
+    REQUIRE(display->setStereoEnabled(true));
+    for (const auto &screen : screens) {
+        display->drawForEachEye([&](ScreenSide eye) {
+            display->fillScreen(eye == ScreenSide::Left ? display->fg : display->bg);
+        });
+        screen->render(*display);
+        auto *left = display->buffer().get();
+        auto *right = display->rightBuffer().get();
+        constexpr int pixels = CONFIG_DISPLAY_WIDTH * CONFIG_DISPLAY_HEIGHT;
+        CHECK(std::equal(left, left + pixels, right));
+        CHECK(std::any_of(left, left + pixels, [](uint8_t pixel) { return pixel == 0; }));
+        CHECK(std::any_of(left, left + pixels, [](uint8_t pixel) { return pixel == 255; }));
+    }
 }
 
 TEST_CASE("Root overlays draw in both eyes and restore clean parent screens", "[stereo]") {
@@ -480,9 +564,23 @@ TEST_CASE("In-book menu preserves the page and restores mono on exit", "[stereo]
     class RecordingDisplay : public DisplayEinkET013TT1 {
     public:
         int backgroundRefreshes = 0;
+        int stereoReleases = 0;
+        int canvasClears = 0;
         std::vector<uint8_t> leftBackground;
         std::vector<uint8_t> rightBackground;
         SolRect indicatorRect = SolRect::zero();
+
+        void clearFrameBuffer() override {
+            ++canvasClears;
+            DisplayEinkET013TT1::clearFrameBuffer();
+        }
+
+        auto setStereoEnabled(bool enabled) -> bool override {
+            if (!enabled && stereoEnabled()) {
+                ++stereoReleases;
+            }
+            return DisplayEinkET013TT1::setStereoEnabled(enabled);
+        }
 
         void updateDisplay(UpdateType type = UNSPECIFIED, bool clear = true, int vcom = 0,
                            UpdateType altType = UNSPECIFIED, ScreenSide eye = ScreenSide::Both,
@@ -559,14 +657,25 @@ TEST_CASE("In-book menu preserves the page and restores mono on exit", "[stereo]
     ASSERT_STEREO_VIEW_UNCHANGED(display, imagePrefix);
     auto popup = screen->popup();
     auto baseFrame = popup->frame();
+    auto releases = display->stereoReleases;
+    auto clears = display->canvasClears;
 
     popup->processCommand(RemoteCommand::DOWN);
     screen->render(*display);
     CHECK(popup->frame() == baseFrame);
     CHECK(display->backgroundRefreshes == 1);
+    CHECK(display->stereoReleases == releases);
+    CHECK(display->canvasClears == clears);
     CHECK(display->indicatorRect.size.width > 0);
     CHECK(display->indicatorRect.size.width < CONFIG_DISPLAY_WIDTH);
     ASSERT_STEREO_VIEW_UNCHANGED(display, imagePrefix + "Selected");
+    for (auto command : {RemoteCommand::UP, RemoteCommand::DOWN}) {
+        popup->processCommand(command);
+        screen->render(*display);
+        CHECK(display->stereoReleases == releases);
+        CHECK(display->canvasClears == clears);
+        CHECK_FALSE(popup->needsBackgroundRefresh());
+    }
     popup->processCommand(RemoteCommand::RIGHT);
     screen->render(*display);
     CHECK(display->backgroundRefreshes == 2);
@@ -611,8 +720,10 @@ TEST_CASE("In-book menu preserves the page and restores mono on exit", "[stereo]
     screen->setAutopilotForTest(0, 0);
 
     popup->setTabWithName("Popup");
+    releases = display->stereoReleases;
     simulatorTestMinutes = 22;
     screen->render(*display);
+    CHECK(display->stereoReleases == releases + 1);
     ASSERT_STEREO_VIEW_UNCHANGED(display, imagePrefix + "Clock");
     simulatorTestMinutes = 21;
 
@@ -622,11 +733,18 @@ TEST_CASE("In-book menu preserves the page and restores mono on exit", "[stereo]
         screen->showPopupMenu();
         screen->render(*display);
         CHECK(display->stereoEnabled() == (depth != 0));
+        clears = display->canvasClears;
+        releases = display->stereoReleases;
         popup->processCommand(RemoteCommand::DOWN);
         screen->render(*display);
         CHECK(display->stereoEnabled() == (depth != 0));
+        CHECK(display->canvasClears == clears);
+        CHECK(display->stereoReleases == releases);
     }
     prefs.menuDisparity.set(1);
+    screen->render(*display);
+    CHECK(display->stereoEnabled());
+    CHECK_FALSE(popup->needsBackgroundRefresh());
 
     for (int rotation = 0; rotation < 4; ++rotation) {
         popup->releaseStereo();
@@ -708,6 +826,28 @@ TEST_CASE("In-book menu preserves the page and restores mono on exit", "[stereo]
     screen->showPopupMenu();
     screen->render(*display);
     REQUIRE(display->stereoEnabled());
+    popup->addTab(
+        "Paging",
+        []() {
+        auto items = std::make_shared<MenuItemVector>();
+        for (int i = 0; i < 12; ++i) {
+            items->push_back(            std::make_shared<MenuItemSingleLine>("Paging item " + std::to_string(i),
+                                                 []() {}));
+        }
+        return items;
+        },
+        8);
+    popup->setTabWithName("Paging");
+    screen->render(*display);
+    releases = display->stereoReleases;
+    for (int i = 0; i < 7; ++i) {
+        popup->processCommand(RemoteCommand::DOWN);
+        screen->render(*display);
+        CHECK(display->stereoReleases == releases);
+    }
+    popup->processCommand(RemoteCommand::DOWN);
+    screen->render(*display);
+    CHECK(display->stereoReleases == releases + 1);
     auto otherScreen = std::make_shared<StereoTestScreen>(*display);
     screen->setCurrentScreen(otherScreen);
     REQUIRE_FALSE(display->stereoEnabled());

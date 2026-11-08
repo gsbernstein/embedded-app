@@ -51,6 +51,21 @@ void NewReadablePopupMenuScreen::releaseStereo() {
         display_.setStereoEnabled(false);
         stereoActive_ = false;
     }
+    setFirstLoad();
+}
+
+auto NewReadablePopupMenuScreen::needsBackgroundRefresh() -> bool {
+    auto oldFooter1 = footer1TextView_.getText();
+    auto oldFooter2 = footer2TextView_.getText();
+    auto oldFooter3 = footer3TextView_.getText();
+    setUpPopupMenu();
+    auto depth =
+        std::clamp(prefs_.menuDisparity.get().value_or(1), 0, DisplaySystem::MAX_MENU_DISPARITY);
+    if (oldFooter1 != footer1TextView_.getText() || oldFooter2 != footer2TextView_.getText() ||
+        oldFooter3 != footer3TextView_.getText() || menuDepth_ != depth) {
+        setFirstLoad();
+    }
+    return firstLoad_;
 }
 
 void NewReadablePopupMenuScreen::setUpPopupMenu() {
@@ -238,11 +253,7 @@ auto NewReadablePopupMenuScreen::layout(LayoutContext &context, SolSize size) ->
 }
 
 void NewReadablePopupMenuScreen::render(DisplaySystem &display) {
-    auto oldTime = footer3TextView_.getText();
-    setUpPopupMenu();
-    if (oldTime != footer3TextView_.getText()) {
-        firstLoad_ = true;
-    }
+    bool refreshBackground = needsBackgroundRefresh();
     menuDepth_ =
         std::clamp(prefs_.menuDisparity.get().value_or(1), 0, DisplaySystem::MAX_MENU_DISPARITY);
     stereoActive_ = menuDepth_ != 0 && display.setStereoEnabled(true);
@@ -252,7 +263,6 @@ void NewReadablePopupMenuScreen::render(DisplaySystem &display) {
 
     display.drawForEachEye([this](ScreenSide eye) { drawForEye(eye); });
 
-    bool refreshBackground = firstLoad_;
     if (refreshBackground) {
         firstLoad_ = false;
         display.updateDisplay(menuDepth_ != 0 ? DisplaySystem::UpdateType::FULL
@@ -273,6 +283,6 @@ void NewReadablePopupMenuScreen::render(DisplaySystem &display) {
         updateRect.origin.x += std::min(leftShift, rightShift);
         updateRect.size.width += std::abs(leftShift - rightShift);
     }
-    display.updateDisplay(DisplaySystem::UpdateType::FAST_INDICATOR, true, 0,
+    display.updateDisplay(DisplaySystem::UpdateType::FAST_INDICATOR, false, 0,
                           DisplaySystem::UpdateType::UNSPECIFIED, ScreenSide::Both, updateRect);
 }

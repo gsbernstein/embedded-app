@@ -422,6 +422,7 @@ ReadableScreen::ReadableScreen(const std::shared_ptr<RendererStream> &stream,
 void ReadableScreen::setCurrentScreen(const std::shared_ptr<Screen> &screen) {
     if (currentScreen_ == popupMenuScreen_ && screen != popupMenuScreen_) {
         popupMenuScreen_->releaseStereo();
+        display_.clearFrameBuffer();
     }
     if (currentScreen_) {
         currentScreen_->setFirstLoad();
@@ -570,11 +571,15 @@ auto ReadableScreen::checkAtEnd() -> bool { return renderer_.atEndOfFile(); }
 
 void ReadableScreen::render(DisplaySystem &display) {
 
+    if (currentScreen_ == popupMenuScreen_ && popupMenuScreen_ && firstLoad_) {
+        popupMenuScreen_->setFirstLoad();
+    }
     // Restore the book before composing the popup, without advancing reading state.
     bool renderPopupBackground = currentScreen_ == popupMenuScreen_ && popupMenuScreen_ &&
                                  (renderPopup_ || popupMenuScreen_->needsBackgroundRefresh());
     if (renderPopupBackground) {
         popupMenuScreen_->releaseStereo();
+        display.clearFrameBuffer();
     }
 
     if (currentScreen_ && !renderPopupBackground) {

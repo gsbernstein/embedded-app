@@ -3,6 +3,7 @@
 #include <array>
 #include <cstdint>
 #include <driver/spi_master.h>
+#include <optional>
 #include <string>
 #if !CONFIG_DISABLE_POWER_MANAGEMENT
 #include <esp_pm.h>
@@ -80,12 +81,13 @@ public:
     void clear(const EinkET013TT1Waveform &waveform);
 
     // `buffer` is shown to both eyes unless `rightBuffer` is provided, in which case `buffer` goes
-    // to the left eye and `rightBuffer` to the right eye.
+    // to the left eye and `rightBuffer` to the right eye. rightBox defaults to the left box.
     void update(const EinkET013TT1Waveform &waveform, const uint8_t *buffer,
                 int32_t overrideVcom = INT32_MAX,
                 const EinkET013TT1Waveform &altWaveform = BC_WAVEFORM_NONE,
                 ScreenSide screen = ScreenSide::Both, EinkBox box = EinkBox::zero(),
-                const uint8_t *rightBuffer = nullptr);
+                const uint8_t *rightBuffer = nullptr,
+                std::optional<EinkBox> rightBox = std::nullopt);
 
     auto readTemperature(ScreenSide screen) -> int16_t;
 
@@ -127,7 +129,8 @@ protected:
         -> bool;
     void updateInternal(const EinkET013TT1Waveform &waveform, const uint8_t *leftBuffer,
                         const uint8_t *rightBuffer, int32_t overrideVcom,
-                        const EinkET013TT1Waveform &altWaveform, ScreenSide screen, EinkBox box);
+                        const EinkET013TT1Waveform &altWaveform, ScreenSide screen, EinkBox box,
+                        EinkBox rightBox);
 
     // Keep track of both the vcom in the MV value (that is on the
     // sticker on the back of the display).

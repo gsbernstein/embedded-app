@@ -42,7 +42,7 @@ public:
     void drawInRect(SolRect rect) override;
 
     void releaseStereo();
-    [[nodiscard]] auto needsBackgroundRefresh() const -> bool { return true; }
+    [[nodiscard]] auto needsBackgroundRefresh() -> bool;
     void addSystemTab(const std::function<void(const std::shared_ptr<Screen> &)> &showScreen,
                       const std::function<void()> &backToText);
 
