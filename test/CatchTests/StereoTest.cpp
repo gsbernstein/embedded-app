@@ -244,6 +244,32 @@ TEST_CASE("Root overlays draw in both eyes and restore clean parent screens", "[
     }
 }
 
+TEST_CASE("Saved depth errors remain above initial startup screens", "[stereo]") {
+    auto display = createDisplay();
+    PreferencesStore prefs;
+    REQUIRE(prefs.begin(""));
+    prefs.stereoDisparity.set(DisplaySystem::MAX_STEREO_DISPARITY + 1);
+    prefs.dontShowWelcome.set(true);
+    char directory[] = "/tmp/sol-startup-depth-XXXXXX";
+    REQUIRE(mkdtemp(directory) != nullptr);
+    defer { std::filesystem::remove_all(directory); };
+    PosixFileSystem fileSystem(directory);
+    LightingController lighting(prefs);
+    Battery battery(fileSystem, prefs, telemetry);
+    auto drm = std::make_shared<SolDrm>(prefs);
+    LocalStore store(fileSystem, prefs, battery, telemetry, drm);
+    RootUI root(*display, prefs, powerManager, telemetry, drm);
+    root.setup(store, fileSystem, lighting);
+    auto message = std::dynamic_pointer_cast<MsgPopup>(root.getCurrentScreen());
+    REQUIRE(message != nullptr);
+    std::vector<uint8_t> messagePixels(display->buffer().get(),
+                                       display->buffer().get() +
+                                           CONFIG_DISPLAY_WIDTH * CONFIG_DISPLAY_HEIGHT);
+    root.loop(RemoteCommand::ENTER);
+    REQUIRE(root.getCurrentScreen() != message);
+    CHECK_FALSE(std::equal(messagePixels.begin(), messagePixels.end(), display->buffer().get()));
+}
+
 TEST_CASE("Scoped selection bounds follow rotation and global depth", "[stereo]") {
     auto display = createDisplay();
     int rotation = GENERATE(0, 1, 2, 3);
@@ -670,7 +696,7 @@ TEST_CASE("In-book menu preserves the page and restores mono on exit", "[stereo]
     readable->fromJson((*doc)["readables"][0]);
     auto [path, fileSize] = LocalStore::readableFilePathForReading(fileSystem, readable);
     auto stream = fileSystem.newGzipRendererStream(path.c_str());
-    auto screen = std::make_unique<TestReadableScreen>(stream, *display, readable, prefs, telemetry,
+    auto screen = std::make_shared<TestReadableScreen>(stream, *display, readable, prefs, telemetry,
                                                        fileSystem, lightingController, localStore,
                                                        &fontFace0);
 
@@ -892,6 +918,38 @@ TEST_CASE("In-book menu preserves the page and restores mono on exit", "[stereo]
     popup->processCommand(RemoteCommand::DOWN);
     screen->render(*display);
     CHECK(display->stereoReleases == releases + 1);
+    {
+        display->setSkipWaveform(true);
+        RootUI root(*display, prefs, powerManager, telemetry, nullptr);
+        screen->setFirstLoad();
+        root.pushScreen(screen, true);
+        root.loop(RemoteCommand::NONE);
+        std::vector<uint8_t> leftBeforeMessage(display->buffer().get(),
+                                               display->buffer().get() + pixelCount);
+        std::vector<uint8_t> rightBeforeMessage(display->rightBuffer().get(),
+                                                display->rightBuffer().get() + pixelCount);
+        root.showTemporaryMessage(
+            "No history saved", []() {}, 0);
+        auto message = root.getCurrentScreen();
+        message->back();
+        CHECK(root.getCurrentScreen() == screen);
+        auto rect = display->indicatorRect;
+        int bookInkPixels = 0;
+        for (int y = 0; y < CONFIG_DISPLAY_HEIGHT; ++y) {
+            for (int x = 0; x < CONFIG_DISPLAY_WIDTH; ++x) {
+                if (x < rect.origin.x || x >= rect.right() || y < rect.origin.y ||
+                    y >= rect.bottom()) {
+                    auto index = y * CONFIG_DISPLAY_WIDTH + x;
+                    CHECK(display->buffer()[index] == leftBeforeMessage[index]);
+                    CHECK(display->rightBuffer()[index] == rightBeforeMessage[index]);
+                    bookInkPixels += leftBeforeMessage[index] == (darkMode ? 255 : 0);
+                }
+            }
+        }
+        CHECK(bookInkPixels > 0);
+        root.popScreen(false);
+        display->setSkipWaveform(false);
+    }
     auto otherScreen = std::make_shared<StereoTestScreen>(*display);
     screen->setCurrentScreen(otherScreen);
     REQUIRE_FALSE(display->stereoEnabled());

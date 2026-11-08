@@ -23,6 +23,7 @@ void StartAppMain(FONT_CHOICES font = FONT_CHOICES::PREFS_SOL_SMALL, int x = 42,
 void SetImagesFolder(std::string folder);
 
 void SendRemoteCommand(RemoteCommand command);
+void OpenKindleBookForTest(bool lastBook = false);
 
 auto WaitForDraw(DisplayEinkET013TT1 &display, bool continueAfterDraw = true,
                  long timeoutSeconds = 10) -> bool;

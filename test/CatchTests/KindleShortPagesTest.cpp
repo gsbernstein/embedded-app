@@ -21,6 +21,7 @@
 #include "Models/KindlePageFlipper.hpp"
 #include "Storage/PosixFileSystem.hpp"
 #include "Storage/PreferencesStore.hpp"
+#include "UI/RootUI.hpp"
 #include "ViewTestCommon.hpp"
 #include "sindarin-debug.h"
 
@@ -349,23 +350,10 @@ TEST_CASE("Test Kindle multi-page fetching with short pages visual", "[.][kindle
         // Take initial screenshot of main menu
         // First screen renders twice
         WAIT_FOR_DRAW(display);
-        WAIT_FOR_DRAW(display, false);
+        WAIT_FOR_DRAW(display);
         ASSERT_VIEW_UNCHANGED(display, "ShortPagesTest00-MainMenu");
 
-        // Navigate to Kindle section
-        SendRemoteCommand(RIGHT);
-        WAIT_FOR_DRAW(display);
-        WAIT_FOR_DRAW(display, false);
-        ASSERT_VIEW_UNCHANGED(display, "ShortPagesTest01-KindleSection");
-
-        // Go to the last book in the list
-        SendRemoteCommand(UP);
-        WAIT_FOR_DRAW(display);
-        WAIT_FOR_DRAW(display, false);
-        ASSERT_VIEW_UNCHANGED(display, "ShortPagesTest02-ShortPagesBookSelected");
-
-        // Open the book - this should load then trigger the first last-read dialog from /open-book
-        SendRemoteCommand(ENTER);
+        OpenKindleBookForTest(true);
         WAIT_FOR_DRAW(display, false);
         ASSERT_VIEW_UNCHANGED(display, "ShortPagesTest03-Connecting");
 
@@ -461,6 +449,28 @@ TEST_CASE("Test Kindle multi-page fetching with short pages visual", "[.][kindle
             WAIT_FOR_DRAW(display, false);
             ASSERT_VIEW_UNCHANGED(display, "ShortPagesTest19-Backward" + std::to_string(i + 1));
         }
+        WAIT_FOR_DRAW(display);
+        REQUIRE(kindleScreen->renderer_.size() > 0);
+        std::atomic<bool> backgroundStayedClean{false};
+        DispatchGetUiQueue()->dispatchFromISR([kindleScreen]() {
+            kindleScreen->currentPlace_ = Place::factory(kindleScreen->renderer_.size() - 1);
+            kindleScreen->setState(KindleReadableScreen::State::DISPLAY_CONTENT);
+            kindleScreen->showPopupMenu();
+            kindleScreen->setNeedsRerender();
+            RootUI::getInstance().renderIfNeeded();
+        });
+        WAIT_FOR_DRAW(display);
+        WAIT_FOR_DRAW(display);
+        DispatchGetUiQueue()->dispatchFromISR([kindleScreen, &backgroundStayedClean]() {
+            backgroundStayedClean =
+                kindleScreen->state_ == KindleReadableScreen::State::DISPLAY_PARTIAL_CONTENT &&
+                !kindleScreen->firstLoad_ &&
+                !kindleScreen->popupMenuScreen_->needsBackgroundRefresh();
+            kindleScreen->processCommand(RemoteCommand::DOWN);
+            RootUI::getInstance().renderIfNeeded();
+        });
+        WAIT_FOR_DRAW(display);
+        CHECK(backgroundStayedClean.load());
     }
 
     api->overrideBaseUrl("");

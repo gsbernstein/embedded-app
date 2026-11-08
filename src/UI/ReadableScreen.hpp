@@ -85,7 +85,6 @@ protected:
     FileSystem &fileSystem_;
     LightingController &lightingController_;
 
-    bool firstLoad_ = true;
     bool inBookmark_ = false;
 
     std::shared_ptr<Place> newPlace_ = nullptr;

@@ -25,6 +25,8 @@
 #include "Displays/FakeEinkET013TT1.hpp"
 #include "Misc/Dispatch.hpp"
 #include "Storage/PosixFileSystem.hpp"
+#include "UI/KindleReadableScreen.hpp"
+#include "UI/RootUI.hpp"
 #include "sindarin-debug.h"
 
 // TESTS_ACCEPT_CHANGES=1|true|yes|on (default: off)
@@ -56,6 +58,25 @@ extern "C" void app_main(void); // NOLINT(readability-identifier-naming)
 std::shared_ptr<std::thread> SchedulerThread;
 extern PosixFileSystem fileSystem;
 extern DisplayEinkET013TT1 myDisplay;
+extern LocalStore localStore;
+extern Telemetry telemetry;
+extern LightingController lightingController;
+
+void OpenKindleBookForTest(bool lastBook) {
+    REQUIRE_FALSE(localStore.kindle().empty());
+    auto book = std::make_shared<KindleBook>(lastBook ? localStore.kindle().back()
+                                                      : localStore.kindle().front());
+    DispatchGetUiQueue()->dispatchFromISR([book]() {
+        auto &root = RootUI::getInstance();
+        auto screen =
+            std::make_shared<KindleReadableScreen>(myDisplay, book, prefs, telemetry, fileSystem,
+                                                   lightingController, localStore, &fontFace0);
+        screen->setBackCallback([&root]() { root.popScreen(true, true); });
+        root.pushScreen(screen, true);
+        root.renderIfNeeded();
+        screen->begin();
+    });
+}
 
 std::string directory;
 std::string testRunPrefix = "Images/TestRun/";

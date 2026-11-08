@@ -127,6 +127,8 @@ popup canvas; tab, page, footer, and depth changes restore the book background.
 Raised-menu tab/page refreshes drive only the combined old and new popup footprints,
 not the whole book page. Required screen clears still take precedence.
 Temporary messages and power-status bitmaps render in both eyes.
+Dismissed messages restore the reader's book background. Saved-depth failures are shown
+above the completed startup screen stack rather than being hidden by it.
 
 Stereo does not add an animation timer or keep the panels powered between updates.
 The driver retains one extra 8 KiB previous-image buffer even when stereo is off; a stereo

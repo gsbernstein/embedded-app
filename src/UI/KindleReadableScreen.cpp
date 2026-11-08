@@ -374,13 +374,13 @@ void KindleReadableScreen::render(DisplaySystem &display) {
     if (currentScreen_) {
         if (currentScreen_ == popupMenuScreen_ && firstLoad_) {
             popupMenuScreen_->setFirstLoad();
-            firstLoad_ = false;
         }
         if (currentScreen_ == popupMenuScreen_ && popupMenuScreen_->needsBackgroundRefresh()) {
             popupMenuScreen_->releaseStereo();
             display.clearFrameBuffer();
             setFrame(defaultFrameRect());
             draw();
+            firstLoad_ = false;
         }
         log_d("Letting current screen (a popup menu) render KindleReadableScreen, state: %d",
               static_cast<int>(state_));

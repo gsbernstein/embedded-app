@@ -181,9 +181,7 @@ void RootUI::setup(LocalStore &localStore, FileSystem &fileSystem,
                    LightingController &lightingController) {
 
     int disparity = prefs_.stereoDisparity.get().value_or(0);
-    if (!display_.setStereoDisparity(disparity)) {
-        showTemporaryMessage("Could not apply the saved stereo depth.");
-    }
+    bool savedDepthApplied = display_.setStereoDisparity(disparity);
 
     auto lastMagReading = power_.getLastMagReading();
 
@@ -2013,6 +2011,13 @@ void RootUI::setup(LocalStore &localStore, FileSystem &fileSystem,
         newMainMenu->setTabWithName("Settings");
     }
 
+    if (!savedDepthApplied) {
+        showTemporaryMessage("Could not apply the saved stereo depth.", [this]() {
+            currentScreen()->setFirstLoad();
+            currentScreen()->setNeedsRerender();
+            renderIfNeeded();
+        });
+    }
     renderIfNeeded();
     SHOW_HEAP();
 }
