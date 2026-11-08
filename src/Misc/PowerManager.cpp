@@ -251,12 +251,20 @@ auto PowerManager::shouldStayAwakeOnComputer() -> bool {
 }
 
 void PowerManager::enterComputerDormant() {
-    if (computerDormant_) {
-        return;
+    if (!computerDormant_.exchange(true)) {
+        log_i("Inactive on a computer, staying awake with lights off. Close temples to sleep.");
     }
-    computerDormant_ = true;
-    log_i("Inactive on a computer, staying awake with lights off. Close temples to sleep.");
-    lightingController_.shutdown();
+    // No fade: fading to 0 can crash LEDC while idf.py monitor is attached (see
+    // LightingController::setCurrentDutyCycle), which is likely on a computer.
+    lightingController_.shutdown(0);
+}
+
+void PowerManager::userActivity() {
+    feedInactivityTimer();
+    if (computerDormant_.exchange(false)) {
+        log_i("Input while dormant on a computer, lights back on");
+        lightingController_.begin();
+    }
 }
 
 auto PowerManager::inactivityTimeoutMs() -> int {
@@ -292,6 +300,9 @@ auto PowerManager::begin() -> esp_err_t {
             [this]() {
             if (shouldStayAwakeOnComputer()) {
                 enterComputerDormant();
+                // The timer is one-shot, so re-arm it to keep re-checking eligibility (e.g. the
+                // host deconfigures USB but leaves VBUS on) and to re-force the lights off.
+                inactivityTimer_.feed(0);
                 return;
             }
             log_i("Inactive! Close and open temple to wake");

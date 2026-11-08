@@ -1533,19 +1533,14 @@ void RootUI::setup(LocalStore &localStore, FileSystem &fileSystem,
                         }));
                 }
 
-                if (prefs_.stayAwakeOnComputer.get().value_or(false)) {
-                    debugSettingsMenu->addMenuItem(
-                        std::make_shared<MenuItemSingleLine>("Sleep on computer", [this]() {
-                            prefs_.stayAwakeOnComputer.remove();
-                            showTemporaryMessage("Will sleep normally on a computer");
-                        }));
-                } else {
-                    debugSettingsMenu->addMenuItem(
-                        std::make_shared<MenuItemSingleLine>("Stay awake on computer", [this]() {
-                            prefs_.stayAwakeOnComputer.set(true);
-                            showTemporaryMessage("Will stay awake on a computer");
-                        }));
-                }
+                debugSettingsMenu->addMenuItem(std::make_shared<MenuItemCheckable>(
+                    "Stay awake on computer",
+                    [this]() {
+                    prefs_.stayAwakeOnComputer.set(
+                        !prefs_.stayAwakeOnComputer.get().value_or(false));
+                    currentScreen()->setNeedsRerender();
+                    },
+                    [this]() { return prefs_.stayAwakeOnComputer.get().value_or(false); }));
 
                 debugSettingsMenu->addMenuItem(std::make_shared<MenuItemSingleLine>(
                     "Clear Books (restart)", [this, &localStore]() {

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <functional>
+#include <mutex>
 #include <utility>
 
 #if CONFIG_USE_LTR329
@@ -30,7 +31,8 @@ public:
     // Enable updates and use the ambient light sensor to adjust the lighting
     void begin();
 
-    // Disable lights altogether
+    // Disable lights altogether. Always drives the lights to 0, even if already disabled, so it
+    // also undoes overrides applied while disabled.
     void shutdown(int fadeMs = 200);
 
     // Disable updates and keeps a specific lighting setting (for when the user adjusts the setting
@@ -67,6 +69,9 @@ protected:
     // adjustments
     MovingAverage<int, 5> movingAverage_;
     bool enabled_ = false;
+    // Serializes enable/disable with ambient light updates, which run on another task. Recursive
+    // because begin() can call setOverrideValuePercent().
+    std::recursive_mutex mutex_;
 
     bool paused_ = false;
 

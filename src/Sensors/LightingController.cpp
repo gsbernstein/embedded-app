@@ -36,6 +36,7 @@ auto LightingController::checkSensorAvailable() -> bool {
 }
 
 void LightingController::begin() {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
     if (enabled_) {
         return;
     }
@@ -50,20 +51,25 @@ void LightingController::begin() {
     setOverrideValuePercent(savedBrightness, false);
 #endif
     enabled_ = true;
+    // Ambient updates skip overridden values, so restore an override set before a shutdown.
+    if (overrideDutyCycle_ != -1) {
+        setCurrentDutyCycle(overrideDutyCycle_, 200);
+    }
 }
 
 void LightingController::shutdown(int fadeMs) {
-    if (!enabled_) {
-        return;
-    }
-    enabled_ = false;
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
+    if (enabled_) {
+        enabled_ = false;
 #if CONFIG_USE_LTR329
-    lightSensor_.disable();
+        lightSensor_.disable();
 #endif
+    }
     setCurrentDutyCycle(0, fadeMs);
 }
 
 void LightingController::setOverrideValuePercent(int percent, bool userInitiated) {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
     auto dutyCycle = percent / 7;
     if (dutyCycle == 0) {
         dutyCycle = 1;
@@ -156,6 +162,7 @@ auto LightingController::luxify(uint16_t channel0, uint16_t channel1) -> float {
 }
 
 void LightingController::checkAmbientLight(int fadeMs, int timeoutMs) {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
     if (paused_) {
         log_i("Ambient light check requested but lights are paused, ignoring");
         return;
