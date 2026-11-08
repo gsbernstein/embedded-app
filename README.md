@@ -22,22 +22,34 @@ cd esp-idf
 
 If you get errors about `cmake` you might need to install `cmake` first (`brew install cmake` on macOS / `sudo apt install cmake` on Ubuntu).
 
-Now from the root of this repo, you can run (replace `/YOUR/PATH/TO` with the path where you put `esp-idf`):
+Now from the root of this repo, you can run:
 
 ```sh
-. ~/esp/esp-idf/export.sh
 make build flash monitor
 ```
 
-This will build the latest firmware, flash it to the device, and open a serial monitor. You can also use `idf.py menuconfig` to configure the build if you need to change build options.
+This loads ESP-IDF, builds the latest firmware, flashes it to the device, and opens a serial monitor. IDF-dependent Make targets load the environment automatically using `IDF_PATH` if set, otherwise `~/esp/esp-idf`. Run `make build` to build only or `make clang-tidy` to lint and format. The VS Code tasks use these same commands. Simulator and test targets do not load ESP-IDF.
+
+ESP-IDF must already be installed and accessible; Make does not bypass sandbox restrictions.
+To use `idf.py` directly, load the same environment manually first:
+
+```sh
+. "${IDF_PATH:-$HOME/esp/esp-idf}/export.sh"
+```
 
 See also the official [esp-idf installation instructions](https://docs.espressif.com/projects/esp-idf/en/latest/esp32s3/get-started/index.html) for more details.
+
+### Erasing saved device state
+
+**Warning:** `make erase-nvs` erases the entire glasses NVS partition, including saved
+settings, credentials, and pairing data. It does not erase firmware or book files.
+This replaces the misleadingly named `unpair-remote` target; it is not a pairing-only reset.
 
 ## Claude and esp-idf
 
 You have two ways of working with Claude Code and IDF. One is to already have IDF set up when running `claude`. Just source your `export.sh` script before running `claude`.
 
-The other option is to only set `IDF_PATH` in your `.zshrc`/`.bashrc`. Then Claude can use the instructions in `CLAUDE.md` to be able to find/run the `export.sh` script itself.
+The other option is to export `IDF_PATH` in your `.zshrc`/`.bashrc`, then let Make load the environment for each IDF-dependent command.
 
 ```sh
 ln -s /YOUR/PATH/TO/esp-idf ~/esp/esp-idf
@@ -48,7 +60,7 @@ ln -s /YOUR/PATH/TO/esp-idf ~/esp/esp-idf
 By default we build a debug build for the glasses. But we support other build targets. To specific a different target, you can use the `TARGET` environment variable. For example, to build a release build, you can use:
 
 ```sh
-TARGET=glasses-release build flash monitor
+TARGET=glasses-release make build flash monitor
 ```
 
 ## `idf.py monitor` but without resetting

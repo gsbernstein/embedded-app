@@ -1,5 +1,10 @@
 all: build
 
+SHELL := /bin/bash
+IDF_PATH ?= $(HOME)/esp/esp-idf
+export IDF_PATH
+IDF_ENV = . "$$IDF_PATH/export.sh" &&
+
 # Use all but 1 core for building
 NUM_CORES := $(shell nproc 2>/dev/null || sysctl -n hw.ncpu)
 NUM_CORES := $(shell echo $$(( $(NUM_CORES) - 1 )))
@@ -155,9 +160,9 @@ epub-render: epub-render-build
 
 .PHONY: check_idf
 check_idf:
-	@if ! idf.py --version >/dev/null 2>&1; then \
-		echo "idf.py not found. Searching your history for a possible command:" ; \
-		cat ~/.zsh_history | awk -F';' '{print $$2}' | grep '^source .*idf.*export.sh' | tail -n 1 ; \
+	@if [[ ! -f "$$IDF_PATH/export.sh" ]]; then \
+		echo "ESP-IDF setup script not found: $$IDF_PATH/export.sh" >&2 ; \
+		echo "Set IDF_PATH to your ESP-IDF installation." >&2 ; \
 		exit 1 ; \
 	fi
 
@@ -165,56 +170,56 @@ check_idf:
 .PHONY: configure
 configure: check_idf
 	@if [[ ! -f build/compile_commands.json ]]; then \
-		idf.py $(IDF_PROFILE) set-target esp32s3 ; \
+		$(IDF_ENV) idf.py $(IDF_PROFILE) set-target esp32s3 ; \
 	fi
 
 .PHONY: menuconfig
 menuconfig: check_idf
-	idf.py $(IDF_PROFILE) menuconfig
+	$(IDF_ENV) idf.py $(IDF_PROFILE) menuconfig
 
 .PHONY: save-defconfig
 save-defconfig: check_idf
-	idf.py $(IDF_PROFILE) save-defconfig
+	$(IDF_ENV) idf.py $(IDF_PROFILE) save-defconfig
 
 .PHONY: size-components
 size-components: check_idf
-	idf.py $(IDF_PROFILE) size-components
+	$(IDF_ENV) idf.py $(IDF_PROFILE) size-components
 
 .PHONY: size-files
 size-files: check_idf
-	idf.py $(IDF_PROFILE) size-files
+	$(IDF_ENV) idf.py $(IDF_PROFILE) size-files
 
 .PHONY: size
 size: check_idf
-	idf.py $(IDF_PROFILE) size
+	$(IDF_ENV) idf.py $(IDF_PROFILE) size
 
 .PHONY: build
 build: check_idf
-	idf.py $(IDF_PROFILE) build
+	$(IDF_ENV) idf.py $(IDF_PROFILE) build
 
 .PHONY: flash
 flash: build
 ifneq ($(filter $(TARGET),$(P4_TARGETS)),)
-	idf.py $(IDF_PROFILE) flash
+	$(IDF_ENV) idf.py $(IDF_PROFILE) flash
 else
-	idf.py $(IDF_PROFILE) flash --port $$(python3 scripts/port_tool.py find_port programming)
+	$(IDF_ENV) idf.py $(IDF_PROFILE) flash --port $$(python3 scripts/port_tool.py find_port programming)
 endif
 
 .PHONY: monitor
 monitor: check_idf
 ifneq ($(filter $(TARGET),$(P4_TARGETS)),)
-	idf.py $(IDF_PROFILE) monitor
+	$(IDF_ENV) idf.py $(IDF_PROFILE) monitor
 else
-	idf.py $(IDF_PROFILE) monitor --no-reset --port $$(python3 scripts/port_tool.py find_port logging)
+	$(IDF_ENV) idf.py $(IDF_PROFILE) monitor --no-reset --port $$(python3 scripts/port_tool.py find_port logging)
 endif
 
 .PHONY: monitor-jtag
 monitor-jtag: check_idf
-	idf.py $(IDF_PROFILE) monitor --no-reset
+	$(IDF_ENV) idf.py $(IDF_PROFILE) monitor --no-reset
 
 .PHONY: monitor-devboard
 monitor-devboard: check_idf
-	idf.py $(IDF_PROFILE) monitor --no-reset --port $$(python3 scripts/port_tool.py find_port devboard)
+	$(IDF_ENV) idf.py $(IDF_PROFILE) monitor --no-reset --port $$(python3 scripts/port_tool.py find_port devboard)
 
 .PHONY: ios-framework
 ios-framework:
@@ -232,7 +237,7 @@ clean:
 
 .PHONY: clang-tidy
 clang-tidy: check_idf
-	@if ! clang-tidy --version >/dev/null 2>&1 || [[ $$(which clang-tidy) != *"esp-clang"* ]]; then \
+	@$(IDF_ENV) if ! clang-tidy --version >/dev/null 2>&1 || [[ $$(which clang-tidy) != *"esp-clang"* ]]; then \
 		echo "clang-tidy not found. Installing it now:" ; \
 		idf_tools.py install esp-clang ; \
 		pip install --upgrade pyclang ; \
@@ -240,15 +245,17 @@ clang-tidy: check_idf
 		echo ". $$IDF_PATH/export.sh" ; \
 		exit 1 ; \
 	fi
-	IDF_TOOLCHAIN=clang idf.py -B build-clang clang-check --run-clang-tidy-py scripts/run-clang-tidy.py --run-clang-tidy-options "-fix -header-filter=embedded-app/src/.*" --exclude-paths managed_components --exclude-paths components
-	find src -iname "*.hpp" -o -iname "*.h" -o -iname "*.cpp" -o -iname "*.c" | xargs clang-format -i
+	$(IDF_ENV) IDF_TOOLCHAIN=clang idf.py -B build-clang clang-check --run-clang-tidy-py scripts/run-clang-tidy.py --run-clang-tidy-options "-fix -header-filter=embedded-app/src/.*" --exclude-paths managed_components --exclude-paths components
+	$(IDF_ENV) { find src -iname "*.hpp" -o -iname "*.h" -o -iname "*.cpp" -o -iname "*.c" | xargs clang-format -i; }
 
 .PHONY: clang-format
 clang-format: check_idf
-	find src -iname "*.hpp" -o -iname "*.h" -o -iname "*.cpp" -o -iname "*.c" | xargs clang-format -i
+	$(IDF_ENV) { find src -iname "*.hpp" -o -iname "*.h" -o -iname "*.cpp" -o -iname "*.c" | xargs clang-format -i; }
 
 program-mode:
 	python3 scripts/port_tool.py find_port programming
 
-unpair-remote:
-	esptool.py erase_region 0x9000 0x5000
+.PHONY: erase-nvs
+erase-nvs: check_idf
+	@echo "WARNING: Erasing the entire glasses NVS partition, including settings, credentials, and pairing data." >&2
+	$(IDF_ENV) esptool.py erase_region 0x9000 0x5000
