@@ -426,7 +426,7 @@ TEST_CASE("In-book menu preserves the page and restores mono on exit", "[stereo]
     popup->processCommand(RemoteCommand::RIGHT);
     screen->render(*display);
     CHECK(popup->getCurrentTabTitle() == "Popup");
-    CHECK(popup->isMenuIDInTab("Popup", "Bookmark"));
+    CHECK_FALSE(popup->isMenuIDInTab("Popup", "Bookmark"));
     CHECK(popup->isMenuIDInTab("Popup", "History"));
 
     int refreshes = display->backgroundRefreshes;

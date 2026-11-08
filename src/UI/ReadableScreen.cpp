@@ -55,11 +55,6 @@ ReadableScreen::ReadableScreen(const std::shared_ptr<RendererStream> &stream,
         back();
     };
 
-    auto onBookmarkToggle = [this]() {
-        inBookmark_ = !inBookmark_;
-        writeOutBookmarkUpdate();
-    };
-
     auto onReport = [this, &display]() {
         setNeedsRerender();
         auto metrics = readable_->telemetryPlacemarkMetrics();
@@ -250,18 +245,8 @@ ReadableScreen::ReadableScreen(const std::shared_ptr<RendererStream> &stream,
         return menuItems;
     };
 
-    auto popupContextFactory = [this, onBookmarkToggle, onReport]() -> MenuItemSharedPtrVector {
+    auto popupContextFactory = [this, onReport]() -> MenuItemSharedPtrVector {
         auto menuItems = std::make_shared<MenuItemVector>();
-
-        auto menuItem =
-            std::make_shared<MenuItemSingleLine>("Bookmark", [this, onBookmarkToggle]() {
-                onBookmarkToggle();
-                display_.clearDisplay();
-                this->setCurrentScreen(nullptr);
-                setNeedsRerender();
-            });
-
-        menuItems->emplace_back(menuItem);
 
         if (renderer_.getCurrentPlace()->isFor(DocType::EPUB)) {
             auto epubFile =
@@ -354,7 +339,7 @@ ReadableScreen::ReadableScreen(const std::shared_ptr<RendererStream> &stream,
             }));
         }
 
-        menuItem = std::make_shared<MenuItemSingleLine>("Back to Text", [this]() {
+        auto menuItem = std::make_shared<MenuItemSingleLine>("Back to Text", [this]() {
             display_.clearDisplay();
             this->setCurrentScreen(nullptr);
             setNeedsRerender();
@@ -505,13 +490,12 @@ ReadableScreen::ReadableScreen(const std::shared_ptr<RendererStream> &stream,
         navigation->pop_back();
         auto insertAt = navigation->begin() + 2;
         for (const auto &item : *context) {
-            if (item->id() == "Bookmark" || item->id() == "History") {
+            if (item->id() == "History") {
                 insertAt = navigation->insert(insertAt, item) + 1;
             }
         }
         for (const auto &item : *context) {
-            if (item->id() != "Back to Text" && item->id() != "Bookmark" &&
-                item->id() != "History") {
+            if (item->id() != "Back to Text" && item->id() != "History") {
                 navigation->push_back(item);
             }
         }
@@ -704,8 +688,8 @@ void ReadableScreen::turnPage() {
         showPopupMenu();
 
         // See the layout in popupNavigationFactory to ensure this is still the right setting.
-        // Bookmark and History precede Delete/Archive; hiding Autopilot shifts it up a row.
-        popupMenuScreen_->setTabWithName("Popup", CONFIG_SHOW_STOCK_SOL_UI ? 5 : 4);
+        // History precedes Delete/Archive; hiding Autopilot shifts it up a row.
+        popupMenuScreen_->setTabWithName("Popup", CONFIG_SHOW_STOCK_SOL_UI ? 4 : 3);
         popupMenuScreen_->setNeedsLayout();
     } else {
         readable_->placePrev = readable_->place;

@@ -110,7 +110,8 @@ Choose −64 to +64 pixels in steps of four; positive values move forward, negat
 (the default). Popup and demo depth is added to this global offset. Shifted edge pixels are
 clipped and exposed edges use the current background color. Stereo Test is the first Debug item.
 
-The in-book Popup tab includes Bookmark and History. Style and System omit the page/time footer.
+The in-book Popup tab includes History; Bookmark is hidden for now.
+Style and System omit the page/time footer.
 System offers Menu Depth (0–4 pixels, default 1), Global Depth, and Fast Transitions.
 Alt Page Advance (off by default) makes Up advance the reading page instead of opening
 the popup, including Kindle reading. Down/Back still open the menu, and Up inside menus
