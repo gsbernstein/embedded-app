@@ -16,7 +16,7 @@ IncludeCategories:
   # All other headers
   - Regex: ".*"
     Priority: 2
-AllowShortIfStatementsOnASingleLine: true
+AllowShortIfStatementsOnASingleLine: WithoutElse
 AlwaysBreakTemplateDeclarations: true
 
 # Don't allow the indentation of a lambda to be affected by the length
