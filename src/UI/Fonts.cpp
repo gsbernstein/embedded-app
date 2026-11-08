@@ -25,7 +25,7 @@ FontData mainFont = FontData(SOLSANS_75_IBMF, SOLSANS_75_IBMF_LEN);
 // accordingly.
 
 Font fontFace0 = Font(mainFont, 0);
-Font fontFace1 = Font(mainFont, 1);
+Font fontFace1 = Font(mainFont, 1, true);
 Font fontFace2 = Font(mainFont, 2);
 
 #endif
