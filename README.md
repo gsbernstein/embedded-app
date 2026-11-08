@@ -39,6 +39,12 @@ To use `idf.py` directly, load the same environment manually first:
 
 See also the official [esp-idf installation instructions](https://docs.espressif.com/projects/esp-idf/en/latest/esp32s3/get-started/index.html) for more details.
 
+### Erasing saved device state
+
+**Warning:** `make erase-nvs` erases the entire glasses NVS partition, including saved
+settings, credentials, and pairing data. It does not erase firmware or book files.
+This replaces the misleadingly named `unpair-remote` target; it is not a pairing-only reset.
+
 ## Claude and esp-idf
 
 You have two ways of working with Claude Code and IDF. One is to already have IDF set up when running `claude`. Just source your `export.sh` script before running `claude`.

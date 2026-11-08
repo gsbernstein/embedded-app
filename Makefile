@@ -255,6 +255,7 @@ clang-format: check_idf
 program-mode:
 	python3 scripts/port_tool.py find_port programming
 
-.PHONY: unpair-remote
-unpair-remote: check_idf
+.PHONY: erase-nvs
+erase-nvs: check_idf
+	@echo "WARNING: Erasing the entire glasses NVS partition, including settings, credentials, and pairing data." >&2
 	$(IDF_ENV) esptool.py erase_region 0x9000 0x5000
