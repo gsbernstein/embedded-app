@@ -211,15 +211,15 @@ TEST_CASE("First few screens render correctly and handle remote commands") {
 
         ASSERT_VIEW_UNCHANGED(display, "Dawn");
 
-        // Render the popup menu, navigate to the dictionary
+        // Render the popup menu at the updated position from the TOC.
         SendRemoteCommand(UP);
         WAIT_FOR_DRAW(display);
         WAIT_FOR_DRAW(display);
-        selectPopupItem("Ask AI");
+        selectPopupItem("History");
         // Should show the updated seeked spot from the TOC
         ASSERT_VIEW_UNCHANGED(display, "PopupMenu4");
 
-        // Skip the Ask AI entry and just go back to main text for now
+        // Go back to main text.
         selectPopupItem("Back to Text");
         SendRemoteCommand(ENTER);
         WAIT_FOR_DRAW(display, false);
@@ -232,7 +232,7 @@ TEST_CASE("First few screens render correctly and handle remote commands") {
         selectPopupItem("Contents");
         ASSERT_VIEW_UNCHANGED(display, "PopupMenu5");
 
-        // Open the next chapter to ensure the dictionary shows something different
+        // Open the next chapter.
         SendRemoteCommand(ENTER);
         WAIT_FOR_DRAW(display);
         WAIT_FOR_DRAW(display, false);
@@ -244,42 +244,6 @@ TEST_CASE("First few screens render correctly and handle remote commands") {
         WAIT_FOR_DRAW(display, false);
 
         ASSERT_VIEW_UNCHANGED(display, "Dawn2");
-
-        // Render the popup menu and go to the summary
-        SendRemoteCommand(UP);
-        WAIT_FOR_DRAW(display);
-        WAIT_FOR_DRAW(display);
-        selectPopupItem("Summary");
-        ASSERT_VIEW_UNCHANGED(display, "PopupMenu6");
-
-        // Open the summary
-        SendRemoteCommand(ENTER);
-        WAIT_FOR_DRAW(display, false);
-        ASSERT_VIEW_UNCHANGED(display, "Summary1");
-        SendRemoteCommand(ENTER);
-        WAIT_FOR_DRAW(display, false);
-        ASSERT_VIEW_UNCHANGED(display, "Summary2");
-        SendRemoteCommand(ENTER);
-        WAIT_FOR_DRAW(display, false);
-        ASSERT_VIEW_UNCHANGED(display, "Summary3");
-        SendRemoteCommand(ENTER);
-        WAIT_FOR_DRAW(display, false);
-        ASSERT_VIEW_UNCHANGED(display, "Summary4");
-        SendRemoteCommand(ENTER);
-        WAIT_FOR_DRAW(display, false);
-        ASSERT_VIEW_UNCHANGED(display, "Summary5");
-        SendRemoteCommand(DOWN);
-        WAIT_FOR_DRAW(display, false);
-        ASSERT_VIEW_UNCHANGED(display, "Summary6");
-        SendRemoteCommand(ENTER);
-        WAIT_FOR_DRAW(display, false);
-        ASSERT_VIEW_UNCHANGED(display, "Summary7");
-        SendRemoteCommand(ENTER);
-        WAIT_FOR_DRAW(display, false);
-        ASSERT_VIEW_UNCHANGED(display, "Summary8");
-        SendRemoteCommand(UP);
-        WAIT_FOR_DRAW(display, false);
-        ASSERT_VIEW_UNCHANGED(display, "Dawn4");
 
         // Render the popup menu and go to placemark history
         SendRemoteCommand(UP);

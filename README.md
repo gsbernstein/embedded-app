@@ -112,6 +112,9 @@ clipped and exposed edges use the current background color. Stereo Test is the f
 
 The in-book Popup tab includes History; Bookmark is hidden for now.
 Style and System omit the page/time footer.
+The trimmed glasses menus are also used by the simulator and tests; there is no legacy-menu
+build switch. Kindle, Ask AI, summaries, Report Page, and article tutorial/sync prompts
+remain absent from these menus. Autopilot remains available in Reading Style.
 System offers Menu Depth (0–4 pixels, default 1), Global Depth, and Fast Transitions.
 Alt Page Advance (off by default) makes Up advance the reading page instead of opening
 the popup, including Kindle reading. Down/Back still open the menu, and Up inside menus

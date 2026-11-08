@@ -427,6 +427,10 @@ TEST_CASE("In-book menu preserves the page and restores mono on exit", "[stereo]
     screen->render(*display);
     CHECK(popup->getCurrentTabTitle() == "Popup");
     CHECK_FALSE(popup->isMenuIDInTab("Popup", "Bookmark"));
+    CHECK_FALSE(popup->isMenuIDInTab("Popup", "Autopilot"));
+    CHECK_FALSE(popup->isMenuIDInTab("Popup", "Ask AI"));
+    CHECK_FALSE(popup->isMenuIDInTab("Popup", "Summary"));
+    CHECK_FALSE(popup->isMenuIDInTab("Popup", "Report Page"));
     CHECK(popup->isMenuIDInTab("Popup", "History"));
 
     int refreshes = display->backgroundRefreshes;
