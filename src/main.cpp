@@ -149,7 +149,7 @@ void UIInnerLoop(RemoteCommand command) {
     // then the screen could be deleted after it's poppoed off the stack
     // during its backCallback cleanup.
     auto temp = rootUi.currentScreen();
-    powerManager.feedInactivityTimer();
+    powerManager.userActivity();
     rootUi.loop(command);
 }
 

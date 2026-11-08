@@ -245,6 +245,28 @@ void PowerManager::wakeupCheck(SolClock &clock) {
     }
 }
 
+auto PowerManager::shouldStayAwakeOnComputer() -> bool {
+    return prefs_.stayAwakeOnComputer.get().value_or(false) && USBSerial::hostConnected() &&
+           state_ != PowerState::ActiveOverTemp && state_ != PowerState::ActiveBatteryDepleted;
+}
+
+void PowerManager::enterComputerDormant() {
+    if (!computerDormant_.exchange(true)) {
+        log_i("Inactive on a computer, staying awake with lights off. Close temples to sleep.");
+    }
+    // No fade: fading to 0 can crash LEDC while idf.py monitor is attached (see
+    // LightingController::setCurrentDutyCycle), which is likely on a computer.
+    lightingController_.shutdown(0);
+}
+
+void PowerManager::userActivity() {
+    feedInactivityTimer();
+    if (computerDormant_.exchange(false)) {
+        log_i("Input while dormant on a computer, lights back on");
+        lightingController_.begin();
+    }
+}
+
 auto PowerManager::inactivityTimeoutMs() -> int {
     if (state_ == PowerState::ActiveUSBCharging) {
         return 5 * 60 * 1000;
@@ -276,6 +298,13 @@ auto PowerManager::begin() -> esp_err_t {
     if (!prefs_.emcMode.get().value_or(false)) {
         inactivityTimer_.start(
             [this]() {
+            if (shouldStayAwakeOnComputer()) {
+                enterComputerDormant();
+                // The timer is one-shot, so re-arm it to keep re-checking eligibility (e.g. the
+                // host deconfigures USB but leaves VBUS on) and to re-force the lights off.
+                inactivityTimer_.feed(0);
+                return;
+            }
             log_i("Inactive! Close and open temple to wake");
             deepSleep(SleepReason::Inactivity);
             },
@@ -353,7 +382,7 @@ auto PowerManager::begin() -> esp_err_t {
                 // USB is connected so disable light sleep
                 PmLock("pm_usb", &usbPowerLightSleepLock_);
             } else { // !USBConnected()
-                if (state_ == PowerState::ActiveUSBCharging) {
+                if (state_ == PowerState::ActiveUSBCharging || computerDormant_) {
                     log_i("USB disconnected, rebooting to Active");
                     reboot();
                 } else {

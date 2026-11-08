@@ -33,11 +33,12 @@ public:
         xTimerChangePeriod(timer_, pdMS_TO_TICKS(timeoutMs), portMAX_DELAY);
     }
 
-    void feed() {
+    // Pass a wait of 0 when calling from the timer's own callback, which runs on the timer task.
+    void feed(TickType_t wait = portMAX_DELAY) {
         if (timer_ == nullptr) {
             return;
         }
-        xTimerReset(timer_, portMAX_DELAY);
+        xTimerReset(timer_, wait);
     }
 
     void pause() {

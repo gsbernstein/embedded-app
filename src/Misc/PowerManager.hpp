@@ -1,5 +1,6 @@
 #pragma once
 
+#include <atomic>
 #include <esp_sleep.h>
 #include <esp_system.h>
 #include <rom/rtc.h>
@@ -246,6 +247,9 @@ public:
     void __attribute__((noreturn)) powerOff();
 
     void feedInactivityTimer() { inactivityTimer_.feed(); }
+    // User input: feeds the inactivity timer and relights the glasses if they're dormant on a
+    // computer (see PreferencesStore::stayAwakeOnComputer).
+    void userActivity();
     void disableInactivityTimer() { inactivityTimer_.pause(); }
     void enableInactivityTimer() { inactivityTimer_.resume(); }
 
@@ -315,6 +319,13 @@ protected:
     void deepSleepInternal(SleepReason reason);
 
     void scheduleSync(SyncReason reason, time_t time);
+
+    // See PreferencesStore::stayAwakeOnComputer. Overheating and depleted states still sleep.
+    auto shouldStayAwakeOnComputer() -> bool;
+    // Lights off but radios and USB up. Closing the temples sleeps; unplugging reboots; user input
+    // relights. Safe to call repeatedly: it re-forces the lights off each time.
+    void enterComputerDormant();
+    std::atomic<bool> computerDormant_{false};
 
     // Fully power down the device (assuming USB is disconnected and left temple closed)
     // Note: This should be used sparingly as it's unintuitive to the user if you get into

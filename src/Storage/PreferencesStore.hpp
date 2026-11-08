@@ -553,6 +553,7 @@ public:
           seenAutoDarkModeOverview(boolFlags_, 22),
           seenBatteryWhenLowOverview(boolFlags_, 23),
           alwaysShowBattery(boolFlags_, 24),
+          stayAwakeOnComputer(boolFlags_, 25),
           bookQuestionsVersion(*this, "book-q-ver"),
 
           privateKey(*this, "private-key"),
@@ -913,6 +914,10 @@ public:
     BooleanFlag seenAutoDarkModeOverview;
     BooleanFlag seenBatteryWhenLowOverview;
     BooleanFlag alwaysShowBattery;
+    // Debug: while a computer has USB enumerated, inactivity turns lights off instead of deep
+    // sleeping, so the glasses stay reachable over USB serial/BLE/WiFi. Closing temples still
+    // sleeps.
+    BooleanFlag stayAwakeOnComputer;
     PrefsItem<uint32_t> bookQuestionsVersion;
     PrefsItem<SpiramVector<uint8_t>> privateKey;
     PrefsItem<std::string> userEmail;

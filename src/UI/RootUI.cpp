@@ -1533,6 +1533,15 @@ void RootUI::setup(LocalStore &localStore, FileSystem &fileSystem,
                         }));
                 }
 
+                debugSettingsMenu->addMenuItem(std::make_shared<MenuItemCheckable>(
+                    "Stay awake on computer",
+                    [this]() {
+                    prefs_.stayAwakeOnComputer.set(
+                        !prefs_.stayAwakeOnComputer.get().value_or(false));
+                    currentScreen()->setNeedsRerender();
+                    },
+                    [this]() { return prefs_.stayAwakeOnComputer.get().value_or(false); }));
+
                 debugSettingsMenu->addMenuItem(std::make_shared<MenuItemSingleLine>(
                     "Clear Books (restart)", [this, &localStore]() {
                         localStore.deleteReadables();
