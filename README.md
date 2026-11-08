@@ -138,6 +138,7 @@ in each memory pool. Drawing-buffer totals exclude the driver's static previous-
 
 In the default simulator, press `v` to cycle between the left eye, right eye,
 red/cyan anaglyph, and cross-eyed side-by-side views.
+The cross-eyed view widens the window while preserving the scale of each eye image.
 Run `make test-build && ./test/CatchTests/build/tests '[stereo]'` for per-eye screenshot
 and lifecycle regression tests.
 

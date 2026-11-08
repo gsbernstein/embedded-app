@@ -354,6 +354,11 @@ auto mainLoop() -> bool {
                 log_i("Simulator showing %s", SimEyeViewName(simEyeView));
                 SDL_SetWindowSize(window, SimWindowWidth() * SIM_SCALE,
                                   (myDisplay.gfxClass()->height() + SIM_LED_DIM) * SIM_SCALE);
+                if (SDL_RenderSetLogicalSize(renderer, SimWindowWidth(),
+                                             myDisplay.gfxClass()->height() + SIM_LED_DIM) != 0) {
+                    log_e("Could not resize simulator rendering: %s", SDL_GetError());
+                    return false;
+                }
                 SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0xFF);
                 SDL_RenderClear(renderer);
                 ledChange = true;
@@ -417,7 +422,11 @@ auto main(int argc, char *argv[]) -> int {
 
     deviceScreen = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET,
                                      myDisplay.gfxClass()->width(), myDisplay.gfxClass()->height());
-    SDL_RenderSetScale(renderer, SIM_SCALE, SIM_SCALE);
+    if (SDL_RenderSetLogicalSize(renderer, myDisplay.gfxClass()->width(),
+                                 myDisplay.gfxClass()->height() + SIM_LED_DIM) != 0) {
+        fprintf(stderr, "Could not set simulator rendering size: %s\n", SDL_GetError());
+        return 1;
+    }
 
 #if defined(EMSCRIPTEN)
     emscripten_set_main_loop(emscriptemLoop, 0, 0);
