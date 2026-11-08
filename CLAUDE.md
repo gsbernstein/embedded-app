@@ -47,3 +47,7 @@
 - **Error handling**: Use assertions (`assert()`) for programming errors; return structured error types for recoverable operations
 - **Data persistence**: UI screens use LocalStore and PreferencesStore for data access; avoid direct file system operations in UI
 - **Telemetry**: Use centralized Telemetry class with structured fields; log meaningful events at appropriate levels (log_d/log_i/log_w/log_e)
+
+## Pull Requests
+- Open pull requests in `gsbernstein/embedded-app`, not upstream `sindarin-inc/embedded-app`, unless explicitly requested otherwise.
+- Target the fork's `main` branch by default.
