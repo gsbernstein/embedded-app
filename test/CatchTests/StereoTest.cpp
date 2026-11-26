@@ -105,7 +105,7 @@ TEST_CASE("Scoped no-op updates retain history for a subsequent erase", "[stereo
           (skipWaveform ? 255 : 3 * FakeEinkET013TT1ParticleMovement));
 }
 
-TEST_CASE("Scoped full refresh leaves outside pixels physically undriven", "[stereo]") {
+TEST_CASE("Full refresh restores the whole screen even with a popup rectangle", "[stereo]") {
     auto display = createDisplay();
     display->setSkipWaveform(false);
     display->updateDisplay(DisplaySystem::UpdateType::FULL);
@@ -119,8 +119,8 @@ TEST_CASE("Scoped full refresh leaves outside pixels physically undriven", "[ste
     display->updateDisplay(DisplaySystem::UpdateType::FULL, false, 0,
                            DisplaySystem::UpdateType::UNSPECIFIED, ScreenSide::Both,
                            {{90, 90}, {30, 30}});
-    CHECK(display->buffer()[index] == before);
-    CHECK(display->rightBuffer()[index] == before);
+    CHECK(display->buffer()[index] == 0);
+    CHECK(display->rightBuffer()[index] == 0);
     CHECK(display->buffer()[100 * CONFIG_DISPLAY_WIDTH + 100] == 0);
     display->clearDisplay();
     display->updateDisplay(DisplaySystem::UpdateType::FULL, false, 0,
@@ -729,23 +729,21 @@ TEST_CASE("In-book menu preserves the page and restores mono on exit", "[stereo]
         CHECK_FALSE(popup->needsBackgroundRefresh());
     }
     popup->processCommand(RemoteCommand::RIGHT);
-    std::vector<uint8_t> leftBeforeTab(display->buffer().get(),
-                                       display->buffer().get() + pixelCount);
-    std::vector<uint8_t> rightBeforeTab(display->rightBuffer().get(),
-                                        display->rightBuffer().get() + pixelCount);
     screen->render(*display);
     CHECK(display->backgroundRefreshes == 2);
     auto refreshRect = display->popupRefreshRect;
-    REQUIRE(refreshRect.size.width > 0);
-    REQUIRE(refreshRect.size.width < CONFIG_DISPLAY_WIDTH);
-    REQUIRE(refreshRect.size.height < CONFIG_DISPLAY_HEIGHT);
+    CHECK(refreshRect == SolRect::zero());
+    auto indicatorRect = display->indicatorRect;
     for (int y = 0; y < CONFIG_DISPLAY_HEIGHT; ++y) {
         for (int x = 0; x < CONFIG_DISPLAY_WIDTH; ++x) {
-            if (x < refreshRect.origin.x || x >= refreshRect.right() || y < refreshRect.origin.y ||
-                y >= refreshRect.bottom()) {
+            if (x < indicatorRect.origin.x || x >= indicatorRect.right() ||
+                y < indicatorRect.origin.y || y >= indicatorRect.bottom()) {
                 auto index = y * CONFIG_DISPLAY_WIDTH + x;
-                CHECK(display->buffer()[index] == leftBeforeTab[index]);
-                CHECK(display->rightBuffer()[index] == rightBeforeTab[index]);
+                auto mask = 0x80 >> (index % 8);
+                CHECK(display->buffer()[index] ==
+                      ((display->leftBackground[index / 8] & mask) ? 255 : 0));
+                CHECK(display->rightBuffer()[index] ==
+                      ((display->rightBackground[index / 8] & mask) ? 255 : 0));
             }
         }
     }

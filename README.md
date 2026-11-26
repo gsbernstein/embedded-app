@@ -124,8 +124,9 @@ Setting Menu Depth to zero restores the faded-background presentation.
 Scoped popup updates follow screen rotation and preserve both pixels and display history outside
 their exact per-eye bounds, including with global depth enabled. Selection-only redraws reuse the
 popup canvas; tab, page, footer, and depth changes restore the book background.
-Raised-menu tab/page refreshes drive only the combined old and new popup footprints,
-not the whole book page. Required screen clears still take precedence.
+Raised-menu tab/page refreshes use a whole-screen full waveform: scoped full waveforms
+gray the surrounding book and leave border artifacts on the physical panels.
+Selection-only updates remain scoped and reuse the popup canvas.
 Temporary messages and power-status bitmaps render in both eyes.
 Dismissed messages restore the reader's book background. Saved-depth failures are shown
 above the completed startup screen stack rather than being hidden by it.

@@ -275,18 +275,10 @@ void NewReadablePopupMenuScreen::render(DisplaySystem &display) {
 
     if (refreshBackground) {
         firstLoad_ = false;
-        auto refreshRect = updateRect;
-        if (previousPopupRect_.size.width > 0 && previousPopupRect_.size.height > 0) {
-            int left = std::min(refreshRect.origin.x, previousPopupRect_.origin.x);
-            int top = std::min(refreshRect.origin.y, previousPopupRect_.origin.y);
-            int right = std::max(refreshRect.right(), previousPopupRect_.right());
-            int bottom = std::max(refreshRect.bottom(), previousPopupRect_.bottom());
-            refreshRect = {{left, top}, {right - left, bottom - top}};
-        }
+        // A scoped full waveform grays the surrounding book on the physical panels.
         display.updateDisplay(menuDepth_ != 0 ? DisplaySystem::UpdateType::FULL
                                               : DisplaySystem::UpdateType::PARTIAL,
-                              menuDepth_ == 0, 0, DisplaySystem::UpdateType::UNSPECIFIED,
-                              ScreenSide::Both, menuDepth_ != 0 ? refreshRect : SolRect::zero());
+                              menuDepth_ == 0);
         // Redraw but this time without the text (since updateDisplay will clear the screen)
         if (menuDepth_ == 0) {
             display.drawForEachEye([this](ScreenSide eye) { drawForEye(eye); });
@@ -294,7 +286,6 @@ void NewReadablePopupMenuScreen::render(DisplaySystem &display) {
     }
 
     display.drawForEachEye([this](ScreenSide eye) { drawForEye(eye, true); });
-    previousPopupRect_ = updateRect;
     if (refreshBackground && menuDepth_ == 0) {
         updateRect = SolRect::zero();
     }
