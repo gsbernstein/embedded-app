@@ -5,7 +5,6 @@ project(simulator-common)
 set(REPO_ROOT_DIR "${PROJECT_SOURCE_DIR}/../../..")
 
 option(ENABLE_WIFI "Enable WiFi" ON)
-option(SHOW_STOCK_SOL_UI "Show the full stock Sol UI (Kindle, Ask AI, Summary, etc.)" OFF)
 
 set(DISPLAY_WIDTH "256" CACHE STRING "Width of the simulator display")
 set(DISPLAY_HEIGHT "256" CACHE STRING "Height of the simulator display")
@@ -215,12 +214,6 @@ target_compile_definitions(${PROJECT_NAME} PUBLIC
     CONFIG_DISPLAY_HEIGHT=${DISPLAY_HEIGHT}
     CONFIG_INCLUDE_DEFAULT_CONTENT=1
 )
-
-if(SHOW_STOCK_SOL_UI)
-    target_compile_definitions(${PROJECT_NAME} PUBLIC CONFIG_SHOW_STOCK_SOL_UI=1)
-else()
-    target_compile_definitions(${PROJECT_NAME} PUBLIC CONFIG_SHOW_STOCK_SOL_UI=0)
-endif()
 
 target_compile_options(${PROJECT_NAME}
     PRIVATE

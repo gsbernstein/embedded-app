@@ -23,6 +23,7 @@ void StartAppMain(FONT_CHOICES font = FONT_CHOICES::PREFS_SOL_SMALL, int x = 42,
 void SetImagesFolder(std::string folder);
 
 void SendRemoteCommand(RemoteCommand command);
+void OpenKindleBookForTest(bool lastBook = false);
 
 auto WaitForDraw(DisplayEinkET013TT1 &display, bool continueAfterDraw = true,
                  long timeoutSeconds = 10) -> bool;
@@ -39,12 +40,22 @@ struct ViewTestResult {
     std::string diffImagePath;
 };
 
-auto CheckViewUnchanged(DisplayEinkET013TT1 &display, std::string key) -> ViewTestResult;
+// Compares what is shown to the given eye (the left eye shows the same image as the right unless
+// stereo is enabled).
+auto CheckViewUnchanged(DisplayEinkET013TT1 &display, std::string key,
+                        ScreenSide eye = ScreenSide::Left) -> ViewTestResult;
 
-auto CheckViewUnchanged(std::shared_ptr<DisplayEinkET013TT1> display, std::string key)
-    -> ViewTestResult;
+auto CheckViewUnchanged(std::shared_ptr<DisplayEinkET013TT1> display, std::string key,
+                        ScreenSide eye = ScreenSide::Left) -> ViewTestResult;
 
 #define ASSERT_VIEW_UNCHANGED(display, key) CHECK(CheckViewUnchanged(display, key).passed)
+
+// Checks each eye separately against "<key>-left" and "<key>-right"
+#define ASSERT_STEREO_VIEW_UNCHANGED(display, key)                                                 \
+    do {                                                                                           \
+        CHECK(CheckViewUnchanged(display, std::string(key) + "-left", ScreenSide::Left).passed);   \
+        CHECK(CheckViewUnchanged(display, std::string(key) + "-right", ScreenSide::Right).passed); \
+    } while (0)
 
 auto GetRootDisplay() -> DisplayEinkET013TT1 &;
 

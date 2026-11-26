@@ -8,7 +8,6 @@
 #include "Sensors/LightingController.hpp"
 #include "Storage/LocalStore.hpp"
 #include "Storage/PreferencesStore.hpp"
-#include "UI/BookQuestionsScreen.hpp"
 #include "UI/Components/ArrowView.hpp"
 #include "UI/ContrastAdjustScreen.hpp"
 #include "UI/FirstHookTestScreen.hpp"
@@ -21,7 +20,6 @@
 #include "UI/NewReadablePopupMenuScreen.hpp"
 #include "UI/OffsetAdjustScreen.hpp"
 #include "UI/ReadablePlacemarkHistoryScreen.hpp"
-#include "UI/ReadableSummaryScreen.hpp"
 #include "UI/ResizeBoxScreen.hpp"
 #include "UI/Screen.hpp"
 #include "Version.hpp"
@@ -87,14 +85,12 @@ protected:
     FileSystem &fileSystem_;
     LightingController &lightingController_;
 
-    bool firstLoad_ = true;
     bool inBookmark_ = false;
 
     std::shared_ptr<Place> newPlace_ = nullptr;
     bool atEnd_ = false;
     bool shownIcons_ = false;
     bool renderPopup_ = false;
-    bool renderedPartialSummary_ = false;
     bool autoPilotForceFull_ = false;
 
     DisplaySystem &display_;
@@ -102,14 +98,13 @@ protected:
     LocalStore &localStore_;
 
     std::shared_ptr<NewReadablePopupMenuScreen> popupMenuScreen_;
-    std::shared_ptr<ReadableSummaryScreen> readableSummaryScreen_{nullptr};
     std::shared_ptr<ReadablePlacemarkHistoryScreen> readablePlacemarkHistoryScreen_{nullptr};
-    std::shared_ptr<BookQuestionsScreen> bookQuestionsScreen_{nullptr};
 
     std::vector<std::shared_ptr<Screen>> hookScreens_;
 
     // Must reset this to 0 on each page turn.
     unsigned int speedLinesToSkip_ = 0;
+    unsigned int popupBackgroundSkippedLines_ = 0;
     unsigned long nextInterval_ = 0;
     // How many ms we should take to read the page
     int pageSpeed_ = 10000;

@@ -507,6 +507,9 @@ public:
           invertStartHour(*this, "invert-start"),
           invertEndHour(*this, "invert-end"),
           vcom(*this, "vcom"),
+          stereoDisparity(*this, "stereo-depth"),
+          menuDisparity(*this, "menu-depth"),
+          altPageAdvance(*this, "alt-advance"),
           font(*this, "font"),
           lineSpacing(*this, "line-space"),
           bootCount(*this, "boot-count"),
@@ -861,6 +864,9 @@ public:
     PrefsItem<int> invertStartHour;
     PrefsItem<int> invertEndHour;
     PrefsItem<int> vcom;
+    PrefsItem<int> stereoDisparity;
+    PrefsItem<int> menuDisparity;
+    PrefsItem<int> altPageAdvance;
     PrefsItem<int> font;
     PrefsItem<int> lineSpacing;
     PrefsItem<uint32_t> bootCount;

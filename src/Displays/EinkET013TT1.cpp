@@ -8,6 +8,7 @@
 #include <esp_err.h>
 #include <soc/gpio_struct.h>
 
+#include "EinkUpdate.hpp"
 #include "sindarin-debug.h"
 
 // esp_clk methods are deprecated in IDF 5+
@@ -221,9 +222,7 @@ void EinkET013TT1::init() {
     if (timerDelayNs_ == 0) {
         setFramerate(FRAMERATE_DEFAULT);
     }
-    for (unsigned char &i : previousBuffer_) {
-        i = 0xFF;
-    }
+    memset(previousBuffers_, 0xFF, sizeof(previousBuffers_));
 
 #if !CONFIG_DISABLE_POWER_MANAGEMENT
     ESP_ERROR_CHECK(esp_pm_lock_create(ESP_PM_CPU_FREQ_MAX, 0, "eink", &freqLock_));
@@ -264,7 +263,8 @@ void EinkET013TT1::setBorder(BorderSetting border) {
 }
 
 void EinkET013TT1::clear(const EinkET013TT1Waveform &waveform) {
-    update(waveform, previousBuffer_);
+    update(waveform, previousBuffers_[0], INT32_MAX, BC_WAVEFORM_NONE, ScreenSide::Both,
+           EinkBox::zero(), previousBuffers_[1]);
 }
 
 auto EinkET013TT1::checkScreenStatus(ScreenSide screen, const PumpStatus &pumpStatus,
@@ -293,9 +293,26 @@ auto EinkET013TT1::checkScreenStatus(ScreenSide screen, const PumpStatus &pumpSt
     }
 }
 
-void EinkET013TT1::updateInternal(const EinkET013TT1Waveform &waveform, const uint8_t *buffer,
-                                  int32_t overrideVcom, const EinkET013TT1Waveform &altWaveform,
-                                  ScreenSide screen, EinkBox box) {
+namespace {
+
+constexpr size_t HALF_LINE_BYTES = CONFIG_DISPLAY_WIDTH / 2 / 8;
+
+inline void setScanLineGate(uint8_t *scanLine, int16_t gate) {
+    // Pick the correct gate based on the index
+    uint8_t gs = gate & 0x0F;
+    uint8_t gb = gate >> 4;
+    *reinterpret_cast<uint32_t *>(&(scanLine[4])) = GateBlockL(gb);
+    *reinterpret_cast<uint16_t *>(&(scanLine[8])) = GateSelectL(gs);
+    *reinterpret_cast<uint16_t *>(&(scanLine[42])) = GateSelectH(gs);
+    *reinterpret_cast<uint32_t *>(&(scanLine[44])) = GateBlockH(gb);
+}
+
+} // namespace
+
+void EinkET013TT1::updateInternal(const EinkET013TT1Waveform &waveform, const uint8_t *leftBuffer,
+                                  const uint8_t *rightBuffer, int32_t overrideVcom,
+                                  const EinkET013TT1Waveform &altWaveform, ScreenSide screen,
+                                  EinkBox box, EinkBox rightBox) {
     if (overrideVcom != INT32_MAX && overrideVcom != vcomInMV_) {
         uint8_t newVcomRegisterValue = VcomMVToRegisterValue(overrideVcom);
         log_d("Overriding VCOM from %" PRIi32 " (0x%02X) to %" PRIi32 " (0x%02X)", vcomInMV_,
@@ -373,28 +390,6 @@ void EinkET013TT1::updateInternal(const EinkET013TT1Waveform &waveform, const ui
 
         // For each horizontal half-line
         for (int16_t gate = 0; gate < EinkET013TT1_GATE_COUNT; gate++) {
-            // Set up convenience variables to index into various parts of the scanline
-            // TODO: Are there clever union types or other struct packing things we could do
-            // here?
-            uint8_t *scanLine = txBuffers_[txBufferIndex_];
-            txBufferIndex_ = (txBufferIndex_ + 1) % txBuffers_.size();
-            auto *gateBlockLow = reinterpret_cast<uint32_t *>(&(scanLine[4]));
-            auto *gateSelectLow = reinterpret_cast<uint16_t *>(&(scanLine[8]));
-            uint8_t *sourceData = &(scanLine[10]);
-            auto *gateSelectHigh = reinterpret_cast<uint16_t *>(&(scanLine[42]));
-            auto *gateBlockHigh = reinterpret_cast<uint32_t *>(&(scanLine[44]));
-
-            // Pick the correct gate based on the index
-            uint8_t gs = gate & 0x0F;
-            uint8_t gb = gate >> 4;
-            uint8_t x;
-            // 0 on the gates is lower left, but we want to do everything based on upper left
-            uint8_t y = CONFIG_DISPLAY_WIDTH - gate % CONFIG_DISPLAY_WIDTH;
-            *gateBlockLow = GateBlockL(gb);
-            *gateSelectLow = GateSelectL(gs);
-            *gateSelectHigh = GateSelectH(gs);
-            *gateBlockHigh = GateBlockH(gb);
-
             // Gate indices represent half-lines in this order (with connector down):
             // bottom left -> top left -> bottom right -> top right
             // Generate an index into our frame buffer that corresponds to this gate.
@@ -406,25 +401,44 @@ void EinkET013TT1::updateInternal(const EinkET013TT1Waveform &waveform, const ui
                 bufferIndex += CONFIG_DISPLAY_WIDTH / 2 / 8;
             }
 
-            auto newBuffer = &(buffer[bufferIndex]);
-            auto oldBuffer = &(previousBuffer_[bufferIndex]);
+            // 0 on the gates is lower left, but we want to do everything based on upper left
+            uint8_t y = CONFIG_DISPLAY_WIDTH - 1 - gate % CONFIG_DISPLAY_WIDTH;
+            uint8_t xStart = (gate / CONFIG_DISPLAY_WIDTH) * CONFIG_DISPLAY_WIDTH / 2;
 
-            // This for loop takes 4-16us at 240MHz
-            for (uint16_t pixel = 0; pixel < CONFIG_DISPLAY_WIDTH / 2; pixel += 8) {
-                x = pixel + (gate / CONFIG_DISPLAY_WIDTH) * CONFIG_DISPLAY_WIDTH / 2;
-                auto *lutToUse = box.contains(x, y) ? &altLut : &lut;
+            const uint8_t *leftNew = &(leftBuffer[bufferIndex]);
+            const uint8_t *leftOld = &(previousBuffers_[0][bufferIndex]);
+            const uint8_t *rightNew = &(rightBuffer[bufferIndex]);
+            const uint8_t *rightOld = &(previousBuffers_[1][bufferIndex]);
 
-                uint8_t index = pixel / 8;
-                uint8_t oldPixels1 = (oldBuffer[index] >> 4) & 0xF;
-                uint8_t newPixels1 = (newBuffer[index] >> 4) & 0xF;
-                uint8_t oldPixels2 = oldBuffer[index] & 0xF;
-                uint8_t newPixels2 = newBuffer[index] & 0xF;
+            // When both eyes have the same old and new pixels on this half-line, one scanline
+            // can be sent to both screens at once. Otherwise each eye gets its own scanline.
+            bool driveLeft = (screen & ScreenSide::Left) != 0;
+            bool driveRight = (screen & ScreenSide::Right) != 0;
+            bool shared =
+                driveLeft && driveRight && box.leftX == rightBox.leftX &&
+                box.rightX == rightBox.rightX && box.topY == rightBox.topY &&
+                box.bottomY == rightBox.bottomY &&
+                (leftNew == rightNew || memcmp(leftNew, rightNew, HALF_LINE_BYTES) == 0) &&
+                memcmp(leftOld, rightOld, HALF_LINE_BYTES) == 0;
 
-                sourceData[pixel / 4] = (*lutToUse)[oldPixels1 << 4 | newPixels1];
-                sourceData[(pixel + 4) / 4] = (*lutToUse)[oldPixels2 << 4 | newPixels2];
+            uint8_t *leftScanLine = txBuffers_[0];
+            uint8_t *rightScanLine = txBuffers_[1];
+            if (driveLeft || shared) {
+                setScanLineGate(leftScanLine, gate);
+                eink::fillSourceData(&leftScanLine[10], leftNew, leftOld, lut, altLut, box, xStart,
+                                     y);
+            }
+            if (driveRight && !shared) {
+                setScanLineGate(rightScanLine, gate);
+                eink::fillSourceData(&rightScanLine[10], rightNew, rightOld, lut, altLut, rightBox,
+                                     xStart, y);
+                if (driveLeft &&
+                    memcmp(&leftScanLine[10], &rightScanLine[10], CONFIG_DISPLAY_WIDTH / 8) == 0) {
+                    shared = true;
+                }
             }
 
-            // Send the scan line!
+            // Send the scan line(s)!
             // ESP32 apparently has a pretty big overhead for DMA so it's not worth doing for < 64
             // bytes. Using the polling method allows us to at least do some processing while the
             // SPI transaction is being sent. I'm getting the following times:
@@ -434,7 +448,20 @@ void EinkET013TT1::updateInternal(const EinkET013TT1Waveform &waveform, const ui
             // Theoretically this should be more like (53 bytes / (20MHz / 8) = 21.2us). There are
             // people on the internet suggesting that to really get performance we need to abandon
             // esp-idf's spi_master driver
-            writeRegister(WRITE_GATE_SOURCE_DATA, scanLine, SCANLINE_SIZE, screen);
+            if (shared) {
+                writeRegister(WRITE_GATE_SOURCE_DATA, leftScanLine, SCANLINE_SIZE, screen);
+            } else {
+                // Sending a scanline per eye roughly doubles the SPI time for this gate, which
+                // may overrun the frame timer at the default framerate.
+                if (driveLeft) {
+                    writeRegister(WRITE_GATE_SOURCE_DATA, leftScanLine, SCANLINE_SIZE,
+                                  ScreenSide::Left);
+                }
+                if (driveRight) {
+                    writeRegister(WRITE_GATE_SOURCE_DATA, rightScanLine, SCANLINE_SIZE,
+                                  ScreenSide::Right);
+                }
+            }
 
             // Wait for frame timer and busy signal
             waitForTimer();
@@ -473,35 +500,47 @@ void EinkET013TT1::updateInternal(const EinkET013TT1Waveform &waveform, const ui
 #endif
 
     float timeNs = PROFILE_CALCULATE_NS(sendFrames);
-    int totalScanlines = (EinkET013TT1_GATE_COUNT + 1) * waveform.frameCount;
+    int totalScanlines = (EinkET013TT1_GATE_COUNT + 1) * maxFrames;
     log_d("Sent %d frames in %.2fms (%.2fms/frame, %.2fus/gate, %d/%d overruns, %d/%d busyWaits)",
-          waveform.frameCount, timeNs / 1000000, timeNs / waveform.frameCount / 1000000,
-          timeNs / waveform.frameCount / (EinkET013TT1_GATE_COUNT + 1) / 1000, timerOverruns_,
-          totalScanlines, busyWaits_, totalScanlines);
+          maxFrames, timeNs / 1000000, timeNs / maxFrames / 1000000,
+          timeNs / maxFrames / (EinkET013TT1_GATE_COUNT + 1) / 1000, timerOverruns_, totalScanlines,
+          busyWaits_, totalScanlines);
     if (timerOverruns_ > 0) {
         log_w("%d timer overruns happened! %.2fus maxFrame", timerOverruns_,
               CYCLES_TO_US(maxFrameCycles_));
     }
 
-    // Move new buffer to be previous buffer
-    memcpy(previousBuffer_, buffer, sizeof(previousBuffer_));
+    // Move new buffers to be previous buffers
+    if ((screen & ScreenSide::Left) != 0) {
+        eink::updateBufferHistory(previousBuffers_[0], leftBuffer, waveform, altWaveform, box);
+    }
+    if ((screen & ScreenSide::Right) != 0) {
+        eink::updateBufferHistory(previousBuffers_[1], rightBuffer, waveform, altWaveform,
+                                  rightBox);
+    }
     previousBorder_ = border_;
 }
 
 void EinkET013TT1::update(const EinkET013TT1Waveform &waveform, const uint8_t *buffer,
                           int32_t overrideVcom, const EinkET013TT1Waveform &altWaveform,
-                          ScreenSide screen, EinkBox box) {
+                          ScreenSide screen, EinkBox box, const uint8_t *rightBuffer,
+                          std::optional<EinkBox> rightBox) {
+    if (rightBuffer == nullptr) {
+        rightBuffer = buffer;
+    }
     // Create a notification group to wait for the update to finish
     auto group = xEventGroupCreate();
 
-    einkQueue_->dispatch([this, waveform, buffer, overrideVcom, group, altWaveform, screen, box]() {
+    einkQueue_->dispatch([this, waveform, buffer, rightBuffer, overrideVcom, group, altWaveform,
+                          screen, box, rightBox]() {
         if (!poweredOn_) {
             // This shouldn't happen, we should have been powering on the screen early in the render
             // pipeline before update is called
             log_w("Screen not powered on at update time. Powering on.");
             powerOnInternal();
         }
-        updateInternal(waveform, buffer, overrideVcom, altWaveform, screen, box);
+        updateInternal(waveform, buffer, rightBuffer, overrideVcom, altWaveform, screen, box,
+                       rightBox.value_or(box));
 
         // Release the lock
         xEventGroupSetBits(group, 1);

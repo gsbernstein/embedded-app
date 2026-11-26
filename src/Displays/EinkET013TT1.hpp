@@ -3,6 +3,7 @@
 #include <array>
 #include <cstdint>
 #include <driver/spi_master.h>
+#include <optional>
 #include <string>
 #if !CONFIG_DISABLE_POWER_MANAGEMENT
 #include <esp_pm.h>
@@ -79,10 +80,14 @@ public:
 
     void clear(const EinkET013TT1Waveform &waveform);
 
+    // `buffer` is shown to both eyes unless `rightBuffer` is provided, in which case `buffer` goes
+    // to the left eye and `rightBuffer` to the right eye. rightBox defaults to the left box.
     void update(const EinkET013TT1Waveform &waveform, const uint8_t *buffer,
                 int32_t overrideVcom = INT32_MAX,
                 const EinkET013TT1Waveform &altWaveform = BC_WAVEFORM_NONE,
-                ScreenSide screen = ScreenSide::Both, EinkBox box = EinkBox::zero());
+                ScreenSide screen = ScreenSide::Both, EinkBox box = EinkBox::zero(),
+                const uint8_t *rightBuffer = nullptr,
+                std::optional<EinkBox> rightBox = std::nullopt);
 
     auto readTemperature(ScreenSide screen) -> int16_t;
 
@@ -92,7 +97,8 @@ public:
     // power on sequence in parallel to drawing the UI.
     void beginPowerOn();
 
-    [[nodiscard]] auto getBuffer() const -> const uint8_t * { return previousBuffer_; }
+    // The last image sent to the left eye
+    [[nodiscard]] auto getBuffer() const -> const uint8_t * { return previousBuffers_[0]; }
 
     // Permanently shut down the display for this execution.
     void shutdown();
@@ -121,9 +127,10 @@ protected:
     inline void waitForNotBusy();
     auto checkScreenStatus(ScreenSide screen, const PumpStatus &pumpStatus, uint16_t temperature)
         -> bool;
-    void updateInternal(const EinkET013TT1Waveform &waveform, const uint8_t *buffer,
-                        int32_t overrideVcom, const EinkET013TT1Waveform &altWaveform,
-                        ScreenSide screen, EinkBox box);
+    void updateInternal(const EinkET013TT1Waveform &waveform, const uint8_t *leftBuffer,
+                        const uint8_t *rightBuffer, int32_t overrideVcom,
+                        const EinkET013TT1Waveform &altWaveform, ScreenSide screen, EinkBox box,
+                        EinkBox rightBox);
 
     // Keep track of both the vcom in the MV value (that is on the
     // sticker on the back of the display).
@@ -140,7 +147,9 @@ protected:
     BorderSetting previousBorder_ = BORDER_SETTING_NONE;
     BorderSetting border_ = BORDER_SETTING_NONE;
 
-    uint8_t previousBuffer_[CONFIG_DISPLAY_WIDTH * CONFIG_DISPLAY_HEIGHT / 8]{};
+    static constexpr size_t BUFFER_SIZE = CONFIG_DISPLAY_WIDTH * CONFIG_DISPLAY_HEIGHT / 8;
+    // Last image sent to each eye: [0] is left, [1] is right
+    uint8_t previousBuffers_[2][BUFFER_SIZE]{};
 
     uint32_t updateStartTime_ = 0;
     float timerDelayNs_ = 0;
@@ -157,10 +166,9 @@ protected:
     esp_pm_lock_handle_t freqLock_{};
 #endif
 
-    // Buffers for sending scanline data.
+    // Buffers for sending scanline data: [0] is for the left eye (or both), [1] for the right
     static constexpr size_t SCANLINE_SIZE = 48;
     std::array<uint8_t[SCANLINE_SIZE], 2> txBuffers_{};
-    int txBufferIndex_ = 0;
     std::array<spi_transaction_t, 2> spiTransactions_{};
     int spiTransactionIndex_ = 0;
 };

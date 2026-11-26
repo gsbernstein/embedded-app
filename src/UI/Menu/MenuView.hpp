@@ -48,20 +48,9 @@ public:
         }
     }
 
-    void drawFastElements() {
-        indicatorView_.fillColor = display_.fg;
-        indicatorView_.strokeColor = display_.fg;
-        if (indicatorType_ != IndicatorType::None) {
-            indicatorView_.draw();
-        }
+    void drawFastElements();
 
-        size_t startIndex = currentPage_ * itemsPerPage;
-        size_t endIndex = std::min(startIndex + itemsPerPage, menuItemViews_.size());
-
-        for (size_t i = startIndex; i < endIndex; ++i) {
-            menuItemViews_[i]->drawFastOnlyElements();
-        }
-    }
+    void setSelectedItemShift(int16_t shift) { selectedItemShift_ = shift; }
 
     uint16_t padding = 5;
     uint8_t itemsPerPage = 8;
@@ -75,6 +64,7 @@ private:
     size_t selectedIndex_ = 0;
     size_t currentPage_ = 0;
     IndicatorType indicatorType_ = IndicatorType::Dot;
+    int16_t selectedItemShift_ = 0;
 
     std::vector<std::shared_ptr<MenuItemView>> menuItemViews_;
     MenuPagingIndicatorView pagingIndicatorView_;

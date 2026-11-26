@@ -1,5 +1,7 @@
 #pragma once
 
+#include <optional>
+
 #include "DisplaySystem.hpp"
 #if SIMULATOR
 #include "Displays/FakeEinkET013TT1.hpp"
@@ -10,6 +12,13 @@
 
 static_assert(CONFIG_DISPLAY_WIDTH % 8 == 0, "CONFIG_DISPLAY_WIDTH must be a multiple of 8");
 static_assert(CONFIG_DISPLAY_HEIGHT % 8 == 0, "CONFIG_DISPLAY_HEIGHT must be a multiple of 8");
+
+// GFXcanvas1 has virtual methods but a non-virtual destructor, so it can only be owned by value
+// safely through a final subclass.
+class EyeCanvas final : public GFXcanvas1 {
+public:
+    using GFXcanvas1::GFXcanvas1;
+};
 
 class DisplayEinkET013TT1 : public DisplaySystem {
 public:
@@ -41,7 +50,17 @@ public:
 
     void clearDisplay() override { fullRefreshNext_ = true; };
 
-    void clearFrameBuffer() override { fillScreen(bg); };
+    void clearFrameBuffer() override;
+
+    [[nodiscard]] auto supportsStereo() const -> bool override { return true; }
+    auto setStereoEnabled(bool enabled) -> bool override;
+    [[nodiscard]] auto stereoEnabled() const -> bool override { return rightCanvas_.has_value(); }
+    void setDrawEye(ScreenSide eye) override;
+    auto setStereoDisparity(int disparity) -> bool override;
+    [[nodiscard]] auto stereoDisparity() const -> int override { return stereoDisparity_; }
+#if !SIMULATOR
+    [[nodiscard]] auto frameBufferMemoryReport() const -> std::string;
+#endif
     void invertDisplay(bool newInvert) override;
 
     // For those moments where you need to expose the driver directly
@@ -57,6 +76,9 @@ public:
     auto renderQueue() -> QueueHandle_t override { return driver_.renderQueue(); }
 
     auto buffer() -> std::unique_ptr<uint8_t[]> & override { return driver_.buffer(); }
+
+    // Particle positions for the right eye
+    auto rightBuffer() -> std::unique_ptr<uint8_t[]> & { return driver_.rightBuffer(); }
 
     auto getPixel(int x, int y) -> uint8_t {
         return driver_.getPixel(gfxCanvas_.getBuffer(), x, y);
@@ -79,12 +101,25 @@ protected:
     [[nodiscard]] auto nativeWidth() const -> uint16_t override { return CONFIG_DISPLAY_WIDTH; }
     [[nodiscard]] auto nativeHeight() const -> uint16_t override { return CONFIG_DISPLAY_HEIGHT; }
 
-    [[nodiscard]] auto getBuffer() -> uint8_t * override { return gfxCanvas_.getBuffer(); }
+    [[nodiscard]] auto getBuffer() -> uint8_t * override { return drawCanvas_->getBuffer(); }
 
     // Send a frame buffer out the serial port.
     void sendBufferToSerial(const uint8_t *buffer, bool screenshot = false) const;
 
+    // Send the frame buffer(s) to the driver, with a separate right eye image when in stereo
+    void driverUpdate(const EinkET013TT1Waveform &waveform, int32_t vcom,
+                      const EinkET013TT1Waveform &altWaveform, ScreenSide screen,
+                      EinkBox box = EinkBox::zero());
+
+    // Frame buffer for the left eye, or both eyes when not in stereo
     GFXcanvas1 gfxCanvas_;
+    // Frame buffer for the right eye, only allocated while in stereo
+    std::optional<EyeCanvas> rightCanvas_;
+    std::optional<EyeCanvas> shiftedLeftCanvas_;
+    std::optional<EyeCanvas> shiftedRightCanvas_;
+    int stereoDisparity_ = 0;
+    // The canvas currently being drawn to (gfxClass_ points at it as well)
+    GFXcanvas1 *drawCanvas_ = &gfxCanvas_;
     EinkET013TT1 driver_;
     bool fullRefreshNext_ = false;
     uint16_t au4Count_ = 0;

@@ -35,7 +35,7 @@ public:
 
     auto currentScreen() -> std::shared_ptr<Screen> { return screenStack_.top(); }
     void pushScreen(const std::shared_ptr<Screen> &screen, bool deferRender = false);
-    void popScreen(bool clearDisplay = true);
+    void popScreen(bool clearDisplay = true, bool refreshRestoredScreen = false);
 
     void popToMainMenu();
 

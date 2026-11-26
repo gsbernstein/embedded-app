@@ -882,13 +882,7 @@ TEST_CASE("Test Kindle navigation visual traversal", "[.][kindle]") {
         WAIT_FOR_DRAW(display);
         WAIT_FOR_DRAW(display);
 
-        // 0. Open Kindle book
-        SendRemoteCommand(RIGHT);
-        WAIT_FOR_DRAW(display);
-        WAIT_FOR_DRAW(display, false);
-        ASSERT_VIEW_UNCHANGED(display, "KindleNavTest00-BookMenu");
-
-        SendRemoteCommand(ENTER);
+        OpenKindleBookForTest();
 
         // Wait for content to load (skip capturing the CONNECTING state as it's too transient)
         WAIT_FOR_DRAW(display);
