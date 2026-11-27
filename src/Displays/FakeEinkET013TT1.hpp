@@ -21,6 +21,8 @@ public:
     EinkET013TT1() {
         particlePositions_ =
             std::make_unique<uint8_t[]>(CONFIG_DISPLAY_WIDTH * CONFIG_DISPLAY_HEIGHT);
+        rightParticlePositions_ =
+            std::make_unique<uint8_t[]>(CONFIG_DISPLAY_WIDTH * CONFIG_DISPLAY_HEIGHT);
     };
     ~EinkET013TT1() {
         if (renderQueue_ != nullptr) {
@@ -46,10 +48,13 @@ public:
 
     void clear(const EinkET013TT1Waveform &waveform);
 
+    // `buffer` is shown to both eyes unless `rightBuffer` is provided, in which case `buffer` goes
+    // to the left eye and `rightBuffer` to the right eye.
     void update(const EinkET013TT1Waveform &waveform, const uint8_t *buffer,
                 int32_t overrideVcom = INT32_MAX,
                 const EinkET013TT1Waveform &altWaveform = BC_WAVEFORM_NONE,
-                ScreenSide screen = ScreenSide::Both, EinkBox box = EinkBox::zero());
+                ScreenSide screen = ScreenSide::Both, EinkBox box = EinkBox::zero(),
+                const uint8_t *rightBuffer = nullptr);
 
     auto readTemperature(ScreenSide screen) -> int16_t;
 
@@ -60,7 +65,10 @@ public:
     // Simulator-specific methods below
     auto renderQueue() -> QueueHandle_t { return renderQueue_; }
 
+    // Particle positions of the left eye
     auto buffer() -> std::unique_ptr<uint8_t[]> & { return particlePositions_; }
+
+    auto rightBuffer() -> std::unique_ptr<uint8_t[]> & { return rightParticlePositions_; }
 
     auto getPixel(const uint8_t *buffer, int x, int y) -> uint8_t;
 
@@ -72,18 +80,21 @@ public:
 
     void setSkipSignalling(bool skip) { skipSignalling_ = skip; }
 
-    auto getBuffer() const -> const uint8_t * { return previousBuffer_; }
+    auto getBuffer() const -> const uint8_t * { return previousBuffers_[0]; }
 
     void shutdown() {}
 
 protected:
     // Simulated positions of the eink particles rendered as 8-bit grayscale
     std::unique_ptr<uint8_t[]> particlePositions_;
+    std::unique_ptr<uint8_t[]> rightParticlePositions_;
     QueueHandle_t renderQueue_ = nullptr;
     bool skipWaveform_ = false;
     bool skipSignalling_ = false;
 
-    uint8_t previousBuffer_[CONFIG_DISPLAY_WIDTH * CONFIG_DISPLAY_HEIGHT / 8];
+    static constexpr size_t BUFFER_SIZE = CONFIG_DISPLAY_WIDTH * CONFIG_DISPLAY_HEIGHT / 8;
+    // Last image sent to each eye: [0] is left, [1] is right
+    uint8_t previousBuffers_[2][BUFFER_SIZE]{};
     int framerate_ = FRAMERATE_DEFAULT;
 };
 

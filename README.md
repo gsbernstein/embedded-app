@@ -97,6 +97,24 @@ Issues that will be fixed automatically will be fixed by clang-tidy, warnings wi
 
 ## Test code locally with the Simulator
 
+### Stereoscopic display pipeline
+
+The `DisplayEinkET013TT1` driver and `DisplaySystem` interface support independent left- and
+right-eye rendering.
+
+Stereo does not add an animation timer or keep the panels powered between updates.
+The driver retains one extra 8 KiB previous-image buffer even when stereo is off; a stereo
+screen allocates an additional 8 KiB drawing buffer only while active. Differing half-lines
+require separate per-eye SPI transfers rather than one broadcast, so active stereo adds
+update-time CPU/SPI work. The waveform count is unchanged; exact battery impact requires
+measuring current on the glasses.
+
+In the default simulator, press `v` to cycle between the left eye, right eye,
+red/cyan anaglyph, and cross-eyed side-by-side views.
+The cross-eyed view widens the window while preserving the scale of each eye image.
+Run `make test-build && ./test/CatchTests/build/tests '[stereo]'` for dual-eye display
+pipeline regression tests.
+
 The simulator compiles in <20s from a clean build, and even less on an incremental build. This makes it fast for us to iterate on anything that doesn't need the physical hardware.
 
 You'll need SDL2, openssl for it to work: `brew install sdl2 openssl` (on Ubuntu `sudo apt install libsdl2-dev libssl-dev`). Then you can run `make sim` to run it (or `make sim8` for the high-res version). After building once, you can also debug with lldb at the command line: `lldb lib/Simulator/build/simulator`.
