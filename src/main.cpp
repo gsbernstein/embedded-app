@@ -4,6 +4,7 @@
 #include <esp_system.h>
 #include <esp_timer.h>
 #if !SIMULATOR
+#include <esp_heap_caps.h>
 #include <soc/rtc.h>
 #endif
 #if CONFIG_USE_TINYUSB_SERIAL
@@ -655,6 +656,24 @@ extern "C" void app_main(void) { // NOLINT(readability-identifier-naming)
             // This is just the connect handshake to indicate we're here and listening
             txLine(command);
             return true;
+#if !SIMULATOR
+        } else if (command == "MEMORY") {
+            DispatchGetUiQueue()->dispatch([txLine]() {
+                for (auto caps : {MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT, MALLOC_CAP_SPIRAM}) {
+                    multi_heap_info_t info;
+                    heap_caps_get_info(&info, caps);
+                    txLine(StringFormat("MEMORY %s TOTAL,%zu;FREE,%zu;MIN_FREE,%zu;LARGEST,%zu",
+                                        (caps & MALLOC_CAP_SPIRAM) != 0 ? "PSRAM" : "INTERNAL",
+                                        info.total_free_bytes + info.total_allocated_bytes,
+                                        info.total_free_bytes, info.minimum_free_bytes,
+                                        info.largest_free_block));
+                }
+#if CONFIG_DISPLAY_EINKET013TT1
+                txLine("MEMORY " + myDisplay.frameBufferMemoryReport());
+#endif
+            });
+            return true;
+#endif
         } else if (command == "MIRROR") {
             if (payload == "0") {
                 myDisplay.mirrorToSerial = false;

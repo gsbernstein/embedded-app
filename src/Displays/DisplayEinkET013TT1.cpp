@@ -4,6 +4,10 @@
 
 #include <algorithm>
 #include <freertos/task.h>
+#if !SIMULATOR
+#include <esp_heap_caps.h>
+#include <esp_memory_utils.h>
+#endif
 
 #include "Communications/USBSerial.hpp"
 #include "Displays/CustomWaveforms.hpp"
@@ -88,6 +92,23 @@ void DisplayEinkET013TT1::invertDisplay(bool newInvert) {
     }
     fillScreen(bg);
 }
+
+#if !SIMULATOR
+auto DisplayEinkET013TT1::frameBufferMemoryReport() const -> std::string {
+    size_t internal = 0;
+    size_t external = 0;
+    auto countBuffer = [&](const uint8_t *buffer) {
+        size_t size = heap_caps_get_allocated_size(const_cast<uint8_t *>(buffer));
+        if (esp_ptr_external_ram(buffer)) {
+            external += size;
+        } else {
+            internal += size;
+        }
+    };
+    countBuffer(gfxCanvas_.getBuffer());
+    return StringFormat("DRAW_BUFFERS_INTERNAL,%zu;DRAW_BUFFERS_PSRAM,%zu", internal, external);
+}
+#endif
 
 void DisplayEinkET013TT1::updateDisplay(DisplaySystem::UpdateType updateType, bool clearFrameBuffer,
                                         int vcomNudge, DisplaySystem::UpdateType altUpdateType,
