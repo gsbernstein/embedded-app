@@ -95,6 +95,12 @@ make clang-tidy
 
 Issues that will be fixed automatically will be fixed by clang-tidy, warnings will mark any suggestions that clang-tidy couldn't fix directly.
 
+### USB memory diagnostics
+
+The device USB command `MEMORY` reports internal RAM and PSRAM totals, free space,
+low-water marks, largest free blocks, and the actual allocated drawing-buffer sizes
+in each memory pool. Drawing-buffer totals exclude the driver's static previous-image buffer.
+
 ## Test code locally with the Simulator
 
 The simulator compiles in <20s from a clean build, and even less on an incremental build. This makes it fast for us to iterate on anything that doesn't need the physical hardware.
